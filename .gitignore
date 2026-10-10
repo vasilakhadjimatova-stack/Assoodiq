@@ -6,3 +6,5 @@ instance/
 .env
 .pytest_cache/
 screenshots/
+*.bundle
+assoodiq-kod.zip
