@@ -140,6 +140,79 @@
     });
   });
 
+  // ── Kirish sahifasi ──
+  var reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Sarlavhaning ikkinchi qatori jonli yoziladi: yozadi → kutadi → o'chiradi → keyingisi
+  document.querySelectorAll('[data-type]').forEach(function (el) {
+    var phrases;
+    try { phrases = JSON.parse(el.dataset.type); } catch (e) { return; }
+    if (reduceMotion || !phrases.length) return;
+    var i = 0, pos = phrases[0].length, deleting = true;
+    function tick() {
+      var text = phrases[i];
+      if (deleting) {
+        pos--;
+        el.textContent = text.slice(0, pos);
+        if (pos <= 0) { deleting = false; i = (i + 1) % phrases.length; return setTimeout(tick, 350); }
+        return setTimeout(tick, 28);
+      }
+      text = phrases[i];
+      pos++;
+      el.textContent = text.slice(0, pos);
+      if (pos >= text.length) { deleting = true; return setTimeout(tick, 2600); }
+      setTimeout(tick, 55 + Math.random() * 45);
+    }
+    setTimeout(tick, 3200);  // birinchi ibora avval to'liq o'qilsin
+  });
+
+  // 6 xonali kod: kataklar haqiqiy maydonni aks ettiradi
+  document.querySelectorAll('[data-otp]').forEach(function (box) {
+    var input = box.querySelector('input');
+    var cells = box.querySelectorAll('.otp-cells span');
+    var eye = box.parentElement.querySelector('[data-reveal]');
+    var form = box.closest('form');
+    var reveal = false;
+    function render() {
+      input.value = input.value.replace(/\D/g, '').slice(0, 6);
+      var v = input.value;
+      cells.forEach(function (c, k) {
+        c.classList.toggle('filled', k < v.length);
+        c.classList.toggle('is-dot', k < v.length && !reveal);
+        c.classList.toggle('active', k === Math.min(v.length, 5));
+        c.textContent = k < v.length && reveal ? v[k] : '';
+      });
+      box.classList.remove('has-error');
+    }
+    input.addEventListener('input', function () {
+      render();
+      if (input.value.length === 6) submit();
+    });
+    input.addEventListener('focus', function () { box.classList.add('focus'); });
+    input.addEventListener('blur', function () { box.classList.remove('focus'); });
+    if (eye) eye.addEventListener('click', function () {
+      reveal = !reveal;
+      eye.setAttribute('aria-pressed', reveal);
+      eye.querySelector('span').textContent = reveal ? 'Yashirish' : "Ko'rsatish";
+      render(); input.focus();
+    });
+    function submit() {
+      if (input.value.length !== 6) {
+        box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake', 'has-error');
+        input.focus();
+        return false;
+      }
+      var btn = form.querySelector('[data-submit]');
+      if (btn) { btn.classList.add('busy'); btn.disabled = true; }
+      form.submit();
+      return true;
+    }
+    form.addEventListener('submit', function (e) { e.preventDefault(); submit(); });
+    if (box.classList.contains('has-error')) { box.classList.add('shake'); }
+    render();
+    if (document.activeElement === input) box.classList.add('focus');
+  });
+
   // Xabarlar o'zi yo'qoladi
   setTimeout(function () {
     document.querySelectorAll('.flash').forEach(function (f) {

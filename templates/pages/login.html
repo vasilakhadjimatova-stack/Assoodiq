@@ -1,30 +1,77 @@
 {% extends "base.html" %}
 {% block title %}Kirish{% endblock %}
+{% block flashes %}{% endblock %}
 {% block body %}
-<div class="login">
-  <div class="login-art">
+{% set errors = get_flashed_messages(category_filter=["bad"]) %}
+<main class="login">
+  <section class="login-art" aria-label="Assoodiq haqida">
+    <svg class="login-star" viewBox="-50 -50 100 100" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width=".35">
+        <rect x="-34" y="-34" width="68" height="68"/>
+        <rect x="-34" y="-34" width="68" height="68" transform="rotate(45)"/>
+        <rect x="-24" y="-24" width="48" height="48"/>
+        <rect x="-24" y="-24" width="48" height="48" transform="rotate(45)"/>
+        <circle r="17"/><circle r="44"/><circle r="47"/>
+      </g>
+    </svg>
+
     <div class="login-lockup" aria-label="Assoodiq">
       {% include "partials/mark.svg" %}
       {% include "partials/wordmark.svg" %}
       <div class="brand-sub">Halol hisob</div>
     </div>
-    <div>
-      <h1>Tijoratning barakasi to'g'ri hisobdan boshlanadi</h1>
-      <p style="margin-top:14px">Kurslar, klublar, kassa, zakot va qarz daftari — barchasi bitta joyda, shariat talablariga mos holda.</p>
+
+    <div class="login-hero">
+      <div class="eyebrow"><span></span>Islomiy moliya tizimi</div>
+      <h1>
+        <span class="sr-only">Tijoratning barakasi to'g'ri hisobdan boshlanadi</span>
+        <span aria-hidden="true">Tijoratning barakasi</span>
+        <span class="type-line" aria-hidden="true"><span class="type" data-type='["to&#39;g&#39;ri hisobdan boshlanadi.", "halol daromaddan boshlanadi.", "o&#39;z vaqtida berilgan zakotdan.", "yozib qo&#39;yilgan qarzdan.", "shaffof hamkorlikdan."]'>to'g'ri hisobdan boshlanadi.</span><span class="caret"></span></span>
+      </h1>
+      <ul class="login-points">
+        <li>{{ ui.icon('coins', 'sm') }}<div><b>Zakot o'zi hisoblanadi</b><span>Nisob, havl va hijriy sana bilan</span></div></li>
+        <li>{{ ui.icon('cap', 'sm') }}<div><b>Kurs va klublar bir joyda</b><span>Har bir potokning sof foydasi aniq</span></div></li>
+        <li>{{ ui.icon('shield', 'sm') }}<div><b>Halollik nazorati</b><span>Shubhali tushum foydaga aralashmaydi</span></div></li>
+      </ul>
     </div>
-    <div class="ayah">
-      <p>«Ey imon keltirganlar! Qachon bir-biringizga ma'lum muddatgacha qarz bersangiz, uni yozib qo'yinglar.»</p>
-      <small>BAQARA SURASI, 282-OYAT</small>
-    </div>
-  </div>
-  <div class="login-form">
-    <form class="login-box" method="post">
+
+    <figure class="login-ayah">
+      <blockquote>
+        <p class="ar" lang="ar" dir="rtl">يَا أَيُّهَا الَّذِينَ آمَنُوا إِذَا تَدَايَنتُم بِدَيْنٍ إِلَىٰ أَجَلٍ مُّسَمًّى فَاكْتُبُوهُ</p>
+        <p class="tr">«Ey imon keltirganlar! Qachon bir-biringizga ma'lum muddatgacha qarz bersangiz, uni yozib qo'yinglar.»</p>
+      </blockquote>
+      <figcaption>Baqara surasi, 282-oyat</figcaption>
+    </figure>
+  </section>
+
+  <section class="login-form">
+    <form class="login-box" method="post" novalidate data-login>
+      <div class="login-mob-mark">{% include "partials/mark.svg" %}</div>
       <h2>Xush kelibsiz</h2>
-      <p class="muted" style="margin:6px 0 24px">Davom etish uchun 6 xonali kirish kodingizni kiriting.</p>
-      <input class="input code-in" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" autofocus placeholder="••••••" required>
-      <button class="btn solid block" style="height:48px;margin-top:14px;font-size:15px">Kirish</button>
-      <p class="faint" style="font-size:12.5px;margin-top:18px;text-align:center">Kodni unutgan bo'lsangiz, rahbarga murojaat qiling.</p>
+      <p class="login-sub">Tizimga kirish uchun sizga berilgan 6 xonali shaxsiy kodni kiriting.</p>
+
+      <div class="otp-head">
+        <label class="fl" for="code">Kirish kodi</label>
+        <button type="button" class="otp-eye" data-reveal aria-controls="code" aria-pressed="false">{{ ui.icon('eye-closed', 'sm') }}<span>Ko'rsatish</span></button>
+      </div>
+      <div class="otp {{ 'has-error' if errors }}" data-otp>
+        <input id="code" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code"
+               autofocus required aria-describedby="code-help{{ ' code-err' if errors }}" {{ 'aria-invalid=true' if errors }}>
+        <div class="otp-cells" aria-hidden="true">{% for i in range(6) %}<span></span>{% endfor %}</div>
+      </div>
+      {% if errors %}
+      <p class="login-err" id="code-err" role="alert">{{ ui.icon('alert', 'sm') }}{{ errors[-1] }}</p>
+      {% endif %}
+      <p class="login-help" id="code-help">Kod raqamlardan iborat. Oltinchi raqamni kiritganingizda tizimga avtomatik kirasiz.</p>
+
+      <button class="btn solid block login-btn" data-submit>
+        <span class="lbl-idle">Kirish {{ ui.icon('right', 'sm') }}</span>
+        <span class="lbl-busy"><i class="spin"></i>Tekshirilmoqda…</span>
+      </button>
+
+      <div class="login-note">{{ ui.icon('shield', 'sm') }}<span>Kod faqat sizga tegishli. Uni unutgan bo'lsangiz, rahbar Sozlamalar bo'limida yangisini beradi.</span></div>
     </form>
-  </div>
-</div>
+    <footer class="login-foot">© {{ today.year }} Assoodiq · Halol hisob</footer>
+  </section>
+</main>
 {% endblock %}
