@@ -35,7 +35,8 @@
         .replace(/[A-Z]/g, function (c) { return '_' + c.toLowerCase(); });
       dlg.querySelectorAll('[name="' + name + '"]').forEach(function (el) {
         if (el.type === 'radio') el.checked = el.value === data[k];
-        else el.value = el.hasAttribute('data-money') ? fmt(data[k]) : data[k];
+        // 3000000.0 → "3 000 000" (butun summada nol kasr ko'rsatilmaydi)
+        else el.value = el.hasAttribute('data-money') ? fmt(String(data[k]).replace(/\.0+$/, '')) : data[k];
         el.dispatchEvent(new Event('change', { bubbles: true }));
       });
       dlg.querySelectorAll('[data-text="' + name + '"]').forEach(function (el) { el.textContent = data[k]; });
