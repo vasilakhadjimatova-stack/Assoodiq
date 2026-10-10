@@ -10,10 +10,12 @@
   --txt: #15201B;
   --txt2: #4B5852;
   --txt3: #848E88;
-  --brand: #0F5A43;
-  --brand-strong: #0A4131;
-  --brand-bg: #E2EEE8;
-  --brand-txt: #0E5841;
+  --brand: #065A47;
+  --brand-strong: #04473A;
+  --brand-bg: #E0F1E9;
+  --brand-txt: #065A47;
+  --mint: #78D1AB;
+  --logo-txt: #065A47;
   --gold: #9C7426;
   --gold-soft: #C9A45C;
   --gold-bg: #F4EBD7;
@@ -25,12 +27,12 @@
   --chart-in: #108A60;
   --chart-out: #B8801C;
   --grid: #ECE6DA;
-  --hero1: #0F5A43;
-  --hero2: #0A4131;
-  --side-bg: #0C3B2D;
-  --side-bg2: #082C21;
-  --side-txt: #D9E7E0;
-  --side-txt2: #8FB3A3;
+  --hero1: #0A6650;
+  --hero2: #054536;
+  --side-bg: #064A3A;
+  --side-bg2: #033227;
+  --side-txt: #DCEDE5;
+  --side-txt2: #93BFAC;
   --shadow: 0 1px 2px rgba(20, 35, 28, .05), 0 4px 16px rgba(20, 35, 28, .05);
   --shadow-lg: 0 10px 40px rgba(10, 30, 22, .18);
   --r: 14px;
@@ -45,12 +47,12 @@
     --bg: #0A1310; --surface: #101C17; --surface2: #15241E; --surface3: #1B2D26;
     --line: #20332B; --line2: #2A4137;
     --txt: #E8EFEB; --txt2: #A7B6AF; --txt3: #6F8179;
-    --brand: #1E8A64; --brand-strong: #26A075; --brand-bg: #12352A; --brand-txt: #5DC69E;
+    --brand: #188B63; --brand-strong: #1F9E72; --brand-bg: #10362B; --brand-txt: #6CCBA2; --logo-txt: #E8F2EC;
     --gold: #D2A653; --gold-soft: #B8904A; --gold-bg: #2B2414;
     --ok: #4CC08A; --ok-bg: #12301F; --bad: #EE7B69; --bad-bg: #3A1A15;
     --warn: #E0B25A; --warn-bg: #2E2410; --info: #7DB0DD; --info-bg: #14263A;
     --chart-in: #22A06F; --chart-out: #BA8724; --grid: #1C2C25;
-    --side-bg: #081A14; --side-bg2: #05120D; --hero1: #135740; --hero2: #0B3527;
+    --side-bg: #06231B; --side-bg2: #031510; --hero1: #0B5C48; --hero2: #063A2D;
     --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 10px 40px rgba(0, 0, 0, .5);
     color-scheme: dark;
   }
@@ -59,12 +61,12 @@
   --bg: #0A1310; --surface: #101C17; --surface2: #15241E; --surface3: #1B2D26;
   --line: #20332B; --line2: #2A4137;
   --txt: #E8EFEB; --txt2: #A7B6AF; --txt3: #6F8179;
-  --brand: #1E8A64; --brand-strong: #26A075; --brand-bg: #12352A; --brand-txt: #5DC69E;
+  --brand: #188B63; --brand-strong: #1F9E72; --brand-bg: #10362B; --brand-txt: #6CCBA2; --logo-txt: #E8F2EC;
   --gold: #D2A653; --gold-soft: #B8904A; --gold-bg: #2B2414;
   --ok: #4CC08A; --ok-bg: #12301F; --bad: #EE7B69; --bad-bg: #3A1A15;
   --warn: #E0B25A; --warn-bg: #2E2410; --info: #7DB0DD; --info-bg: #14263A;
   --chart-in: #22A06F; --chart-out: #BA8724; --grid: #1C2C25;
-  --side-bg: #081A14; --side-bg2: #05120D; --hero1: #135740; --hero2: #0B3527;
+  --side-bg: #06231B; --side-bg2: #031510; --hero1: #0B5C48; --hero2: #063A2D;
   --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 10px 40px rgba(0, 0, 0, .5);
   color-scheme: dark;
 }
@@ -97,10 +99,16 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
     linear-gradient(180deg, var(--side-bg), var(--side-bg2));
   color: var(--side-txt); padding: 22px 14px 16px;
 }
-.brand { display: flex; align-items: center; gap: 12px; padding: 4px 10px 22px; }
-.brand-mark { width: 40px; height: 40px; flex: none; }
-.brand-name { font: 700 24px/1 var(--display); letter-spacing: .3px; color: #F3EBD8; }
-.brand-sub { font-size: 11px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--gold-soft); margin-top: 4px; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 2px 8px 22px; }
+.brand-tile { width: 42px; height: 42px; flex: none; border-radius: 11px; background: #fff; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(0, 0, 0, .18); }
+.brand-tile img { width: 28px; height: 28px; display: block; }
+.brand-txt { min-width: 0; }
+.wordmark { display: block; height: auto; }
+.wordmark .wm-t { fill: var(--logo-txt); }
+.wordmark .wm-a1 { fill: #78D1AB; }
+.wordmark .wm-a2 { fill: #3CB885; }
+.side .wordmark, .login-art .wordmark { --logo-txt: #F2F7F4; width: 138px; }
+.brand-sub { font-size: 10.5px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--mint, #78D1AB); margin-top: 6px; font-weight: 700; }
 .nav { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
 .nav-h { font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--side-txt2); padding: 14px 12px 6px; opacity: .8; }
 .nav a {
@@ -109,12 +117,12 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
 }
 .nav a .ic { color: var(--side-txt2); }
 .nav a:hover { background: rgba(255, 255, 255, .06); }
-.nav a.on { background: rgba(201, 164, 92, .16); color: #FFF6E2; box-shadow: inset 2px 0 0 var(--gold-soft); }
-.nav a.on .ic { color: var(--gold-soft); }
+.nav a.on { background: rgba(120, 209, 171, .14); color: #FFFFFF; box-shadow: inset 2px 0 0 #78D1AB; }
+.nav a.on .ic { color: #78D1AB; }
 .nav .badge { margin-left: auto; min-width: 20px; padding: 0 6px; height: 20px; border-radius: 10px; background: rgba(255,255,255,.1); color: var(--side-txt); font-size: 11.5px; display: grid; place-items: center; }
 .nav .badge.hot { background: #C2503D; color: #fff; }
 .side-foot { border-top: 1px solid rgba(255, 255, 255, .08); padding: 12px 6px 0; display: flex; align-items: center; gap: 10px; }
-.avatar { width: 34px; height: 34px; border-radius: 50%; background: rgba(201, 164, 92, .22); color: #F3E3BE; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: rgba(120, 209, 171, .2); color: #D8F3E6; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
 .side-foot .who { flex: 1; min-width: 0; }
 .side-foot .who b { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-foot .who span { font-size: 11.5px; color: var(--side-txt2); }
@@ -358,10 +366,15 @@ details.more .menu { position: absolute; right: 0; top: calc(100% + 4px); backgr
 
 /* Kirish sahifasi */
 .login { min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr; }
-.login-art { background: url("../img/pattern.svg") center/150px, linear-gradient(160deg, #0F4A38, #062219); color: #EFE6D2; padding: 56px; display: flex; flex-direction: column; justify-content: space-between; }
+.login-art { background: url("../img/pattern.svg") center/150px, linear-gradient(160deg, #075A47, #032A20); color: #EEF6F2; padding: 56px; display: flex; flex-direction: column; justify-content: space-between; }
 .login-art h1 { font: 700 52px/1.05 var(--display); max-width: 440px; }
-.login-art p { color: #A9C4B8; max-width: 420px; font-size: 15px; }
-.login-art .ayah { background: rgba(255, 255, 255, .06); border-color: rgba(201, 164, 92, .3); color: #EFE6D2; max-width: 460px; }
+.login-brand { padding: 0; }
+.login-brand .brand-tile { width: 56px; height: 56px; border-radius: 14px; }
+.login-brand .brand-tile img { width: 36px; height: 36px; }
+.login-brand .wordmark { width: 190px; }
+.login-mark { width: 44px; height: 44px; display: block; margin-bottom: 18px; }
+.login-art p { color: #A9C9BB; max-width: 420px; font-size: 15px; }
+.login-art .ayah { background: rgba(255, 255, 255, .06); border-color: rgba(120, 209, 171, .3); color: #EEF6F2; max-width: 460px; }
 .login-form { display: grid; place-items: center; padding: 32px; }
 .login-box { width: min(360px, 100%); }
 .login-box h2 { font: 700 30px var(--display); }
@@ -385,7 +398,9 @@ details.more .menu { position: absolute; right: 0; top: calc(100% + 4px); backgr
   body.nav-open::after { content: ""; position: fixed; inset: 0; background: rgba(6, 20, 15, .45); z-index: 55; }
   .main { padding: 16px 16px 96px; }
   .topbar { display: flex; align-items: center; gap: 10px; margin: -4px 0 14px; }
-  .topbar .brand-name { color: var(--txt); font-size: 22px; }
+  .topbar-logo { display: flex; align-items: center; gap: 10px; }
+  .topbar-logo img { width: 30px; height: 30px; }
+  .topbar-logo .wordmark { width: 118px; }
   .topbar .icon-btn { color: var(--txt2); border: 1px solid var(--line); background: var(--surface); }
   .bottom-nav { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--surface); border-top: 1px solid var(--line); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
   .bottom-nav a, .bottom-nav button { display: flex; flex-direction: column; align-items: center; gap: 3px; font: 700 10.5px var(--font); color: var(--txt3); padding: 4px 0; background: none; border: 0; }
@@ -430,3 +445,4 @@ details.more .menu { position: absolute; right: 0; top: calc(100% + 4px); backgr
   .kv b { font-size: 13.5px; }
   .month-nav span { min-width: 104px; }
 }
+.login-art .ayah small { color: #78D1AB; }

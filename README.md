@@ -107,8 +107,9 @@ tushirishdan oldin Assoodiq'ning shariat maslahatchisi bilan ko'rib chiqing:
 - **Sheriklik hisobi.** Mushoraka va mudoraba asosida ta'sischilar o'rtasida foydani taqsimlash
   (sheriklar soni va nisbatlari aniqlangach).
 - **To'lov tizimlari.** Payme/Click to'lovlarini avtomatik qabul qilish.
-- **Brend.** Logotip va ranglar hozircha vaqtinchalik (sakkiz qirrali yulduz, zumrad va oltin).
-  Assoodiq'ning rasmiy brendbuki bilan almashtiriladi.
+- **Brend.** Assoodiq logotipi vektor (SVG) ko'rinishda qayta chizilgan: `static/img/mark.svg`
+  (belgi), `wordmark.svg` / `wordmark-light.svg` (yozuv), `favicon.svg`. Rasmiy logo fayli
+  (SVG/AI) bo'lsa, shu fayllar bilan almashtirish kifoya. Generator: `scripts/make_logo.py`.
 
 ## Ko'rinishlar
 

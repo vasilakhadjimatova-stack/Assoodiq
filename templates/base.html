@@ -6,10 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}{% endblock %} · Assoodiq</title>
   <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon-32.png') }}" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+  <meta name="theme-color" content="#065A47">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=2">
   <script>
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
   </script>
@@ -19,9 +22,9 @@
 {% set ep = request.endpoint or '' %}
 <div class="shell">
   <aside class="side" id="side">
-    <a class="brand" href="/">
-      <img class="brand-mark" src="{{ url_for('static', filename='img/mark.svg') }}" alt="">
-      <div><div class="brand-name">{{ org_name }}</div><div class="brand-sub">Halol hisob</div></div>
+    <a class="brand" href="/" aria-label="Assoodiq">
+      <span class="brand-tile"><img src="{{ url_for('static', filename='img/mark.svg') }}" alt=""></span>
+      <div class="brand-txt">{% include "partials/wordmark.svg" %}<div class="brand-sub">Halol hisob</div></div>
     </a>
     <nav class="nav">
       {% if can('main') %}<a href="{{ url_for('main.dashboard') }}" class="{{ 'on' if ep == 'main.dashboard' }}">{{ ui.icon('dashboard') }} Bosh sahifa</a>{% endif %}
@@ -53,8 +56,7 @@
     <div class="wrap">
       <div class="topbar">
         <button class="icon-btn" type="button" data-nav-open>{{ ui.icon('menu') }}</button>
-        <img class="brand-mark" src="{{ url_for('static', filename='img/mark.svg') }}" alt="" style="width:30px;height:30px;filter:brightness(.8)">
-        <div class="brand-name">{{ org_name }}</div>
+        <a class="topbar-logo" href="/" aria-label="Assoodiq"><img src="{{ url_for('static', filename='img/mark.svg') }}" alt="">{% include "partials/wordmark.svg" %}</a>
       </div>
       {% block content %}{% endblock %}
     </div>
@@ -74,7 +76,7 @@
 <div class="flashes">
   {% for cat, msg in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
 </div>
-<script src="{{ url_for('static', filename='js/app.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=2"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
