@@ -1,6 +1,8 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
-from flask import Flask, g, redirect, request, session, url_for
+from urllib.parse import urlsplit
+
+from flask import Flask, abort, g, redirect, request, session, url_for
 
 from config import Config
 from core import hijri
@@ -72,7 +74,29 @@ def create_app(config_object=Config):
         num=fmt_num, money=fmt_money, short=fmt_short, d=fmt_date,
         hijri=lambda d: hijri.format_hijri(d) if d else "",
         pct=lambda v: f"{(v or 0) * 100:.0f}%",
+        # bazada UTC saqlanadi — ekranda server mintaqasi (Toshkent) vaqti
+        localdt=lambda dt: dt.replace(tzinfo=timezone.utc).astimezone().strftime("%d.%m.%Y %H:%M") if dt else "",
     )
+
+    @app.before_request
+    def same_origin_only():
+        """CSRF himoyasi: o'zgartiruvchi so'rov boshqa saytdan kelsa — rad etiladi."""
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return None
+        source = request.headers.get("Origin") or request.headers.get("Referer")
+        if source and urlsplit(source).netloc != request.host:
+            abort(403)
+        return None
+
+    @app.after_request
+    def security_headers(resp):
+        resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("Referrer-Policy", "same-origin")
+        resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if request.endpoint and not request.endpoint.startswith("static"):
+            resp.headers.setdefault("Cache-Control", "no-store")  # moliyaviy sahifalar keshda qolmasin
+        return resp
 
     @app.before_request
     def load_user():

@@ -9,7 +9,8 @@ from core.models import (
     BILLING, PROGRAM_KINDS, PROGRAM_STATUS, Category, Enrollment, Member, Program,
     Transaction,
 )
-from views import form_date, form_date_opt, form_int, money, safe_next
+from core import audit
+from views import form_date, form_date_opt, form_int, money, require_role, safe_next
 from views.kassa import form_context
 
 bp = Blueprint("dastur", __name__)
@@ -47,6 +48,7 @@ def programs():
 @bp.route("/dasturlar/saqlash", methods=["POST"])
 @bp.route("/dasturlar/<int:pid>/saqlash", methods=["POST"])
 def program_save(pid=None):
+    require_role("rahbar", "buxgalter")
     f = request.form
     p = db.get_or_404(Program, pid) if pid else Program()
     name = (f.get("name") or "").strip()
@@ -65,6 +67,8 @@ def program_save(pid=None):
     p.description = (f.get("description") or "").strip()
     if not pid:
         db.session.add(p)
+    db.session.flush()
+    audit.log("program_save", f"#{p.id} {p.name}, narx {p.price:,.0f} {p.currency}".replace(",", " "))
     db.session.commit()
     flash("Dastur saqlandi.", "ok")
     return redirect(url_for("dastur.program", pid=p.id))

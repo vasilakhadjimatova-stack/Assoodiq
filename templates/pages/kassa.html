@@ -8,6 +8,7 @@
     <div class="head-s">{{ month_name }}: kirim <b class="ok-t">{{ totals.income|num }}</b> · chiqim <b>{{ totals.expense|num }}</b> · sof <b>{{ totals.profit|num }}</b> so'm</div>
   </div>
   <div class="head-a">
+    {% if g.user.role != 'menejer' %}<a class="btn ghost" href="{{ url_for('kassa.export', **request.args) }}" title="Ko'rsatilgan yozuvlarni Excel'ga">{{ ui.icon('download', 'sm') }} Excel</a>{% endif %}
     {% if g.user.role != 'menejer' %}<button class="btn outline" data-open="tx-modal" data-set-kind="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</button>{% endif %}
     <button class="btn solid" data-open="tx-modal" data-set-kind="kirim">{{ ui.icon('plus', 'sm') }} Kirim</button>
   </div>

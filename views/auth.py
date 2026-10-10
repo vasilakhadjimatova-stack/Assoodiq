@@ -13,6 +13,9 @@ _fails = {}
 
 def _blocked(ip):
     now = time.time()
+    if len(_fails) > 5000:  # xotira cheksiz o'smasin
+        for k in [k for k, v in _fails.items() if not v or now - v[-1] >= WINDOW]:
+            _fails.pop(k, None)
     _fails[ip] = [t for t in _fails.get(ip, []) if now - t < WINDOW]
     return len(_fails[ip]) >= MAX_FAILS
 
@@ -31,8 +34,9 @@ def login():
             session.permanent = True
             session["uid"] = user.id
             from app import home_endpoint
+            from views import is_local_path
             nxt = request.args.get("next") or ""
-            if nxt.startswith("/") and not nxt.startswith("//"):
+            if is_local_path(nxt):
                 return redirect(nxt)
             return redirect(url_for(home_endpoint(user)))
         _fails.setdefault(ip, []).append(time.time())

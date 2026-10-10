@@ -42,4 +42,10 @@ money = parse_money
 def safe_next(default):
     from flask import request
     nxt = request.form.get("next") or request.args.get("next") or ""
-    return nxt if nxt.startswith("/") and not nxt.startswith("//") else default
+    return nxt if is_local_path(nxt) else default
+
+
+def is_local_path(url):
+    """Faqat shu saytdagi yo'l. "//evil.com" va "/\\evil.com" (brauzer // deb tushunadi) rad etiladi."""
+    return (url.startswith("/") and not url.startswith("//") and "\\" not in url
+            and not any(ord(ch) < 32 for ch in url))

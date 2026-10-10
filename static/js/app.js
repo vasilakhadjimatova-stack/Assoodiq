@@ -6,8 +6,17 @@
     var opener = e.target.closest('[data-open]');
     if (opener) {
       var dlg = document.getElementById(opener.dataset.open);
+      var menu = opener.closest('details.more');
+      if (menu) menu.removeAttribute('open');
       if (dlg) {
+        resetDialog(dlg);
         applyPreset(dlg, opener.dataset);
+        var txf = dlg.querySelector('.tx-form');
+        if (txf) {
+          var editing = !!(txf.querySelector('[name=tx_id]') || {}).value;
+          txf.classList.toggle('editing', editing);
+          syncTxForm(txf);
+        }
         dlg.showModal();
         var first = dlg.querySelector('[autofocus], .amount-in, input[type=text]');
         if (first) setTimeout(function () { first.focus(); }, 30);
@@ -26,6 +35,14 @@
       if (!d.contains(e.target)) d.removeAttribute('open');
     });
   });
+
+  // Har ochilganda oyna boshlang'ich holatiga qaytadi (oldingi tahrir qolib ketmasin)
+  function resetDialog(dlg) {
+    dlg.querySelectorAll('form').forEach(function (f) { f.reset(); });
+    var tx = dlg.querySelector('[name=tx_id]');
+    if (tx) tx.value = '';
+    dlg.querySelectorAll('[data-text][data-default]').forEach(function (el) { el.textContent = el.dataset.default; });
+  }
 
   // Tugmadagi data-* qiymatlarini oynadagi maydonlarga qo'yish (masalan to'lov summasi)
   function applyPreset(dlg, data) {

@@ -281,3 +281,91 @@ def test_demo_controls_only_for_rahbar(app):
     assert client.post("/sozlamalar/namuna").status_code == 403
     assert client.post("/sozlamalar/tozalash", data={"tasdiq": "TOZALASH"}).status_code == 403
     assert Transaction.query.count() == 0
+
+
+# ── Audit: tuzatishlar va yangi imkoniyatlar ──
+
+def test_pnl_excludes_non_halal_income_and_purification(app):
+    F.record("kirim", 1_000_000, acc("Bank hisobi"), category_id=cat("Kurs to'lovlari").id)
+    F.record("kirim", 300_000, acc("Bank hisobi"), category_id=cat("Boshqa kirim").id, shariat="nohalol")
+    F.record("chiqim", 300_000, acc("Bank hisobi"), category_id=F.system_category("tozalash").id)
+    db.session.commit()
+    t = F.period_totals(date.today(), date.today())
+    assert t == {"income": 1_000_000, "expense": 0, "profit": 1_000_000}
+    assert F.pnl_table(date.today().year)["profit_total"] == 1_000_000
+
+
+def test_edit_transaction_and_audit_log(app):
+    from core.models import AuditLog
+    client = app.test_client()
+    login(client, "100100")
+    tx = F.record("chiqim", 500_000, acc("Asosiy kassa"), category_id=cat("Ofis ijarasi").id)
+    db.session.commit()
+    client.post("/kassa/yangi", data={"tx_id": tx.id, "kind": "chiqim", "amount": "750 000",
+                                      "account_id": acc("Bank hisobi").id, "category_id": cat("Ofis ijarasi").id,
+                                      "date": date.today().isoformat(), "note": "tuzatildi"})
+    tx = db.session.get(Transaction, tx.id)
+    assert (tx.amount, tx.account.name, tx.note, tx.amount_uzs) == (750_000, "Bank hisobi", "tuzatildi", 750_000)
+    assert Transaction.query.count() == 1
+    assert AuditLog.query.filter_by(action="tx_update").count() == 1
+    client.post(f"/kassa/{tx.id}/ochirish")
+    assert AuditLog.query.filter_by(action="tx_delete").count() == 1
+    assert "Kassa yozuvi tahrirlandi" in client.get("/sozlamalar/?bolim=tarix").get_data(as_text=True)
+
+
+def test_manager_cannot_edit_or_change_programs(app):
+    client = app.test_client()
+    tx = F.record("kirim", 100, acc("Asosiy kassa"))
+    db.session.commit()
+    login(client, "300300")
+    client.post("/kassa/yangi", data={"tx_id": tx.id, "kind": "kirim", "amount": "999", "account_id": tx.account_id})
+    assert db.session.get(Transaction, tx.id).amount == 100
+    assert client.post("/dasturlar/saqlash", data={"name": "X", "price": "1"}).status_code == 403
+    assert client.get("/kassa/excel").status_code == 302
+
+
+def test_deleting_repayment_reopens_debt(app):
+    client = app.test_client()
+    login(client, "100100")
+    bank = acc("Bank hisobi")
+    client.post("/qarz/yangi", data={"direction": "berilgan", "counterparty": "H", "amount": "1000", "account_id": bank.id})
+    d = Debt.query.one()
+    client.post(f"/qarz/{d.id}/qaytarish", data={"amount": "1000", "account_id": bank.id})
+    assert db.session.get(Debt, d.id).closed
+    repay = Transaction.query.filter_by(debt_id=d.id, kind="qarz_kirim").one()
+    client.post(f"/kassa/{repay.id}/ochirish")
+    assert not db.session.get(Debt, d.id).closed
+
+
+def test_cross_site_post_rejected_and_headers(app):
+    client = app.test_client()
+    login(client, "100100")
+    r = client.post("/kassa/yangi", data={"kind": "kirim", "amount": "1", "account_id": acc("Payme").id},
+                    headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403 and Transaction.query.count() == 0
+    r = client.post("/kassa/yangi", data={"kind": "kirim", "amount": "1", "account_id": acc("Payme").id},
+                    headers={"Origin": "http://localhost"})
+    assert Transaction.query.count() == 1
+    h = client.get("/").headers
+    assert h["X-Frame-Options"] == "DENY" and h["Cache-Control"] == "no-store"
+
+
+def test_open_redirect_blocked():
+    from views import is_local_path
+    assert is_local_path("/kassa/?oy=2026-10")
+    for bad in ("//evil.com", "/\\evil.com", "https://evil.com", "/\tx"):
+        assert not is_local_path(bad)
+
+
+def test_exports_are_valid_xlsx(app):
+    from io import BytesIO
+    from openpyxl import load_workbook
+    from core.demo import demo
+    demo()
+    client = app.test_client()
+    login(client, "100100")
+    for url, sheets in (("/kassa/excel", 1), ("/sozlamalar/zaxira", 5), ("/hisobot/excel", 1)):
+        r = client.get(url)
+        assert r.status_code == 200, url
+        wb = load_workbook(BytesIO(r.data))
+        assert len(wb.sheetnames) == sheets and wb.worksheets[0].max_row > 1

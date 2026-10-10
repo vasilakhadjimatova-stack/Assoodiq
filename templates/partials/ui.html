@@ -84,6 +84,13 @@
   <details class="more">
     <summary class="icon-btn" title="Amallar">{{ icon('more') }}</summary>
     <div class="menu">
+      {% if t.kind in ('kirim', 'chiqim') %}
+      <button type="button" data-open="tx-modal" data-set-tx-id="{{ t.id }}" data-set-kind="{{ t.kind }}"
+        data-set-amount="{{ t.amount }}" data-set-account-id="{{ t.account_id }}" data-set-date="{{ t.date.isoformat() }}"
+        data-set-category-id="{{ t.category_id or '' }}" data-set-program-id="{{ t.program_id or '' }}"
+        data-set-counterparty="{{ t.counterparty or '' }}" data-set-note="{{ t.note or '' }}"
+        data-set-aqd="{{ t.aqd or 'xizmat' }}" data-set-shariat="{{ t.shariat }}" data-set-title="Yozuvni tahrirlash">{{ icon('pencil', 'sm') }} Tahrirlash</button>
+      {% endif %}
       <form method="post" action="{{ url_for('kassa.delete', tx_id=t.id) }}" class="inline" onsubmit="return confirm(this.dataset.msg)" data-msg="Bu yozuvni o'chirasizmi?">
         <input type="hidden" name="next" value="{{ next_url }}">
         <button class="danger">{{ icon('trash', 'sm') }} O'chirish</button>
@@ -132,7 +139,8 @@
   <form method="post" action="{{ url_for('kassa.create') }}" class="tx-form" data-kind="{{ kind }}">
     <input type="hidden" name="next" value="{{ next_url }}">
     {% if preset.get('enrollment_id') %}<input type="hidden" name="enrollment_id" value="{{ preset.enrollment_id }}">{% endif %}
-    <div class="modal-h"><h3>{{ title }}</h3><button type="button" class="icon-btn" data-close>{{ icon('x') }}</button></div>
+    <input type="hidden" name="tx_id" value="">
+    <div class="modal-h"><h3 data-text="title" data-default="{{ title }}">{{ title }}</h3><button type="button" class="icon-btn" data-close>{{ icon('x') }}</button></div>
     <div class="modal-b">
       {% if not preset.get('lock_kind') %}
       <div class="kind-tabs">
@@ -216,7 +224,7 @@
       </div>
     </div>
     <div class="modal-f">
-      <button type="submit" name="again" value="1" class="btn outline">Saqlash va yana</button>
+      <button type="submit" name="again" value="1" class="btn outline again">Saqlash va yana</button>
       <button type="submit" class="btn solid">{{ icon('check', 'sm') }} Saqlash</button>
     </div>
   </form>

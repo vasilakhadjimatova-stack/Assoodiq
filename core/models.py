@@ -280,3 +280,15 @@ class ZakatSnapshot(db.Model):
     due = db.Column(db.Float, default=0)
     note = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=_now)
+
+
+class AuditLog(db.Model):
+    """Kim, qachon, nima qildi — o'chirish, tahrirlash, tozalash, sozlama va xodimlar."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=_now, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    action = db.Column(db.String(40), nullable=False)
+    details = db.Column(db.String(500), default="")
+
+    user = db.relationship("User")

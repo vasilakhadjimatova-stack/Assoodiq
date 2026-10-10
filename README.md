@@ -18,6 +18,7 @@ ichiga qurilgan.
 | **Halollik va sadaqa** | Shubhali yoki nohalol tushumlar «tozalash fondi»ga ajratiladi va foydaga qo'shilmaydi. Sof foydadan sadaqa rejasi. Daromadning aqd turlari bo'yicha taqsimoti |
 | **Qarz daftari** | Baqara 282 asosida: berilgan va olingan qarzlar, muddat, guvoh, qisman qaytarish. Qarzga foiz qo'shilmaydi, qarz foyda-zararga kirmaydi |
 | **Hisobotlar** | Yillik foyda-zarar jadvali (guruh × oy), Excel'ga eksport, dasturlar iqtisodiyoti |
+| **Nazorat** | Kassa yozuvini tahrirlash (kim nimani o'zgartirgani tarixda qoladi), kassani Excel'ga eksport, barcha ma'lumotlarning zaxira nusxasi, "O'zgarishlar tarixi" bo'limi |
 | **Sozlamalar** | Dollar kursi, oltin/kumush narxi, hisoblar, kategoriyalar, xodimlar va ularning 6 xonali kirish kodlari |
 
 **Rollar:** *rahbar* hamma bo'limni ko'radi va xodim qo'sha oladi. *Buxgalter* xodimlar
@@ -93,6 +94,14 @@ hech bir raqam ikki joyda qo'lda yozilmaydi. Dollardagi yozuv o'sha kungi kurs b
 so'mdagi qiymati bilan saqlanadi, shuning uchun kurs o'zgarsa ham o'tgan oylar hisoboti
 o'zgarmaydi.
 
+## Xavfsizlik
+
+- 6 xonali kod bilan kirish; bir IP'dan 10 daqiqada 8 marta xato — vaqtincha bloklanadi
+- Sessiya cookie: `HttpOnly`, `SameSite=Lax`, HTTPS'da `Secure`; kalit bazada saqlanadi
+- Boshqa saytdan yuborilgan o'zgartiruvchi so'rovlar (CSRF) `Origin` tekshiruvi bilan rad etiladi
+- `X-Frame-Options`, `Referrer-Policy`, moliyaviy sahifalarda `Cache-Control: no-store`
+- Rollar server tomonda tekshiriladi (menejer chiqim/tahrir/eksport/dastur narxini o'zgartira olmaydi)
+
 ## Shariat bo'yicha qabul qilingan qoidalar (tasdiqlash kerak)
 
 Quyidagi qoidalar Hanafiy mazhabidagi tijorat zakoti uslubiga asoslangan. Ishga
@@ -100,7 +109,8 @@ tushirishdan oldin Assoodiq'ning shariat maslahatchisi bilan ko'rib chiqing:
 
 1. Zakot = (naqd + undiriladigan haqlar + tovar zaxirasi + boshqa tijorat aktivlari − muddati kelgan qarzlar) × 2,5%. Bu qiymat nisobdan kam bo'lmasa va havl to'lgan bo'lsa hisoblanadi.
 2. O'quvchilarning to'lanmagan kurs pullari «kuchli qarz» (dayn qaviy) sifatida undiriladigan haqlarga qo'shiladi. Zakot sahifasida qo'lda o'zgartirish mumkin.
-3. Tozalash fondidagi pul egasiniki hisoblanmaydi va zakot hisobida naqd puldan ayiriladi.
+3. Tozalash fondidagi pul egasiniki hisoblanmaydi: zakot hisobida naqd puldan ayiriladi, foyda-zararga
+   ham kirmaydi (shubhali/nohalol tushum ham, uni chiqarish ham).
 4. Nisob boshlang'ich holatda oltin (85 g) bo'yicha, Sozlamalarda kumushga o'tkazish mumkin.
 5. Hijriy sana jadval usulida hisoblanadi va rasmiy e'londan 1–2 kun farq qilishi mumkin.
 

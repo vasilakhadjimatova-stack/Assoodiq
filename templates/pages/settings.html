@@ -3,7 +3,7 @@
 {% block content %}
 <div class="head"><div><div class="head-t">Sozlamalar</div><div class="head-s">Kurslar, nisob, hisoblar, kategoriyalar va xodimlar</div></div></div>
 <div class="tabs">
-  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar'), ('malumotlar', "Ma'lumotlar")) %}
+  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar'), ('malumotlar', "Ma'lumotlar"), ('tarix', "O'zgarishlar tarixi")) %}
   <a href="{{ url_for('sozlama.index', bolim=k) }}" class="{{ 'on' if tab == k }}">{{ v }}</a>
   {% endfor %}
 </div>
@@ -123,6 +123,12 @@
   <div class="stat"><div class="stat-l">A'zolar</div><div class="stat-v">{{ stats.members }}</div></div>
   <div class="stat"><div class="stat-l">Qarzlar</div><div class="stat-v">{{ stats.debts }}</div></div>
 </div>
+<div class="card" style="max-width:900px;margin-bottom:16px">
+  <div class="card-b" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+    <div style="flex:1;min-width:240px"><b>Zaxira nusxa</b><div class="muted" style="font-size:13px">Kassa, dasturlar, a'zolar, yozilishlar va qarzlar — bitta Excel faylda. Haftada bir marta yuklab olib qo'yish tavsiya etiladi.</div></div>
+    <a class="btn outline" href="{{ url_for('sozlama.backup') }}">{{ ui.icon('download', 'sm') }} Excel'ga yuklab olish</a>
+  </div>
+</div>
 <div class="grid g-2" style="max-width:900px">
   <div class="card">
     <div class="card-h"><h3>Test rejimi</h3>{% if demo_mode %}<span class="pill warn">Yoqilgan</span>{% endif %}</div>
@@ -147,6 +153,26 @@
       </form>
       {% else %}<p class="faint">Faqat rahbar tozalay oladi.</p>{% endif %}
     </div>
+  </div>
+</div>
+{% elif tab == 'tarix' %}
+<div class="card">
+  <div class="table-wrap">
+  <table class="table cards">
+    <thead><tr><th>Vaqt</th><th>Kim</th><th>Amal</th><th>Tafsilot</th></tr></thead>
+    <tbody>
+    {% for l in logs %}
+    <tr>
+      <td><div class="t-main" style="white-space:nowrap">{{ l.created_at|localdt }}</div></td>
+      <td><span class="lbl">Kim</span>{{ l.user.name if l.user else '—' }}</td>
+      <td><span class="lbl">Amal</span><span class="pill {{ 'bad' if l.action in ('tx_delete', 'data_clear') else '' }}">{{ actions.get(l.action, l.action) }}</span></td>
+      <td><span class="lbl">Tafsilot</span><span class="muted" style="font-size:13px">{{ l.details }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4"><div class="empty">{{ ui.icon('clock') }}<b>Hali o'zgarish yozilmagan</b>O'chirish, tahrirlash, sozlama va xodimlar bilan bog'liq amallar shu yerda ko'rinadi.</div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
   </div>
 </div>
 {% endif %}

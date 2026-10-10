@@ -1,10 +1,18 @@
 import secrets
+from datetime import date
+from io import BytesIO
 
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, flash, g, redirect, render_template, request, send_file, url_for
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 
+from core import audit
 from core import finance as F
 from core.extensions import db
-from core.models import ACCOUNT_KINDS, PROGRAM_KINDS, ROLES, Account, Category, User
+from core.models import (
+    ACCOUNT_KINDS, AQD_TYPES, PROGRAM_KINDS, ROLES, SHARIAT, Account, AuditLog, Category, Debt,
+    Enrollment, Member, Program, Transaction, User,
+)
 from views import form_int, money, require_role
 
 bp = Blueprint("sozlama", __name__, url_prefix="/sozlamalar")
@@ -24,11 +32,15 @@ def index():
         users=User.query.order_by(User.id).all(), roles=ROLES, account_kinds=ACCOUNT_KINDS,
         program_kinds=PROGRAM_KINDS, tab=request.args.get("bolim", "umumiy"),
         stats=_data_stats(),
+        logs=(AuditLog.query.order_by(AuditLog.created_at.desc()).limit(200).all()
+              if request.args.get("bolim") == "tarix" else []),
+        actions=audit.ACTIONS,
     )
 
 
 @bp.route("/umumiy", methods=["POST"])
 def save_general():
+    changed = []
     for k in SETTING_KEYS:
         if k in request.form:
             v = request.form[k].strip()
@@ -36,7 +48,11 @@ def save_general():
                 v = str(money(v))
             if k == "nisob_basis" and v not in F.NISOB_GRAMS:
                 v = "oltin"
+            if F.get_setting(k) != v:
+                changed.append(f"{k}: {F.get_setting(k)} → {v}")
             F.set_setting(k, v)
+    if changed:
+        audit.log("settings", "; ".join(changed))
     db.session.commit()
     flash("Sozlamalar saqlandi.", "ok")
     return redirect(url_for("sozlama.index"))
@@ -48,6 +64,8 @@ def demo_load():
     require_role("rahbar")
     from core.demo import load_demo
     if load_demo():
+        audit.log("demo_load", "8 dastur, 46 a'zo, 12 oylik yozuvlar")
+        db.session.commit()
         flash("Namuna ma'lumotlar yuklandi: 8 dastur, 46 a'zo, 12 oylik kirim-chiqim. Haqiqiy ishdan oldin tozalang.", "ok")
     else:
         flash("Bazada allaqachon yozuvlar bor — namuna faqat bo'sh bazaga yuklanadi.", "bad")
@@ -63,8 +81,61 @@ def data_clear():
         return redirect(url_for("sozlama.index", bolim="malumotlar"))
     from core.demo import clear_data
     clear_data()
+    audit.log("data_clear", "barcha moliyaviy yozuvlar o'chirildi")
+    db.session.commit()
     flash("Barcha yozuvlar o'chirildi. Xodimlar, hisoblar va kategoriyalar saqlandi — haqiqiy ishni boshlashingiz mumkin.", "ok")
     return redirect(url_for("sozlama.index", bolim="malumotlar"))
+
+
+@bp.route("/zaxira")
+def backup():
+    """Barcha ma'lumotlarning Excel nusxasi (zaxira yoki boshqa tizimga ko'chirish uchun)."""
+    wb = Workbook()
+    head_font, head_fill = Font(bold=True), PatternFill("solid", fgColor="E0F1E9")
+
+    def sheet(title, header, rows, first=False):
+        ws = wb.active if first else wb.create_sheet()
+        ws.title = title
+        ws.append(header)
+        for c in ws[1]:
+            c.font, c.fill = head_font, head_fill
+        for r in rows:
+            ws.append(r)
+        for i in range(1, len(header) + 1):
+            ws.column_dimensions[ws.cell(1, i).column_letter].width = 18
+
+    sheet("Kassa", ["ID", "Sana", "Turi", "Hisob", "Qaysi hisobga", "Summa", "Valyuta", "So'mda", "Kategoriya",
+                    "Dastur", "Kimdan/kimga", "Aqd", "Shar'iy holat", "Izoh", "Kiritgan", "Kiritilgan vaqt"],
+          ([t.id, t.date, t.kind_name, t.account.name, t.to_account.name if t.to_account else "", t.amount,
+            t.currency, t.amount_uzs, t.category.name if t.category else "", t.program.name if t.program else "",
+            t.counterparty, AQD_TYPES.get(t.aqd, ""), SHARIAT.get(t.shariat, ""), t.note,
+            t.author.name if t.author else "", t.created_at]
+           for t in Transaction.query.order_by(Transaction.date, Transaction.id)), first=True)
+    sheet("Dasturlar", ["ID", "Nomi", "Turi", "To'lov tartibi", "Narx", "Valyuta", "Boshlanishi", "Tugashi",
+                        "O'rinlar", "Holati"],
+          ([p.id, p.name, p.kind_name, p.billing_name, p.price, p.currency, p.start_date, p.end_date,
+            p.capacity, p.status_name] for p in Program.query.order_by(Program.id)))
+    sheet("A'zolar", ["ID", "Ism-familiya", "Telefon", "Biznesi", "Shahar", "Izoh"],
+          ([m.id, m.full_name, m.phone, m.business, m.city, m.note] for m in Member.query.order_by(Member.id)))
+    sheet("Yozilishlar", ["A'zo", "Dastur", "Hisoblangan narx", "Qo'shilgan", "Obuna tugashi", "Holati"],
+          ([e.member.full_name, e.program.name, e.price, e.joined_at, e.valid_until, e.status]
+           for e in Enrollment.query.order_by(Enrollment.id)))
+    sheet("Qarzlar", ["ID", "Turi", "Kim", "Telefon", "Summa", "Valyuta", "Qoldiq", "Sana", "Muddat", "Guvoh",
+                      "Izoh", "Yopilgan"],
+          ([d.id, d.direction_name, d.counterparty, d.phone, d.amount, d.currency, F.debt_remaining(d), d.date,
+            d.due_date, d.witness, d.note, "ha" if d.closed else "yo'q"] for d in Debt.query.order_by(Debt.id)))
+    for ws in wb.worksheets:
+        for row in ws.iter_rows(min_row=2):
+            for c in row:
+                if isinstance(c.value, date):
+                    c.number_format = "DD.MM.YYYY"
+                elif isinstance(c.value, float):
+                    c.number_format = "# ##0.##"
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name=f"assoodiq-zaxira-{date.today():%Y-%m-%d}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @bp.route("/hisob", methods=["POST"])
@@ -129,6 +200,7 @@ def user_add():
     u = User(name=name[:120], role=f.get("role") if f.get("role") in ROLES else "menejer")
     u.set_code(code)
     db.session.add(u)
+    audit.log("user_add", f"{u.name} ({u.role_name})")
     db.session.commit()
     flash(f"{u.name} qo'shildi. Kirish kodi: {code} — uni xodimga bering, keyin ko'rinmaydi.", "ok")
     return redirect(url_for("sozlama.index", bolim="xodimlar"))
@@ -140,6 +212,7 @@ def user_reset(uid):
     u = db.get_or_404(User, uid)
     code = _new_code()
     u.set_code(code)
+    audit.log("user_code", u.name)
     db.session.commit()
     flash(f"{u.name} uchun yangi kod: {code}", "ok")
     return redirect(url_for("sozlama.index", bolim="xodimlar"))
@@ -153,6 +226,7 @@ def user_toggle(uid):
         flash("O'zingizni faolsizlantira olmaysiz.", "bad")
     else:
         u.active = not u.active
+        audit.log("user_toggle", f"{u.name}: {'faol' if u.active else 'faolsiz'}")
         db.session.commit()
     return redirect(url_for("sozlama.index", bolim="xodimlar"))
 

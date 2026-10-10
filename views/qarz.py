@@ -2,6 +2,7 @@ from datetime import date
 
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
+from core import audit
 from core import finance as F
 from core.extensions import db
 from core.models import DEBT_DIRECTIONS, Account, Debt, Transaction
@@ -81,6 +82,7 @@ def repay(did):
 def toggle(did):
     d = db.get_or_404(Debt, did)
     d.closed = not d.closed
+    audit.log("debt_toggle", f"#{d.id} {d.counterparty}: {'yopildi' if d.closed else 'qayta ochildi'}, qoldiq {F.debt_remaining(d):,.0f}".replace(",", " "))
     db.session.commit()
     flash("Qarz yopildi." if d.closed else "Qarz qayta ochildi.", "ok")
     return redirect(url_for("qarz.debts"))

@@ -3,7 +3,7 @@ import re
 from collections import OrderedDict, defaultdict
 from datetime import date, timedelta
 
-from sqlalchemy import case, func
+from sqlalchemy import and_, case, func, or_
 
 from core.extensions import db
 from core.models import (
@@ -146,12 +146,25 @@ def shift_month(d, n):
     return date(d.year + m // 12, m % 12 + 1, 1)
 
 
+def pnl_scope():
+    """Foyda-zararga kiradigan yozuvlar sharti.
+
+    Kirim — faqat halol tushum (shubhali/nohalol tozalash fondiga ketadi, egasiniki emas).
+    Chiqim — tozalash fondidan chiqarilgan pul bundan mustasno (u o'sha tushumning o'zi).
+    O'tkazma va qarz harakatlari umuman kirmaydi.
+    """
+    purge = system_category("tozalash")
+    expense = Transaction.kind == "chiqim"
+    if purge is not None:
+        expense = and_(expense, or_(Transaction.category_id.is_(None), Transaction.category_id != purge.id))
+    return or_(and_(Transaction.kind == "kirim", Transaction.shariat == "halol"), expense)
+
+
 def period_totals(start, end):
     """Foyda-zarar uchun: faqat kirim va chiqim (o'tkazma va qarz kirmaydi)."""
     rows = (
         db.session.query(Transaction.kind, func.coalesce(func.sum(Transaction.amount_uzs), 0))
-        .filter(Transaction.date >= start, Transaction.date <= end,
-                Transaction.kind.in_(("kirim", "chiqim")))
+        .filter(Transaction.date >= start, Transaction.date <= end, pnl_scope())
         .group_by(Transaction.kind).all()
     )
     d = dict(rows)
@@ -164,7 +177,7 @@ def monthly_series(months=12, today=None):
     first = shift_month(today.replace(day=1), -(months - 1))
     rows = (
         db.session.query(Transaction.date, Transaction.kind, Transaction.amount_uzs)
-        .filter(Transaction.date >= first, Transaction.kind.in_(("kirim", "chiqim")))
+        .filter(Transaction.date >= first, pnl_scope())
         .all()
     )
     buckets = OrderedDict()
@@ -202,7 +215,7 @@ def breakdown(kind, start, end, by="group", limit=None):
     rows = (
         db.session.query(func.coalesce(col, "Kategoriyasiz"), func.sum(Transaction.amount_uzs))
         .outerjoin(Category, Transaction.category_id == Category.id)
-        .filter(Transaction.kind == kind, Transaction.date >= start, Transaction.date <= end)
+        .filter(Transaction.kind == kind, Transaction.date >= start, Transaction.date <= end, pnl_scope())
         .group_by(col).all()
     )
     rows = sorted(((n, v or 0) for n, v in rows), key=lambda r: -r[1])
@@ -223,7 +236,7 @@ def pnl_table(year):
         db.session.query(Transaction.kind, func.coalesce(Category.group, "Kategoriyasiz"),
                          Transaction.date, Transaction.amount_uzs)
         .outerjoin(Category, Transaction.category_id == Category.id)
-        .filter(Transaction.kind.in_(("kirim", "chiqim")),
+        .filter(pnl_scope(),
                 Transaction.date >= date(year, 1, 1), Transaction.date <= date(year, 12, 31))
         .all()
     )
