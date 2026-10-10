@@ -18,7 +18,7 @@
   {% for r in f_accounts %}
   <a class="stat" href="{{ url_for('kassa.ledger', hisob=(None if acc_id == r.account.id else r.account.id), oy=month.strftime('%Y-%m'), tur=kind or None) }}" style="{{ 'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-bg)' if acc_id == r.account.id }}">
     <div class="stat-l">{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }} {{ r.account.name }}</div>
-    <div class="stat-v" style="font-size:21px">{{ ui.som(r.balance, r.account.currency) }}</div>
+    <div class="stat-v" style="font-size:18px">{{ ui.som(r.balance, r.account.currency) }}</div>
     <div class="stat-s">{{ r.account.kind_name }}{% if r.account.currency == 'USD' %} · ≈ {{ r.balance_uzs|short }} so'm{% endif %}</div>
   </a>
   {% endfor %}

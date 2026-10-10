@@ -194,7 +194,7 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--shadow); position: relative; display: block; }
 a.stat:hover { border-color: var(--line2); }
 .stat-l { color: var(--txt2); font-size: 12.5px; font-weight: 650; display: flex; align-items: center; gap: 6px; }
-.stat-v { font-size: 25px; font-weight: 750; letter-spacing: -.3px; margin-top: 8px; line-height: 1.15; }
+.stat-v { font-size: 21px; font-weight: 700; letter-spacing: -.3px; margin-top: 8px; line-height: 1.15; }
 .stat-s { color: var(--txt3); font-size: 12.5px; margin-top: 4px; font-weight: 600; }
 .stat.hero { background: linear-gradient(140deg, var(--hero1) 0%, var(--hero2) 100%); border-color: transparent; color: #F2F7F4; overflow: hidden; }
 .stat.hero::after { content: ""; position: absolute; inset: 0; background: url("../img/pattern.svg") right -30px center/110px repeat-y; opacity: .5; pointer-events: none; }
@@ -253,14 +253,14 @@ a.stat:hover { border-color: var(--line2); }
 .tx-m { flex: 1; min-width: 0; }
 .tx-m b { display: block; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-m span { color: var(--txt3); font-size: 12.5px; }
-.tx-a { text-align: right; font-weight: 750; white-space: nowrap; }
+.tx-a { text-align: right; font-weight: 700; font-size: 13.5px; white-space: nowrap; }
 .tx-a.in { color: var(--ok); }
 
 .acc { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
 .acc:last-child { border-bottom: 0; }
 .acc-k { width: 36px; height: 36px; border-radius: 10px; background: var(--surface2); display: grid; place-items: center; color: var(--txt2); flex: none; }
 .acc b { font-weight: 700; } .acc b + span { color: var(--txt3); font-size: 12px; display: block; }
-.acc .r { margin-left: auto; text-align: right; font-weight: 750; white-space: nowrap; }
+.acc .r { margin-left: auto; text-align: right; font-weight: 700; font-size: 13.5px; white-space: nowrap; }
 
 .bar { height: 8px; border-radius: 4px; background: var(--surface2); overflow: hidden; }
 .bar > i { display: block; height: 100%; border-radius: 4px; background: var(--brand); }
@@ -290,7 +290,7 @@ a.stat:hover { border-color: var(--line2); }
 .chart .pd { fill: var(--surface); stroke: var(--txt); stroke-width: 2; }
 .chart-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
 .chart-sum span { display: block; font-size: 12px; color: var(--txt3); font-weight: 650; }
-.chart-sum b { font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.chart-sum b { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--txt2); font-weight: 650; }
 .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
 .legend i.line { height: 2px; border-radius: 1px; background: var(--txt); vertical-align: 3px; width: 14px; }
@@ -309,7 +309,7 @@ a.stat:hover { border-color: var(--line2); }
 .prog .meta { color: var(--txt3); font-size: 12.5px; font-weight: 600; margin-top: 4px; }
 .kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .kv div span { display: block; font-size: 11.5px; color: var(--txt3); font-weight: 650; }
-.kv div b { font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.kv div b { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .prog-foot { display: flex; justify-content: space-between; font-size: 12px; color: var(--txt3); font-weight: 650; margin-top: 6px; }
 
 /* ── Islomiy bloklar ───────────────────────────────────────────────────── */
@@ -318,7 +318,7 @@ a.stat:hover { border-color: var(--line2); }
 .ayah small { display: block; margin-top: 6px; color: var(--gold); font-weight: 700; font-size: 12px; letter-spacing: .4px; }
 .ring { --p: 0; width: 120px; height: 120px; border-radius: 50%; background: conic-gradient(var(--gold) calc(var(--p) * 1%), var(--surface2) 0); display: grid; place-items: center; flex: none; }
 .ring::before { content: ""; grid-area: 1 / 1; width: 94px; height: 94px; border-radius: 50%; background: var(--surface); }
-.ring span { grid-area: 1 / 1; z-index: 1; font-weight: 800; font-size: 20px; text-align: center; line-height: 1.1; }
+.ring span { grid-area: 1 / 1; z-index: 1; font-weight: 800; font-size: 17px; text-align: center; line-height: 1.1; }
 .ring span small { display: block; font-size: 10.5px; color: var(--txt3); font-weight: 700; }
 .zrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
 .zrow:last-child { border-bottom: 0; }
@@ -327,7 +327,7 @@ a.stat:hover { border-color: var(--line2); }
 .zrow input { max-width: 190px; height: 36px; text-align: right; font-weight: 700; }
 .zres { padding: 22px; border-radius: var(--r); background: linear-gradient(150deg, var(--hero1), var(--hero2)); color: #F2F7F4; position: relative; overflow: hidden; }
 .zres::after { content: ""; position: absolute; inset: 0; background: url("../img/pattern.svg") right -40px top -20px/130px; opacity: .45; pointer-events: none; }
-.zres .big { font: 800 34px/1.1 var(--font); font-variant-numeric: tabular-nums; margin: 6px 0 4px; position: relative; z-index: 1; }
+.zres .big { font: 800 28px/1.1 var(--font); font-variant-numeric: tabular-nums; margin: 6px 0 4px; position: relative; z-index: 1; }
 .zres .lbl2 { color: rgba(242, 247, 244, .75); font-weight: 650; font-size: 13px; position: relative; z-index: 1; }
 .zres .line { display: flex; justify-content: space-between; border-top: 1px solid rgba(255, 255, 255, .14); padding-top: 10px; margin-top: 10px; font-size: 13px; position: relative; z-index: 1; }
 
@@ -538,12 +538,12 @@ details.more .menu { position: absolute; right: 0; top: calc(100% + 4px); backgr
   .g-2 { grid-template-columns: minmax(0, 1fr); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .stat { padding: 14px; }
-  .stat-v { font-size: 19px; }
+  .stat-v { font-size: 17px; }
   .stat.hero, .stat.wide-m { grid-column: 1 / -1; }
   .card-h .act.legend { margin-left: 0; width: 100%; }
   .chart .ax { font-size: 21px; }
   .chart-sum div b { font-size: 14px; }
-  .stat.hero .stat-v { font-size: 26px; }
+  .stat.hero .stat-v { font-size: 22px; }
   .seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; }
   .search { max-width: none; min-width: 100%; }
   .form-grid { grid-template-columns: minmax(0, 1fr); }
