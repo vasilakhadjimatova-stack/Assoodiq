@@ -154,16 +154,16 @@
       if (deleting) {
         pos--;
         el.textContent = text.slice(0, pos);
-        if (pos <= 0) { deleting = false; i = (i + 1) % phrases.length; return setTimeout(tick, 350); }
-        return setTimeout(tick, 28);
+        if (pos <= 0) { deleting = false; i = (i + 1) % phrases.length; return setTimeout(tick, 180); }
+        return setTimeout(tick, 14);
       }
       text = phrases[i];
       pos++;
       el.textContent = text.slice(0, pos);
-      if (pos >= text.length) { deleting = true; return setTimeout(tick, 2600); }
-      setTimeout(tick, 55 + Math.random() * 45);
+      if (pos >= text.length) { deleting = true; return setTimeout(tick, 1700); }
+      setTimeout(tick, 26 + Math.random() * 18);
     }
-    setTimeout(tick, 3200);  // birinchi ibora avval to'liq o'qilsin
+    setTimeout(tick, 1800);  // birinchi ibora avval to'liq o'qilsin
   });
 
   // 6 xonali kod: kataklar haqiqiy maydonni aks ettiradi
