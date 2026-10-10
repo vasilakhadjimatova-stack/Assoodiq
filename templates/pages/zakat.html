@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Zakot{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">Zakot</div>
+    <div class="head-s">Bugun {{ today|d }} · <span class="gold-t">{{ hijri_today }}</span> · tijorat mollari zakoti, 2,5%</div>
+  </div>
+  <div class="head-a">
+    {% if zcat %}<button class="btn gold" data-open="tx-modal">{{ ui.icon('heart', 'sm') }} Zakot berildi</button>{% endif %}
+  </div>
+</div>
+
+<div class="grid g-main">
+  <form class="card" method="get" id="zform" style="align-self:start">
+    <div class="card-h"><h3>Hisob-kitob</h3><span class="sub">qiymatlar daftardan olindi — kerak bo'lsa tuzating</span></div>
+    <div class="card-b">
+      <div class="field" style="margin-bottom:8px">
+        <span class="fl">Nisob asosi</span>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="nisob" value="oltin" {{ 'checked' if basis == 'oltin' }} onchange="this.form.submit()">Oltin · 85 g</label>
+          <label class="chip"><input type="radio" name="nisob" value="kumush" {{ 'checked' if basis == 'kumush' }} onchange="this.form.submit()">Kumush · 595 g</label>
+        </div>
+      </div>
+      <div class="zrow"><div><label>Naqd pul va hisoblar</label><small>barcha kassa, karta, bank (tozalash fondi ayirilgan)</small></div><input name="cash" data-money inputmode="decimal" value="{{ values.cash|round|int|num }}"></div>
+      <div class="zrow"><div><label>Undiriladigan haqlar</label><small>berilgan qarzlar va o'quvchilar to'lov qoldig'i</small></div><input name="receivables" data-money inputmode="decimal" value="{{ values.receivables|round|int|num }}"></div>
+      <div class="zrow"><div><label>Tovar zaxirasi</label><small>sotish uchun kitob, mahsulot — bozor narxida</small></div><input name="inventory" data-money inputmode="decimal" value="{{ values.inventory|round|int|num }}"></div>
+      <div class="zrow"><div><label>Boshqa tijorat aktivlari</label><small>sotish niyatidagi mulk, ulushlar</small></div><input name="other_assets" data-money inputmode="decimal" value="{{ values.other_assets|round|int|num }}"></div>
+      <div class="zrow"><div><label>Ayiriladigan qarzlar</label><small>biz olgan, muddati kelgan majburiyatlar</small></div><input name="liabilities" data-money inputmode="decimal" value="{{ values.liabilities|round|int|num }}"></div>
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn outline">{{ ui.icon('renew', 'sm') }} Qayta hisoblash</button>
+        <a class="btn ghost" href="{{ url_for('islomiy.zakat') }}">Daftardagi qiymatlarga qaytarish</a>
+        <button class="btn tonal" formmethod="post" formaction="{{ url_for('islomiy.zakat_save') }}" style="margin-left:auto">Tarixga saqlash</button>
+      </div>
+      <div class="ayah" style="margin-top:18px;background:var(--surface2);border-color:var(--line)">
+        <div style="font-size:13px;color:var(--txt2)"><b style="color:var(--txt)">Qanday hisoblanadi:</b> (naqd + undiriladigan haqlar + tovar + boshqa aktivlar − qarzlar). Natija nisobdan kam bo'lmasa va havl to'lgan bo'lsa, uning 2,5 foizi zakot bo'ladi. Asosiy vositalar (ofis jihozlari, kompyuter) zakotga tortilmaydi.</div>
+      </div>
+    </div>
+  </form>
+
+  <div class="zres-col" style="display:flex;flex-direction:column;gap:16px">
+    <div class="zres">
+      <div class="lbl2">{{ 'Berilishi lozim bo\'lgan zakot' if result.reached else 'Zakot vojib emas' }}</div>
+      <div class="big">{{ result.due|num }} <span style="font-size:16px;opacity:.7">so'm</span></div>
+      <div class="lbl2">{% if result.reached %}Zakotga tortiladigan mol nisobdan {{ (result.base / nisob)|round(1) }} barobar ko'p{% else %}Mol miqdori nisobga yetmagan{% endif %}</div>
+      <div class="line"><span>Zakotga tortiladigan mol</span><b>{{ result.base|num }}</b></div>
+      <div class="line"><span>Nisob ({{ grams[basis] }} g {{ 'oltin' if basis == 'oltin' else 'kumush' }})</span><b>{{ nisob|num }}</b></div>
+      <div class="line"><span>Shu yil berilgan zakot</span><b>{{ paid_year|num }}</b></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Havl (zakot yili)</h3></div>
+      <div class="card-b">
+        {% if hawl %}
+        <div style="display:flex;gap:16px;align-items:center">
+          <div class="ring" style="--p: {{ ((354 - hawl.days) / 354 * 100)|round }}"><span>{{ hawl.days }}<small>kun qoldi</small></span></div>
+          <div>
+            <div class="faint" style="font-size:12.5px;font-weight:700">Keyingi zakot sanasi</div>
+            <div style="font:700 22px var(--display)" class="gold-t">{{ hawl.date|hijri }}</div>
+            <div class="muted">{{ hawl.date|d('long') }}</div>
+          </div>
+        </div>
+        {% else %}
+        <p class="muted" style="margin-top:0">Mol nisobga yetgan kunni kiriting — tizim har hijriy yil yaqinlashganda eslatadi.</p>
+        {% endif %}
+        <form method="post" action="{{ url_for('islomiy.hawl_save') }}" style="display:flex;gap:8px;margin-top:14px">
+          <input type="date" name="hawl_start" value="{{ hawl.start.isoformat() if hawl }}">
+          <button class="btn outline">Saqlash</button>
+        </form>
+        <p class="faint" style="font-size:12px;margin:10px 0 0">Hijriy sana jadval usulida hisoblanadi, rasmiy e'londan 1–2 kun farq qilishi mumkin.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-b" style="font-size:13px">
+        <div class="zrow"><span class="muted">1 g oltin</span><b>{{ gold|num }} so'm</b></div>
+        <div class="zrow"><span class="muted">1 g kumush</span><b>{{ silver|num }} so'm</b></div>
+        <a class="link" style="margin-top:8px" href="{{ url_for('sozlama.index') }}">Narxlarni yangilash {{ ui.icon('right', 'sm') }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-h"><h3>Hisob-kitoblar tarixi</h3></div>
+  <div class="card-b" style="padding-top:6px">
+    <div class="table-wrap">
+    <table class="table cards">
+      <thead><tr><th>Sana</th><th class="r">Mol</th><th class="r">Nisob</th><th class="r">Zakot</th><th>Izoh</th></tr></thead>
+      <tbody>
+      {% for h in history %}
+      <tr><td><div class="t-main">{{ h.date|d }}</div><div class="t-sub">{{ h.hijri }}</div></td>
+        <td class="r"><span class="lbl">Mol</span>{{ h.base|num }}</td>
+        <td class="r"><span class="lbl">Nisob</span>{{ h.nisob_value|num }}</td>
+        <td class="r"><span class="lbl">Zakot</span><b>{{ h.due|num }}</b></td>
+        <td><span class="lbl">Izoh</span>{{ h.note or '—' }}</td></tr>
+      {% else %}
+      <tr><td colspan="5"><div class="empty" style="padding:20px">Saqlangan hisob-kitob yo'q</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<p class="faint" style="font-size:12.5px;margin-top:16px;max-width:760px">Hisob-kitob Hanafiy mazhabidagi tijorat zakoti uslubiga asoslangan. Yakuniy qaror uchun shariat maslahatchingiz bilan tasdiqlang.</p>
+
+{% if zcat %}
+{{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, preset={'kind': 'chiqim', 'category_id': zcat.id, 'lock_kind': True, 'amount': result.due if result.due else None}, next_url=request.path, title='Zakot berildi') }}
+{% endif %}
+{% endblock %}

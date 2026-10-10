@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Kirish{% endblock %}
+{% block body %}
+<div class="login">
+  <div class="login-art">
+    <div class="brand" style="padding:0">
+      <img class="brand-mark" src="{{ url_for('static', filename='img/mark.svg') }}" alt="" style="width:48px;height:48px">
+      <div><div class="brand-name" style="font-size:30px">Assoodiq</div><div class="brand-sub">Halol hisob</div></div>
+    </div>
+    <div>
+      <h1>Tijoratning barakasi to'g'ri hisobdan boshlanadi</h1>
+      <p style="margin-top:14px">Kurslar, klublar, kassa, zakot va qarz daftari — barchasi bitta joyda, shariat talablariga mos holda.</p>
+    </div>
+    <div class="ayah">
+      <p>«Ey imon keltirganlar! Qachon bir-biringizga ma'lum muddatgacha qarz bersangiz, uni yozib qo'yinglar.»</p>
+      <small>BAQARA SURASI, 282-OYAT</small>
+    </div>
+  </div>
+  <div class="login-form">
+    <form class="login-box" method="post">
+      <h2>Xush kelibsiz</h2>
+      <p class="muted" style="margin:6px 0 24px">Davom etish uchun 6 xonali kirish kodingizni kiriting.</p>
+      <input class="input code-in" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" autofocus placeholder="••••••" required>
+      <button class="btn solid block" style="height:48px;margin-top:14px;font-size:15px">Kirish</button>
+      <p class="faint" style="font-size:12.5px;margin-top:18px;text-align:center">Kodni unutgan bo'lsangiz, rahbarga murojaat qiling.</p>
+    </form>
+  </div>
+</div>
+{% endblock %}

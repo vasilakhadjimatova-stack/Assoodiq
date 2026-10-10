@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }}{% endblock %}
+{% block content %}
+{% set here = request.full_path.rstrip('?') %}
+<a class="crumb" href="{{ url_for('dastur.programs') }}">{{ ui.icon('left', 'sm') }} Kurs va klublar</a>
+<div class="head">
+  <div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <span class="pill {{ 'gold' if p.kind == 'klub' else 'brand' }}">{{ p.kind_name }}</span>
+      <span class="pill {{ 'ok' if p.status == 'faol' else ('info' if p.status == 'rejada' else '') }}">{{ p.status_name }}</span>
+    </div>
+    <div class="head-t">{{ p.name }}</div>
+    <div class="head-s">{{ ui.som(p.price, p.currency) }} · {{ p.billing_name }}{% if p.start_date %} · {{ p.start_date|d }}{% if p.end_date %} – {{ p.end_date|d }}{% endif %}{% endif %}</div>
+  </div>
+  <div class="head-a">
+    {% if g.user.role != 'menejer' %}
+    <button class="btn outline" data-open="prog-modal">{{ ui.icon('pencil', 'sm') }} Tahrirlash</button>
+    <button class="btn outline" data-open="tx-modal">{{ ui.icon('out', 'sm') }} Xarajat</button>
+    {% endif %}
+    <button class="btn solid" data-open="enroll-modal">{{ ui.icon('user-plus', 'sm') }} A'zo qo'shish</button>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-l">A'zolar</div><div class="stat-v">{{ stat.members }}{% if p.capacity %}<span class="cur"> / {{ p.capacity }}</span>{% endif %}</div>
+    <div class="stat-s">{% if stat.fill is not none %}{{ stat.fill|pct }} to'lgan{% else %}chegara yo'q{% endif %}</div></div>
+  <div class="stat"><div class="stat-l">Yig'ildi</div><div class="stat-v">{{ ui.som(stat.collected) }}</div><div class="stat-s">kutilgan {{ stat.expected|short }} dan {{ stat.progress|pct }}</div></div>
+  <div class="stat"><div class="stat-l">Xarajatlar</div><div class="stat-v">{{ ui.som(stat.expenses) }}</div><div class="stat-s">{% if stat.cac %}1 a'zoni jalb qilish: {{ stat.cac|short }}{% else %}reklama xarajati yo'q{% endif %}</div></div>
+  <div class="stat"><div class="stat-l">Sof foyda</div><div class="stat-v {{ 'bad-t' if stat.profit < 0 else 'ok-t' }}">{{ ui.som(stat.profit) }}</div><div class="stat-s">rentabellik {{ stat.margin|pct }}</div></div>
+</div>
+
+<div class="grid g-main">
+  <div class="card">
+    <div class="card-h">
+      <h3>A'zolar</h3>
+      <div class="act seg">
+        <a href="{{ url_for('dastur.program', pid=p.id) }}" class="{{ 'on' if not seg }}">Hammasi</a>
+        <a href="{{ url_for('dastur.program', pid=p.id, holat='qarzdor') }}" class="{{ 'on' if seg == 'qarzdor' }}">Qarzdorlar</a>
+      </div>
+    </div>
+    <div class="card-b" style="padding-top:8px">
+      <div class="table-wrap">
+      <table class="table cards">
+        <thead><tr><th>A'zo</th><th class="r">Hisoblangan</th><th class="r">To'langan</th><th class="r">Qoldiq</th>{% if p.kind == 'klub' %}<th>Obuna</th>{% endif %}<th></th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+        {% set e = r.enrollment %}
+        <tr>
+          <td><a href="{{ url_for('dastur.member', mid=e.member_id) }}"><div class="t-main">{{ e.member.full_name }}</div>
+            <div class="t-sub">{{ e.member.business or e.member.phone }}{% if e.status != 'faol' %} · <span class="pill" style="height:18px">{{ 'Tugatgan' if e.status == 'tugatgan' else 'Chiqqan' }}</span>{% endif %}</div></a></td>
+          <td class="r"><span class="lbl">Hisoblangan</span>{{ r.price|num }}</td>
+          <td class="r"><span class="lbl">To'langan</span>{{ r.paid|num }}</td>
+          <td class="r"><span class="lbl">Qoldiq</span>{% if r.due > 0 %}<b class="bad-t">{{ r.due|num }}</b>{% else %}<span class="pill ok">To'langan</span>{% endif %}</td>
+          {% if p.kind == 'klub' %}
+          <td><span class="lbl">Obuna</span>{% if e.valid_until %}<span class="pill {{ 'bad' if e.valid_until < today else ('warn' if (e.valid_until - today).days <= 7 else '') }}">{{ e.valid_until|d }} gacha</span>{% endif %}</td>
+          {% endif %}
+          <td class="r" style="white-space:nowrap">
+            {% if r.due > 0 %}<button class="btn tonal sm" data-open="pay-modal" data-set-enrollment-id="{{ e.id }}" data-set-amount="{{ r.due|round(2) }}" data-set-member="{{ e.member.full_name }}">To'lov</button>{% endif %}
+            <details class="more" style="display:inline-block">
+              <summary class="icon-btn">{{ ui.icon('more') }}</summary>
+              <div class="menu">
+                {% if p.billing != 'bir_martalik' %}
+                <form method="post" action="{{ url_for('dastur.renew', eid=e.id) }}"><input type="hidden" name="next" value="{{ here }}"><button>{{ ui.icon('renew', 'sm') }} Obunani uzaytirish</button></form>
+                {% endif %}
+                {% for st, label in (('faol', 'Faol'), ('tugatgan', 'Tugatdi'), ('chiqqan', 'Chiqib ketdi')) if st != e.status %}
+                <form method="post" action="{{ url_for('dastur.enrollment_status', eid=e.id) }}"><input type="hidden" name="next" value="{{ here }}"><input type="hidden" name="status" value="{{ st }}"><button>{{ label }} deb belgilash</button></form>
+                {% endfor %}
+              </div>
+            </details>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6"><div class="empty">{{ ui.icon('users') }}<b>A'zo yo'q</b>«A'zo qo'shish» tugmasi orqali yozing.</div></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h3>Xarajatlar</h3><span class="sub">shu dastur uchun</span></div>
+    <div class="card-b" style="padding-top:4px">
+      {% for t in expenses %}{{ ui.tx_row(t) }}{% else %}<div class="empty"><b>Xarajat yozilmagan</b>Reklama, zal, mentor haqi kabi chiqimlarni shu dasturga bog'lang — shunda haqiqiy foyda ko'rinadi.</div>{% endfor %}
+      {% if p.description %}<div class="ayah" style="margin-top:14px;background:var(--surface2);border-color:var(--line)"><div style="font-size:13.5px">{{ p.description }}</div></div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<dialog class="modal" id="enroll-modal">
+  <form method="post" action="{{ url_for('dastur.enroll', pid=p.id) }}">
+    <div class="modal-h"><h3>A'zo qo'shish</h3><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b">
+      <div class="field"><label>Mavjud a'zo</label>
+        <select name="member_id"><option value="">— Yangi a'zo —</option>{% for m in members %}<option value="{{ m.id }}">{{ m.full_name }}{% if m.phone %} · {{ m.phone }}{% endif %}</option>{% endfor %}</select>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Yangi a'zo: ism-familiya</label><input type="text" name="full_name"></div>
+        <div class="field"><label>Telefon</label><input type="tel" name="phone" placeholder="+998"></div>
+        <div class="field full"><label>Biznesi / sohasi</label><input type="text" name="business" placeholder="Masalan: qurilish mollari savdosi"></div>
+        <div class="field"><label>Kelishilgan narx</label><input name="price" inputmode="decimal" data-money value="{{ p.price|num }}"><span class="hint">Chegirma bo'lsa o'zgartiring ({{ 'dollarda' if p.currency == 'USD' else "so'mda" }})</span></div>
+        <div class="field"><label>Qo'shilgan sana</label><input type="date" name="joined_at" value="{{ today.isoformat() }}"></div>
+      </div>
+      <div class="field"><label>Izoh</label><input type="text" name="note"></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">{{ ui.icon('check', 'sm') }} Qo'shish</button></div>
+  </form>
+</dialog>
+
+{{ ui.pay_modal(f_accounts, pay_category.id if pay_category, aqd_types, here) }}
+{{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, preset={'kind': 'chiqim', 'program_id': p.id, 'lock_kind': True}, next_url=here, title='Dastur xarajati') }}
+{% include "partials/program_form.html" %}
+{% endblock %}

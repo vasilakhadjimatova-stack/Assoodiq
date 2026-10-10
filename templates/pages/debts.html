@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Qarz daftari{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">Qarz daftari</div>
+    <div class="head-s">Berilgan va olingan qarzlar — muddat, guvoh va qaytarilishi bilan</div>
+  </div>
+  <div class="head-a"><button class="btn solid" data-open="debt-modal">{{ ui.icon('plus', 'sm') }} Qarz yozish</button></div>
+</div>
+
+<div class="ayah" style="margin-bottom:16px">
+  <p>«…qarz oz bo'lsin, ko'p bo'lsin, uni muddati bilan yozishdan erinmanglar. Bu Alloh nazdida adolatliroq, guvohlik uchun mustahkamroqdir…»</p>
+  <small>BAQARA SURASI, 282-OYAT · Qarzga foiz qo'shilmaydi</small>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-l">{{ ui.icon('out', 'sm') }} Bizdan olinishi kerak</div><div class="stat-v">{{ ui.som(summary.berilgan) }}</div><div class="stat-s">biz bergan qarzlar qoldig'i</div></div>
+  <div class="stat"><div class="stat-l">{{ ui.icon('in', 'sm') }} Biz qaytarishimiz kerak</div><div class="stat-v">{{ ui.som(summary.olingan) }}</div><div class="stat-s">biz olgan qarzlar qoldig'i</div></div>
+  <div class="stat"><div class="stat-l">{{ ui.icon('clock', 'sm') }} Muddati o'tgan</div><div class="stat-v {{ 'bad-t' if summary.overdue }}">{{ summary.overdue }}</div><div class="stat-s">eslatish kerak</div></div>
+</div>
+
+<div class="toolbar">
+  <div class="seg">
+    {% for k, v in (('ochiq', 'Ochiq'), ('otgan', "Muddati o'tgan"), ('yopilgan', 'Yopilgan')) %}
+    <a href="{{ url_for('qarz.debts', holat=k) }}" class="{{ 'on' if seg == k }}">{{ v }} <span class="n">{{ counts[k] }}</span></a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+  <table class="table cards">
+    <thead><tr><th>Kim</th><th>Turi</th><th class="r">Qarz</th><th class="r">Qoldiq</th><th>Muddat</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    {% set d = r.debt %}
+    <tr>
+      <td><a href="{{ url_for('qarz.detail', did=d.id) }}"><div class="t-main">{{ d.counterparty }}</div><div class="t-sub">{{ d.date|d }}{% if d.witness %} · guvoh: {{ d.witness }}{% endif %}</div></a></td>
+      <td><span class="lbl">Turi</span><span class="pill {{ 'info' if d.direction == 'berilgan' else 'gold' }}">{{ 'Berilgan' if d.direction == 'berilgan' else 'Olingan' }}</span></td>
+      <td class="r"><span class="lbl">Qarz</span>{{ ui.som(d.amount, d.currency) }}</td>
+      <td class="r"><span class="lbl">Qoldiq</span><div><b>{{ ui.som(r.remaining, d.currency) }}</b><div class="bar thin" style="margin-top:5px;min-width:90px"><i style="width:{{ (r.progress * 100)|round }}%"></i></div></div></td>
+      <td><span class="lbl">Muddat</span>{% if d.closed %}<span class="pill ok">Yopilgan</span>{% elif r.overdue %}<span class="pill bad">{{ d.due_date|d }}</span>{% elif d.due_date %}<span class="pill">{{ d.due_date|d }}</span>{% else %}<span class="faint">—</span>{% endif %}</td>
+      <td class="r" style="white-space:nowrap">
+        {% if not d.closed %}<button class="btn tonal sm" data-open="repay-modal" data-set-debt="{{ d.id }}" data-set-amount="{{ r.remaining|round(2) }}" data-set-who="{{ d.counterparty }}">{{ 'Qaytardi' if d.direction == 'berilgan' else 'Qaytardik' }}</button>{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6"><div class="empty">{{ ui.icon('book') }}<b>Bu ro'yxat bo'sh</b></div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<dialog class="modal" id="debt-modal">
+  <form method="post" action="{{ url_for('qarz.create') }}">
+    <div class="modal-h"><h3>Qarz yozish</h3><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b">
+      <div class="kind-tabs" style="grid-template-columns:1fr 1fr">
+        <label><input type="radio" name="direction" value="berilgan" checked>{{ ui.icon('out', 'sm') }} Qarz berdik</label>
+        <label><input type="radio" name="direction" value="olingan">{{ ui.icon('in', 'sm') }} Qarz oldik</label>
+      </div>
+      <div class="field"><label>Summa</label><input class="amount-in" name="amount" inputmode="decimal" data-money required></div>
+      <div class="form-grid">
+        <div class="field"><label>Kim</label><input type="text" name="counterparty" required></div>
+        <div class="field"><label>Telefon</label><input type="tel" name="phone"></div>
+        <div class="field"><label>Sana</label><input type="date" name="date" value="{{ today.isoformat() }}"></div>
+        <div class="field"><label>Qaytarish muddati</label><input type="date" name="due_date"></div>
+        <div class="field full"><label>Guvoh(lar)</label><input type="text" name="witness" placeholder="Ism-familiya"></div>
+      </div>
+      <div class="field">
+        <span class="fl">Pul qaysi hisobdan o'tdi</span>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="account_id" value="" checked>Hisobdan o'tmagan</label>
+          {% for r in f_accounts %}<label class="chip"><input type="radio" name="account_id" value="{{ r.account.id }}">{{ r.account.name }}</label>{% endfor %}
+        </div>
+        <span class="hint">Hisob tanlansa, kassa balansi ham o'zgaradi. Qarz foyda yoki zararga kirmaydi.</span>
+      </div>
+      <div class="field"><label>Shartlar / izoh</label><textarea name="note" placeholder="Masalan: 3 oyda teng bo'lib qaytaradi"></textarea></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">{{ ui.icon('check', 'sm') }} Daftarga yozish</button></div>
+  </form>
+</dialog>
+
+<dialog class="modal" id="repay-modal">
+  <form method="post" data-action-tpl="{{ url_for('qarz.repay', did=0) }}">
+    <input type="hidden" name="debt" value="">
+    <div class="modal-h"><div><h3>Qaytarilgan summa</h3><div class="faint" style="font-size:13px;font-weight:650" data-text="who"></div></div><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b">
+      <div class="field"><label>Summa</label><input class="amount-in" name="amount" inputmode="decimal" data-money required></div>
+      <div class="field"><span class="fl">Hisob</span>
+        <div class="chips">{% for r in f_accounts %}<label class="chip"><input type="radio" name="account_id" value="{{ r.account.id }}" {{ 'checked' if loop.first }}>{{ r.account.name }}</label>{% endfor %}</div>
+      </div>
+      <div class="field"><label>Sana</label><input type="date" name="date" value="{{ today.isoformat() }}"></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">{{ ui.icon('check', 'sm') }} Yozish</button></div>
+  </form>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script>
+  // Qaysi qarz ekani tugmadan keladi — forma manzilini shunga moslaymiz
+  document.querySelector('#repay-modal [name=debt]').addEventListener('change', function () {
+    var f = this.form; f.action = f.dataset.actionTpl.replace(/\/0\//, '/' + this.value + '/');
+  });
+</script>
+{% endblock %}

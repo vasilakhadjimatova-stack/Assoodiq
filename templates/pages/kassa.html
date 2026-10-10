@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Kassa{% endblock %}
+{% block content %}
+{% set here = request.full_path.rstrip('?') %}
+<div class="head">
+  <div>
+    <div class="head-t">Kassa</div>
+    <div class="head-s">{{ month_name }}: kirim <b class="ok-t">{{ totals.income|num }}</b> · chiqim <b>{{ totals.expense|num }}</b> · sof <b>{{ totals.profit|num }}</b> so'm</div>
+  </div>
+  <div class="head-a">
+    {% if g.user.role != 'menejer' %}<button class="btn outline" data-open="tx-modal" data-set-kind="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</button>{% endif %}
+    <button class="btn solid" data-open="tx-modal" data-set-kind="kirim">{{ ui.icon('plus', 'sm') }} Kirim</button>
+  </div>
+</div>
+
+<div class="stats">
+  {% for r in f_accounts %}
+  <a class="stat" href="{{ url_for('kassa.ledger', hisob=(None if acc_id == r.account.id else r.account.id), oy=month.strftime('%Y-%m'), tur=kind or None) }}" style="{{ 'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-bg)' if acc_id == r.account.id }}">
+    <div class="stat-l">{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }} {{ r.account.name }}</div>
+    <div class="stat-v" style="font-size:21px">{{ ui.som(r.balance, r.account.currency) }}</div>
+    <div class="stat-s">{{ r.account.kind_name }}{% if r.account.currency == 'USD' %} · ≈ {{ r.balance_uzs|short }} so'm{% endif %}</div>
+  </a>
+  {% endfor %}
+</div>
+
+<form class="toolbar" method="get">
+  <div class="month-nav">
+    <a href="{{ url_for('kassa.ledger', oy=prev_month.strftime('%Y-%m'), tur=kind or None, hisob=acc_id) }}" title="Oldingi oy">{{ ui.icon('left', 'sm') }}</a>
+    <span>{{ month_name }}</span>
+    <a href="{{ url_for('kassa.ledger', oy=next_month.strftime('%Y-%m'), tur=kind or None, hisob=acc_id) }}" title="Keyingi oy">{{ ui.icon('right', 'sm') }}</a>
+  </div>
+  <div class="seg">
+    {% for k, v in kinds.items() %}
+    <a href="{{ url_for('kassa.ledger', tur=k or None, oy=month.strftime('%Y-%m'), hisob=acc_id, q=q or None) }}" class="{{ 'on' if kind == k }}">{{ v }} <span class="n">{{ counts[k] }}</span></a>
+    {% endfor %}
+  </div>
+  <input type="hidden" name="oy" value="{{ month.strftime('%Y-%m') }}">
+  {% if kind %}<input type="hidden" name="tur" value="{{ kind }}">{% endif %}
+  {% if acc_id %}<input type="hidden" name="hisob" value="{{ acc_id }}">{% endif %}
+  <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Kim yoki izoh bo'yicha qidirish"></label>
+</form>
+
+<div class="card">
+  <div class="card-b" style="padding-top:6px;padding-bottom:6px">
+    {% for t in rows %}
+      {% if loop.first or t.date != loop.previtem.date %}
+        <div class="faint" style="font-size:12px;font-weight:800;letter-spacing:.4px;padding:14px 0 2px;text-transform:uppercase">{{ t.date|d('long') }}</div>
+      {% endif %}
+      {{ ui.tx_row(t, show_actions=(g.user.role != 'menejer'), next_url=here) }}
+    {% else %}
+      <div class="empty">{{ ui.icon('wallet') }}<b>Bu davrda yozuv yo'q</b>Yangi kirim yoki chiqim qo'shing yoki boshqa oyni tanlang.</div>
+    {% endfor %}
+  </div>
+</div>
+
+{{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, next_url=here) }}
+{% endblock %}
+{% block fab %}<button class="fab" data-open="tx-modal" data-set-kind="kirim" aria-label="Yangi yozuv">{{ ui.icon('plus') }}</button>{% endblock %}

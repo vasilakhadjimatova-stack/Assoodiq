@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Halollik va sadaqa{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">Halollik va sadaqa</div>
+    <div class="head-s">Shubhali tushumlarni tozalash, sadaqa rejasi va daromadning aqd turlari</div>
+  </div>
+  <div class="head-a">
+    {% if scat %}<button class="btn outline" data-open="sadaqa-modal">{{ ui.icon('heart', 'sm') }} Sadaqa berildi</button>{% endif %}
+    {% if tcat %}<button class="btn solid" data-open="purify-modal">{{ ui.icon('shield', 'sm') }} Fonddan chiqarish</button>{% endif %}
+  </div>
+</div>
+
+<div class="grid g-2">
+  <div class="card">
+    <div class="card-h"><h3>Tozalash fondi</h3><span class="sub">foydaga qo'shilmaydi</span></div>
+    <div class="card-b">
+      <div style="display:flex;gap:18px;align-items:center">
+        {% set pp = (fund.paid / fund.flagged * 100) if fund.flagged else 100 %}
+        <div class="ring" style="--p: {{ pp|round }}"><span>{{ pp|round|int }}%<small>chiqarildi</small></span></div>
+        <div style="flex:1">
+          <div class="zrow"><label>Shubhali / nohalol tushum</label><b>{{ fund.flagged|num }}</b></div>
+          <div class="zrow"><label>Chiqarildi</label><b class="ok-t">{{ fund.paid|num }}</b></div>
+          <div class="zrow"><label>Chiqarilishi kerak</label><b class="{{ 'bad-t' if fund.remaining > 0 }}">{{ fund.remaining|num }}</b></div>
+        </div>
+      </div>
+      <p class="faint" style="font-size:12.5px;margin:14px 0 0">Bunday mablag' savob niyatisiz, ehtiyojmandlarga yoki umumiy manfaatga beriladi. Zakot hisobida naqd puldan ayiriladi.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h3>Sadaqa rejasi · {{ sadaqa.year }}</h3><span class="sub">sof foydaning {{ sadaqa_percent|num(1) }}%</span></div>
+    <div class="card-b">
+      <div style="display:flex;gap:18px;align-items:center">
+        <div class="ring" style="--p: {{ (sadaqa.progress * 100)|round }}"><span>{{ sadaqa.progress|pct }}<small>bajarildi</small></span></div>
+        <div style="flex:1">
+          <div class="zrow"><label>Yillik sof foyda</label><b>{{ sadaqa.profit|num }}</b></div>
+          <div class="zrow"><label>Reja</label><b>{{ sadaqa.target|num }}</b></div>
+          <div class="zrow"><label>Berildi</label><b class="ok-t">{{ sadaqa.given|num }}</b></div>
+        </div>
+      </div>
+      <p class="faint" style="font-size:12.5px;margin:14px 0 0">Ulushni Sozlamalarda o'zgartirish mumkin. Zakot bu rejaga kirmaydi.</p>
+    </div>
+  </div>
+</div>
+
+<div class="grid g-main mt">
+  <div class="card">
+    <div class="card-h"><h3>Shubhali va nohalol tushumlar</h3><span class="sub">{{ flagged|length }} ta</span></div>
+    <div class="card-b" style="padding-top:4px">
+      {% for t in flagged %}{{ ui.tx_row(t) }}{% else %}
+      <div class="empty">{{ ui.icon('shield') }}<b>Belgilangan tushum yo'q</b>Bank foizi, aniqlanmagan manbadan kelgan pul kabi tushumlarni kirim yozishda «Shubhali» deb belgilang.</div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h3>Daromad aqdlari · {{ today.year }}</h3></div>
+    <div class="card-b">
+      {% for r in aqd_rows %}
+      <div class="hbar"><span class="n">{{ r.name }}</span><span class="v">{{ r.value|short }} <span class="faint">· {{ r.share|pct }}</span></span><div class="bar"><i style="width:{{ (r.share * 100)|round(1) }}%;background:var(--chart-in)"></i></div></div>
+      {% else %}<div class="empty"><b>Bu yil kirim yo'q</b></div>{% endfor %}
+      {% if untagged > 0 %}<p class="faint" style="font-size:12.5px;margin-bottom:0">Aqd turi belgilanmagan kirimlar: {{ untagged|num }} so'm. Har bir tushum qaysi shartnoma asosida olingani aniq bo'lishi — g'ararning oldini oladi.</p>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if tcat %}{{ ui.tx_modal('purify-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, preset={'kind': 'chiqim', 'category_id': tcat.id, 'lock_kind': True, 'amount': fund.remaining if fund.remaining > 0 else None}, next_url=request.path, title='Tozalash fondidan chiqarish') }}{% endif %}
+{% if scat %}{{ ui.tx_modal('sadaqa-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, preset={'kind': 'chiqim', 'category_id': scat.id, 'lock_kind': True}, next_url=request.path, title='Sadaqa berildi') }}{% endif %}
+{% endblock %}

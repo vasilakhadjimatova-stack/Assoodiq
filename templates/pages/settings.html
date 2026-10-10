@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Sozlamalar{% endblock %}
+{% block content %}
+<div class="head"><div><div class="head-t">Sozlamalar</div><div class="head-s">Kurslar, nisob, hisoblar, kategoriyalar va xodimlar</div></div></div>
+<div class="tabs">
+  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar')) %}
+  <a href="{{ url_for('sozlama.index', bolim=k) }}" class="{{ 'on' if tab == k }}">{{ v }}</a>
+  {% endfor %}
+</div>
+
+{% if tab == 'umumiy' %}
+<form class="card" method="post" action="{{ url_for('sozlama.save_general') }}" style="max-width:760px">
+  <div class="card-b form-grid">
+    <div class="field full"><label>Tashkilot nomi</label><input type="text" name="org_name" value="{{ s.org_name }}"></div>
+    <div class="field"><label>Dollar kursi (1 $ = so'm)</label><input name="usd_rate" data-money inputmode="decimal" value="{{ s.usd_rate|num }}"><span class="hint">Yangi yozuvlar shu kurs bilan so'mga o'giriladi</span></div>
+    <div class="field"><label>Sadaqa ulushi (sof foydadan, %)</label><input name="sadaqa_percent" inputmode="decimal" value="{{ s.sadaqa_percent }}"></div>
+    <div class="field"><label>1 g oltin narxi (so'm)</label><input name="gold_price_g" data-money inputmode="decimal" value="{{ s.gold_price_g|num }}"></div>
+    <div class="field"><label>1 g kumush narxi (so'm)</label><input name="silver_price_g" data-money inputmode="decimal" value="{{ s.silver_price_g|num }}"></div>
+    <div class="field"><span class="fl">Nisob asosi</span>
+      <div class="chips">
+        <label class="chip"><input type="radio" name="nisob_basis" value="oltin" {{ 'checked' if s.nisob_basis == 'oltin' }}>Oltin (85 g)</label>
+        <label class="chip"><input type="radio" name="nisob_basis" value="kumush" {{ 'checked' if s.nisob_basis == 'kumush' }}>Kumush (595 g)</label>
+      </div>
+    </div>
+    <div class="field"><label>Tovar zaxirasi qiymati (so'm)</label><input name="inventory_value" data-money inputmode="decimal" value="{{ s.inventory_value|num }}"><span class="hint">Kitob, mahsulot — zakot uchun bozor narxida</span></div>
+  </div>
+  <div class="modal-f" style="position:static"><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
+</form>
+
+{% elif tab == 'hisoblar' %}
+<div class="grid g-main">
+  <div class="card"><div class="card-b" style="padding-top:6px">
+    {% for r in accounts %}
+    <div class="acc">
+      <div class="acc-k">{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }}</div>
+      <div><b>{{ r.account.name }}</b><span>{{ r.account.kind_name }} · {{ r.account.currency }} · boshlang'ich {{ r.account.opening_balance|num }}</span></div>
+      <div class="r">{{ ui.som(r.balance, r.account.currency) }}</div>
+      <form method="post" action="{{ url_for('sozlama.account_toggle', aid=r.account.id) }}"><button class="btn {{ 'ghost' if r.account.active else 'tonal' }} sm">{{ 'Yashirish' if r.account.active else 'Faollashtirish' }}</button></form>
+    </div>
+    {% endfor %}
+  </div></div>
+  <form class="card" method="post" action="{{ url_for('sozlama.account_add') }}">
+    <div class="card-h"><h3>Yangi hisob</h3></div>
+    <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+      <div class="field"><label>Nomi</label><input type="text" name="name" placeholder="Masalan: Asosiy kassa" required></div>
+      <div class="field"><span class="fl">Turi</span><div class="chips">{% for k, v in account_kinds.items() %}<label class="chip"><input type="radio" name="kind" value="{{ k }}" {{ 'checked' if loop.first }}>{{ v }}</label>{% endfor %}</div></div>
+      <div class="field"><span class="fl">Valyuta</span><div class="chips"><label class="chip"><input type="radio" name="currency" value="UZS" checked>So'm</label><label class="chip"><input type="radio" name="currency" value="USD">Dollar</label></div></div>
+      <div class="field"><label>Boshlang'ich qoldiq</label><input name="opening_balance" data-money inputmode="decimal" placeholder="0"></div>
+      <button class="btn solid">{{ ui.icon('plus', 'sm') }} Qo'shish</button>
+    </div>
+  </form>
+</div>
+
+{% elif tab == 'kategoriyalar' %}
+<div class="grid g-main">
+  <div class="card">
+    <div class="table-wrap">
+    <table class="table cards">
+      <thead><tr><th>Nomi</th><th>Turi</th><th>Guruh</th><th></th></tr></thead>
+      <tbody>
+      {% for c in categories %}
+      <tr style="{{ 'opacity:.5' if not c.active }}">
+        <td><div class="t-main">{{ c.name }}</div>{% if c.system_code %}<div class="t-sub">tizim kategoriyasi</div>{% elif c.program_kind %}<div class="t-sub">{{ program_kinds[c.program_kind] }} to'lovlari uchun</div>{% endif %}</td>
+        <td><span class="lbl">Turi</span><span class="pill {{ 'ok' if c.kind == 'kirim' else '' }}">{{ 'Kirim' if c.kind == 'kirim' else 'Chiqim' }}</span></td>
+        <td><span class="lbl">Guruh</span>{{ c.group }}</td>
+        <td class="r">{% if not c.system_code %}<form method="post" action="{{ url_for('sozlama.category_toggle', cid=c.id) }}"><button class="btn ghost sm">{{ 'Yashirish' if c.active else 'Qaytarish' }}</button></form>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <form class="card" method="post" action="{{ url_for('sozlama.category_add') }}">
+    <div class="card-h"><h3>Yangi kategoriya</h3></div>
+    <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+      <div class="field"><label>Nomi</label><input type="text" name="name" required></div>
+      <div class="field"><span class="fl">Turi</span><div class="chips"><label class="chip"><input type="radio" name="kind" value="kirim" checked>Kirim</label><label class="chip"><input type="radio" name="kind" value="chiqim">Chiqim</label></div></div>
+      <div class="field"><label>Guruh (hisobotda)</label><input type="text" name="group" placeholder="Masalan: Marketing" list="groups"></div>
+      <datalist id="groups">{% for gname in categories|map(attribute='group')|unique %}<option value="{{ gname }}">{% endfor %}</datalist>
+      <div class="field"><label>Dastur to'lovlari uchun (ixtiyoriy)</label>
+        <select name="program_kind"><option value="">—</option>{% for k, v in program_kinds.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+      </div>
+      <button class="btn solid">{{ ui.icon('plus', 'sm') }} Qo'shish</button>
+    </div>
+  </form>
+</div>
+
+{% elif tab == 'xodimlar' %}
+<div class="grid g-main">
+  <div class="card"><div class="card-b" style="padding-top:6px">
+    {% for u in users %}
+    <div class="acc" style="{{ 'opacity:.5' if not u.active }}">
+      <div class="avatar" style="background:var(--brand-bg);color:var(--brand-txt)">{{ u.name[:1] }}</div>
+      <div><b>{{ u.name }}</b><span>{{ u.role_name }}{% if not u.active %} · faol emas{% endif %}</span></div>
+      {% if g.user.role == 'rahbar' %}
+      <details class="more" style="margin-left:auto">
+        <summary class="icon-btn">{{ ui.icon('more') }}</summary>
+        <div class="menu">
+          <form method="post" action="{{ url_for('sozlama.user_reset', uid=u.id) }}"><button>Yangi kod berish</button></form>
+          {% if u.id != g.user.id %}<form method="post" action="{{ url_for('sozlama.user_toggle', uid=u.id) }}"><button class="{{ 'danger' if u.active }}">{{ 'Faolsizlantirish' if u.active else 'Faollashtirish' }}</button></form>{% endif %}
+        </div>
+      </details>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div></div>
+  {% if g.user.role == 'rahbar' %}
+  <form class="card" method="post" action="{{ url_for('sozlama.user_add') }}">
+    <div class="card-h"><h3>Yangi xodim</h3></div>
+    <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+      <div class="field"><label>Ism</label><input type="text" name="name" required></div>
+      <div class="field"><span class="fl">Roli</span><div class="chips">{% for k, v in roles.items() %}<label class="chip"><input type="radio" name="role" value="{{ k }}" {{ 'checked' if k == 'menejer' }}>{{ v }}</label>{% endfor %}</div>
+        <span class="hint">Menejer faqat dasturlar, a'zolar va kirim bilan ishlaydi.</span></div>
+      <button class="btn solid">{{ ui.icon('plus', 'sm') }} Qo'shish va kod berish</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

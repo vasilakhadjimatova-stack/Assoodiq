@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ d.counterparty }}{% endblock %}
+{% block content %}
+<a class="crumb" href="{{ url_for('qarz.debts') }}">{{ ui.icon('left', 'sm') }} Qarz daftari</a>
+<div class="head">
+  <div>
+    <span class="pill {{ 'info' if d.direction == 'berilgan' else 'gold' }}" style="margin-bottom:8px">{{ d.direction_name }}</span>
+    <div class="head-t">{{ d.counterparty }}</div>
+    <div class="head-s">{{ d.date|d }}{% if d.due_date %} · muddat {{ d.due_date|d }}{% endif %}{% if d.phone %} · {{ d.phone }}{% endif %}</div>
+  </div>
+  <div class="head-a">
+    <form method="post" action="{{ url_for('qarz.toggle', did=d.id) }}" onsubmit="return confirm(this.dataset.msg)" data-msg="{{ 'Qarzni qayta ochasizmi?' if d.closed else 'Qoldiqdan qat\'i nazar qarzni yopasizmi (masalan kechib yuborildi)?' }}">
+      <button class="btn outline">{{ 'Qayta ochish' if d.closed else 'Yopish' }}</button>
+    </form>
+  </div>
+</div>
+<div class="stats">
+  <div class="stat"><div class="stat-l">Qarz summasi</div><div class="stat-v">{{ ui.som(d.amount, d.currency) }}</div></div>
+  <div class="stat"><div class="stat-l">Qaytarildi</div><div class="stat-v ok-t">{{ ui.som(d.amount - remaining, d.currency) }}</div></div>
+  <div class="stat"><div class="stat-l">Qoldiq</div><div class="stat-v">{{ ui.som(remaining, d.currency) }}</div></div>
+</div>
+<div class="grid g-2">
+  <div class="card"><div class="card-h"><h3>Harakatlar</h3></div>
+    <div class="card-b" style="padding-top:4px">{% for t in moves %}{{ ui.tx_row(t) }}{% else %}<div class="empty"><b>Hisob harakati yo'q</b></div>{% endfor %}</div>
+  </div>
+  <div class="card"><div class="card-h"><h3>Shartlar</h3></div>
+    <div class="card-b">
+      <div class="zrow"><label>Guvoh</label><span>{{ d.witness or '—' }}</span></div>
+      <div class="zrow"><label>Valyuta</label><span>{{ d.currency }}</span></div>
+      <p class="muted">{{ d.note or 'Izoh yozilmagan.' }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

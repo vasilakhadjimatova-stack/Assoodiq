@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}A'zolar{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">A'zolar</div>
+    <div class="head-s">Kurs o'quvchilari va klub a'zolari · ko'rsatilganlar qoldig'i <b>{{ total_due|num }}</b> so'm</div>
+  </div>
+  <div class="head-a"><button class="btn solid" data-open="member-modal">{{ ui.icon('user-plus', 'sm') }} Yangi a'zo</button></div>
+</div>
+
+<form class="toolbar" method="get">
+  <div class="seg">
+    {% for k, v in (('', 'Hammasi'), ('qarzdor', 'Qarzdorlar'), ('klub', 'Klub a\'zolari'), ('tugayapti', 'Obunasi tugayapti')) %}
+    <a href="{{ url_for('dastur.members', holat=k or None, q=q or None) }}" class="{{ 'on' if seg == k }}">{{ v }} <span class="n">{{ counts[k] }}</span></a>
+    {% endfor %}
+  </div>
+  {% if seg %}<input type="hidden" name="holat" value="{{ seg }}">{% endif %}
+  <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Ism, telefon yoki biznes"></label>
+</form>
+
+<div class="card">
+  <div class="table-wrap">
+  <table class="table cards">
+    <thead><tr><th>A'zo</th><th>Dasturlar</th><th class="r">To'lagan</th><th class="r">Qoldiq</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    {% set m = r.member %}
+    <tr>
+      <td><a href="{{ url_for('dastur.member', mid=m.id) }}"><div class="t-main">{{ m.full_name }}</div><div class="t-sub">{{ m.business or '—' }}{% if m.phone %} · {{ m.phone }}{% endif %}</div></a></td>
+      <td><span class="lbl">Dasturlar</span><span>{% for p in r.programs[:2] %}<span class="pill {{ 'gold' if p.kind == 'klub' else '' }}" style="margin:1px">{{ p.name|truncate(28, True, '…') }}</span>{% endfor %}{% if r.programs|length > 2 %} <span class="faint">+{{ r.programs|length - 2 }}</span>{% endif %}</span></td>
+      <td class="r"><span class="lbl">To'lagan</span>{{ r.paid|num }}</td>
+      <td class="r"><span class="lbl">Qoldiq</span>{% if r.due > 0 %}<b class="bad-t">{{ r.due|num }}</b>{% else %}<span class="faint">—</span>{% endif %}</td>
+      <td class="r">{% if r.expiring %}<span class="pill warn">Obuna tugayapti</span>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5"><div class="empty">{{ ui.icon('users') }}<b>Hech kim topilmadi</b></div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% include "partials/member_form.html" %}
+{% endblock %}

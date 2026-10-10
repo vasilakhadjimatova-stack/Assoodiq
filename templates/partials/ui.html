@@ -1,0 +1,256 @@
+{# Umumiy UI bo'laklari: ikonka, pul, daftar qatori, grafik, kirim-chiqim oynasi #}
+
+{% set ICONS = {
+  "dashboard": '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  "wallet": '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  "cap": '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+  "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  "book": '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  "coins": '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>',
+  "scale": '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+  "chart": '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  "sliders": '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
+  "plus": '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  "search": '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  "left": '<path d="m15 18-6-6 6-6"/>',
+  "right": '<path d="m9 18 6-6-6-6"/>',
+  "more": '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  "logout": '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  "download": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  "in": '<path d="M17 7 7 17"/><path d="M17 17H7V7"/>',
+  "out": '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+  "swap": '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+  "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  "check": '<path d="M20 6 9 17l-5-5"/>',
+  "calendar": '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  "alert": '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+  "renew": '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  "trash": '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  "pencil": '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>',
+  "menu": '<path d="M4 12h16M4 6h16M4 18h16"/>',
+  "phone": '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-17.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  "moon": '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  "shield": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  "heart": '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+  "bank": '<path d="M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7"/><path d="m12 2 8 5H4z"/>',
+  "card": '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/>',
+  "cash": '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  "phone-pay": '<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>',
+  "user-plus": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  "clock": '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  "up": '<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
+  "down": '<path d="m22 17-8.5-8.5-5 5L2 7"/><path d="M16 17h6v-6"/>',
+  "info": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  "briefcase": '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  "gem": '<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>'
+} %}
+
+{% macro icon(name, cls="") -%}
+<svg class="ic {{ cls }}" viewBox="0 0 24 24" aria-hidden="true">{{ ICONS.get(name, "")|safe }}</svg>
+{%- endmacro %}
+
+{% set ACC_ICON = {"naqd": "cash", "karta": "card", "bank": "bank", "payme": "phone-pay", "click": "phone-pay", "uzum": "phone-pay"} %}
+
+{% macro som(v, currency="UZS") -%}
+<span class="money">{% if currency == "USD" %}{{ v|money("USD") }}{% else %}{{ v|money }}<span class="cur">so'm</span>{% endif %}</span>
+{%- endmacro %}
+
+{% macro delta(v, inverse=False) -%}
+{% if v is not none %}
+  {% set good = (v >= 0) != inverse %}
+  <span class="delta {{ 'up' if good else 'down' }}">{{ icon('up' if v >= 0 else 'down', 'sm') }}{{ (v * 100)|abs|round|int }}%</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro tx_row(t, show_actions=False, next_url="") -%}
+{% set incoming = t.kind in ("kirim", "qarz_kirim") %}
+<div class="tx">
+  <div class="tx-i {{ 'in' if incoming else ('mv' if t.kind == 'otkazma' else 'out') }}">
+    {{ icon('in' if incoming else ('swap' if t.kind == 'otkazma' else 'out'), 'sm') }}
+  </div>
+  <div class="tx-m">
+    <b>{% if t.kind == 'otkazma' %}{{ t.account.name }} → {{ t.to_account.name }}{% else %}{{ t.counterparty or (t.category.name if t.category else t.kind_name) }}{% endif %}</b>
+    <span>{{ t.date|d }}
+      {%- if t.category and t.kind != 'otkazma' %} · {{ t.category.name }}{% endif %}
+      {%- if t.program %} · {{ t.program.name }}{% endif %}
+      {%- if t.kind in ('qarz_kirim', 'qarz_chiqim') %} · {{ t.kind_name }}{% endif %}
+      {%- if t.note %} · {{ t.note }}{% endif %}</span>
+  </div>
+  {% if t.shariat != 'halol' %}<span class="pill {{ 'bad' if t.shariat == 'nohalol' else 'warn' }}">{{ 'Nohalol' if t.shariat == 'nohalol' else 'Shubhali' }}</span>{% endif %}
+  <div class="tx-a {{ 'in' if incoming else '' }}">{{ '+' if incoming else ('' if t.kind == 'otkazma' else '−') }}{{ som(t.amount, t.currency) }}</div>
+  {% if show_actions %}
+  <details class="more">
+    <summary class="icon-btn" title="Amallar">{{ icon('more') }}</summary>
+    <div class="menu">
+      <form method="post" action="{{ url_for('kassa.delete', tx_id=t.id) }}" class="inline" onsubmit="return confirm(this.dataset.msg)" data-msg="Bu yozuvni o'chirasizmi?">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <button class="danger">{{ icon('trash', 'sm') }} O'chirish</button>
+      </form>
+    </div>
+  </details>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{# 12 oylik kirim/chiqim grafigi — guruhlangan ustunlar, hover'da tooltip #}
+{% macro month_chart(series) -%}
+{% set W, H, PL, PB, PT = 720, 250, 74, 30, 10 %}
+{% set scale = nice_scale([series|map(attribute='income')|max, series|map(attribute='expense')|max]|max) %}
+{% set maxv, step = scale[0], scale[1] %}
+{% set slot = (W - PL) / series|length %}
+{% set bw = [slot * 0.3, 18]|min %}
+<div class="chart" data-chart>
+  <svg viewBox="0 0 {{ W }} {{ H }}" role="img" aria-label="Oylar bo'yicha kirim va chiqim">
+    {% for i in range(5) %}
+      {% set y = PT + (H - PB - PT) * (1 - i / 4) %}
+      <line class="gl" x1="{{ PL }}" x2="{{ W }}" y1="{{ y }}" y2="{{ y }}"/>
+      <text class="ax" x="{{ PL - 10 }}" y="{{ y + 4 }}" text-anchor="end">{{ (step * i)|short }}</text>
+    {% endfor %}
+    {% for m in series %}
+      {% set x0 = PL + slot * loop.index0 %}
+      {% set cx = x0 + slot / 2 %}
+      {% set hi = (H - PB - PT) * m.income / maxv %}
+      {% set he = (H - PB - PT) * m.expense / maxv %}
+      <g class="col" data-t="{{ m.full }}" data-in="{{ m.income|num }}" data-out="{{ m.expense|num }}" data-p="{{ m.profit|num }}">
+        <rect class="hit" x="{{ x0 + 2 }}" y="{{ PT }}" width="{{ slot - 4 }}" height="{{ H - PB - PT }}" rx="6"/>
+        {% if hi > 0 %}<path class="b-in" d="M{{ cx - bw - 1 }},{{ H - PB }} V{{ H - PB - hi + [4, hi]|min }} q0,-4 4,-4 h{{ bw - 8 }} q4,0 4,4 V{{ H - PB }} Z"/>{% endif %}
+        {% if he > 0 %}<path class="b-out" d="M{{ cx + 1 }},{{ H - PB }} V{{ H - PB - he + [4, he]|min }} q0,-4 4,-4 h{{ bw - 8 }} q4,0 4,4 V{{ H - PB }} Z"/>{% endif %}
+        <text class="ax" x="{{ cx }}" y="{{ H - 8 }}" text-anchor="middle">{{ m.label }}</text>
+      </g>
+    {% endfor %}
+  </svg>
+  <div class="tip"></div>
+</div>
+{%- endmacro %}
+
+{# Kirim / chiqim / o'tkazma oynasi. preset: oldindan to'ldiriladigan qiymatlar #}
+{% macro tx_modal(id, f_accounts, f_categories, f_programs, aqd_types, shariat_types, preset={}, next_url="", title="Yangi yozuv") -%}
+{% set kind = preset.get('kind', 'kirim') %}
+<dialog class="modal" id="{{ id }}">
+  <form method="post" action="{{ url_for('kassa.create') }}" class="tx-form" data-kind="{{ kind }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    {% if preset.get('enrollment_id') %}<input type="hidden" name="enrollment_id" value="{{ preset.enrollment_id }}">{% endif %}
+    <div class="modal-h"><h3>{{ title }}</h3><button type="button" class="icon-btn" data-close>{{ icon('x') }}</button></div>
+    <div class="modal-b">
+      {% if not preset.get('lock_kind') %}
+      <div class="kind-tabs">
+        <label><input type="radio" name="kind" value="kirim" {{ 'checked' if kind == 'kirim' }}>{{ icon('in', 'sm') }} Kirim</label>
+        {% if g.user.role != 'menejer' %}
+        <label><input type="radio" name="kind" value="chiqim" {{ 'checked' if kind == 'chiqim' }}>{{ icon('out', 'sm') }} Chiqim</label>
+        <label><input type="radio" name="kind" value="otkazma" {{ 'checked' if kind == 'otkazma' }}>{{ icon('swap', 'sm') }} O'tkazma</label>
+        {% endif %}
+      </div>
+      {% else %}
+      <input type="hidden" name="kind" value="{{ kind }}">
+      {% endif %}
+      <div class="field">
+        <label>Summa</label>
+        <input class="amount-in" name="amount" inputmode="decimal" data-money required placeholder="0" value="{{ preset.get('amount', '')|num if preset.get('amount') else '' }}" autocomplete="off">
+      </div>
+      <div class="field">
+        <span class="fl"><span data-show="kirim chiqim">Hisob</span><span data-show="otkazma">Qaysi hisobdan</span></span>
+        <div class="chips">
+          {% for r in f_accounts %}
+          <label class="chip"><input type="radio" name="account_id" value="{{ r.account.id }}" data-cur="{{ r.account.currency }}" {{ 'checked' if loop.first }}>{{ icon(ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }}{{ r.account.name }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field" data-show="otkazma">
+        <span class="fl">Qaysi hisobga</span>
+        <div class="chips">
+          {% for r in f_accounts %}
+          <label class="chip"><input type="radio" name="to_account_id" value="{{ r.account.id }}" data-cur="{{ r.account.currency }}">{{ r.account.name }}</label>
+          {% endfor %}
+        </div>
+        <span class="hint">Valyuta har xil bo'lsa, tushgan summa kurs bo'yicha hisoblanadi yoki pastda o'zingiz yozasiz.</span>
+        <input name="to_amount" inputmode="decimal" data-money placeholder="Tushgan summa (ixtiyoriy)">
+      </div>
+      <div class="form-grid">
+        <div class="field" data-show="kirim chiqim">
+          <label>Kategoriya</label>
+          <select name="category_id">
+            {% for c in f_categories %}
+            <option value="{{ c.id }}" data-kind="{{ c.kind }}" {{ 'selected' if preset.get('category_id') == c.id }}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Sana</label>
+          <input type="date" name="date" value="{{ preset.get('date', today.isoformat()) }}">
+        </div>
+        <div class="field" data-show="kirim chiqim">
+          <label>Dastur (ixtiyoriy)</label>
+          <select name="program_id">
+            <option value="">— Umumiy —</option>
+            {% for p in f_programs %}
+            <option value="{{ p.id }}" {{ 'selected' if preset.get('program_id') == p.id }}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field" data-show="kirim chiqim">
+          <label><span data-show="kirim">Kimdan</span><span data-show="chiqim">Kimga</span></label>
+          <input type="text" name="counterparty" value="{{ preset.get('counterparty', '') }}" placeholder="Ism yoki tashkilot">
+        </div>
+      </div>
+      <div data-show="kirim" class="form-grid">
+        <div class="field">
+          <label>Aqd turi</label>
+          <select name="aqd">
+            {% for k, v in aqd_types.items() %}<option value="{{ k }}" {{ 'selected' if k == preset.get('aqd', 'xizmat') }}>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <span class="fl">Shar'iy holat</span>
+          <div class="chips">
+            {% for k, v in shariat_types.items() %}
+            <label class="chip"><input type="radio" name="shariat" value="{{ k }}" {{ 'checked' if k == 'halol' }}>{{ v }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Izoh</label>
+        <input type="text" name="note" placeholder="Masalan: 3-potok, Instagram reklama">
+      </div>
+    </div>
+    <div class="modal-f">
+      <button type="submit" name="again" value="1" class="btn outline">Saqlash va yana</button>
+      <button type="submit" class="btn solid">{{ icon('check', 'sm') }} Saqlash</button>
+    </div>
+  </form>
+</dialog>
+{%- endmacro %}
+
+{# O'quvchi to'lovini qabul qilish oynasi. Tugma data-set-enrollment-id, data-set-amount, data-set-member beradi #}
+{% macro pay_modal(f_accounts, category_id, aqd_types, next_url) -%}
+<dialog class="modal" id="pay-modal">
+  <form method="post" action="{{ url_for('kassa.create') }}">
+    <input type="hidden" name="kind" value="kirim">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <input type="hidden" name="enrollment_id" value="">
+    <input type="hidden" name="category_id" value="{{ category_id or '' }}">
+    <input type="hidden" name="shariat" value="halol">
+    <div class="modal-h"><div><h3>To'lov qabul qilish</h3><div class="faint" style="font-size:13px;font-weight:650" data-text="member"></div></div><button type="button" class="icon-btn" data-close>{{ icon('x') }}</button></div>
+    <div class="modal-b">
+      <div class="field"><label>Summa</label><input class="amount-in" name="amount" inputmode="decimal" data-money required autocomplete="off"></div>
+      <div class="field">
+        <span class="fl">Qaysi hisobga tushdi</span>
+        <div class="chips">
+          {% for r in f_accounts %}
+          <label class="chip"><input type="radio" name="account_id" value="{{ r.account.id }}" {{ 'checked' if loop.first }}>{{ icon(ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }}{{ r.account.name }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Sana</label><input type="date" name="date" value="{{ today.isoformat() }}"></div>
+        <div class="field"><label>Aqd turi</label>
+          <select name="aqd">{% for k, v in aqd_types.items() %}<option value="{{ k }}" {{ 'selected' if k == 'xizmat' }}>{{ v }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      <div class="field"><label>Izoh</label><input type="text" name="note" placeholder="Masalan: 2-qism to'lov"></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">{{ icon('check', 'sm') }} Qabul qilish</button></div>
+  </form>
+</dialog>
+{%- endmacro %}

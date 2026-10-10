@@ -1,0 +1,80 @@
+{% import "partials/ui.html" as ui with context %}
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}{% endblock %} · Assoodiq</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=1">
+  <script>
+    try { var t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+{% block body %}
+{% set ep = request.endpoint or '' %}
+<div class="shell">
+  <aside class="side" id="side">
+    <a class="brand" href="/">
+      <img class="brand-mark" src="{{ url_for('static', filename='img/mark.svg') }}" alt="">
+      <div><div class="brand-name">{{ org_name }}</div><div class="brand-sub">Halol hisob</div></div>
+    </a>
+    <nav class="nav">
+      {% if can('main') %}<a href="{{ url_for('main.dashboard') }}" class="{{ 'on' if ep == 'main.dashboard' }}">{{ ui.icon('dashboard') }} Bosh sahifa</a>{% endif %}
+      <a href="{{ url_for('kassa.ledger') }}" class="{{ 'on' if ep.startswith('kassa.') }}">{{ ui.icon('wallet') }} Kassa</a>
+      <div class="nav-h">Ta'lim</div>
+      <a href="{{ url_for('dastur.programs') }}" class="{{ 'on' if ep in ('dastur.programs', 'dastur.program') }}">{{ ui.icon('cap') }} Kurs va klublar</a>
+      <a href="{{ url_for('dastur.members') }}" class="{{ 'on' if ep in ('dastur.members', 'dastur.member') }}">{{ ui.icon('users') }} A'zolar</a>
+      {% if can('islomiy') %}
+      <div class="nav-h">Islomiy moliya</div>
+      <a href="{{ url_for('islomiy.zakat') }}" class="{{ 'on' if ep == 'islomiy.zakat' }}">{{ ui.icon('coins') }} Zakot</a>
+      <a href="{{ url_for('islomiy.purity') }}" class="{{ 'on' if ep == 'islomiy.purity' }}">{{ ui.icon('scale') }} Halollik va sadaqa</a>
+      <a href="{{ url_for('qarz.debts') }}" class="{{ 'on' if ep.startswith('qarz.') }}">{{ ui.icon('book') }} Qarz daftari</a>
+      {% endif %}
+      {% if can('hisobot') %}
+      <div class="nav-h">Tahlil</div>
+      <a href="{{ url_for('hisobot.pnl') }}" class="{{ 'on' if ep.startswith('hisobot.') }}">{{ ui.icon('chart') }} Hisobotlar</a>
+      <a href="{{ url_for('sozlama.index') }}" class="{{ 'on' if ep.startswith('sozlama.') }}">{{ ui.icon('sliders') }} Sozlamalar</a>
+      {% endif %}
+    </nav>
+    <div class="side-foot">
+      <div class="avatar">{{ g.user.name[:1] }}</div>
+      <div class="who"><b>{{ g.user.name }}</b><span>{{ g.user.role_name }}</span></div>
+      <button class="icon-btn" type="button" data-theme-toggle title="Mavzu">{{ ui.icon('moon') }}</button>
+      <form method="post" action="{{ url_for('auth.logout') }}" class="inline"><button class="icon-btn" title="Chiqish">{{ ui.icon('logout') }}</button></form>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="wrap">
+      <div class="topbar">
+        <button class="icon-btn" type="button" data-nav-open>{{ ui.icon('menu') }}</button>
+        <img class="brand-mark" src="{{ url_for('static', filename='img/mark.svg') }}" alt="" style="width:30px;height:30px;filter:brightness(.8)">
+        <div class="brand-name">{{ org_name }}</div>
+      </div>
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+
+<nav class="bottom-nav">
+  {% if can('main') %}<a href="{{ url_for('main.dashboard') }}" class="{{ 'on' if ep == 'main.dashboard' }}">{{ ui.icon('dashboard') }}Asosiy</a>{% endif %}
+  <a href="{{ url_for('kassa.ledger') }}" class="{{ 'on' if ep.startswith('kassa.') }}">{{ ui.icon('wallet') }}Kassa</a>
+  <a href="{{ url_for('dastur.programs') }}" class="{{ 'on' if ep in ('dastur.programs', 'dastur.program') }}">{{ ui.icon('cap') }}Dasturlar</a>
+  <a href="{{ url_for('dastur.members') }}" class="{{ 'on' if ep in ('dastur.members', 'dastur.member') }}">{{ ui.icon('users') }}A'zolar</a>
+  <button type="button" data-nav-open>{{ ui.icon('menu') }}Menyu</button>
+</nav>
+{% block fab %}{% endblock %}
+{% endblock %}
+
+<div class="flashes">
+  {% for cat, msg in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+</div>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=1"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Kurs va klublar{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">Kurs va klublar</div>
+    <div class="head-s">Har bir yo'nalishning daromadi, xarajati va sof foydasi</div>
+  </div>
+  <div class="head-a">
+    {% if g.user.role != 'menejer' %}<button class="btn solid" data-open="prog-modal">{{ ui.icon('plus', 'sm') }} Yangi dastur</button>{% endif %}
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="seg">
+    <a href="{{ url_for('dastur.programs') }}" class="{{ 'on' if not kind }}">Hammasi <span class="n">{{ counts[''] }}</span></a>
+    {% for k, v in kinds.items() %}<a href="{{ url_for('dastur.programs', tur=k) }}" class="{{ 'on' if kind == k }}">{{ v }} <span class="n">{{ counts[k] }}</span></a>{% endfor %}
+  </div>
+</div>
+
+<div class="prog-grid">
+  {% for s in stats %}
+  {% set p = s.program %}
+  <a class="card prog" href="{{ url_for('dastur.program', pid=p.id) }}">
+    <div>
+      <div class="prog-top">
+        <span class="pill {{ 'gold' if p.kind == 'klub' else 'brand' }}">{{ p.kind_name }}</span>
+        <span class="pill {{ 'ok' if p.status == 'faol' else ('info' if p.status == 'rejada' else '') }}">{{ p.status_name }}</span>
+      </div>
+      <h3 style="margin-top:10px">{{ p.name }}</h3>
+      <div class="meta">{{ ui.som(p.price, p.currency) }} · {{ p.billing_name }}{% if p.start_date %} · {{ p.start_date|d }}{% endif %}</div>
+    </div>
+    <div class="kv">
+      <div><span>A'zolar</span><b>{{ s.members }}{% if p.capacity %}<span class="faint" style="font-weight:600">/{{ p.capacity }}</span>{% endif %}</b></div>
+      <div><span>Yig'ildi</span><b>{{ s.collected|short }}</b></div>
+      <div><span>Foyda</span><b class="{{ 'bad-t' if s.profit < 0 else 'ok-t' }}">{{ s.profit|short }}</b></div>
+    </div>
+    <div>
+      <div class="bar"><i style="width:{{ (s.progress * 100)|round }}%"></i></div>
+      <div class="prog-foot"><span>{{ s.progress|pct }} to'langan</span><span>{% if s.due > 0 %}qoldiq {{ s.due|short }}{% else %}qarzdorlik yo'q{% endif %}</span></div>
+    </div>
+  </a>
+  {% else %}
+  <div class="card empty" style="grid-column:1/-1">{{ ui.icon('cap') }}<b>Hali dastur yo'q</b>Birinchi kurs yoki klubni qo'shing.</div>
+  {% endfor %}
+</div>
+
+{% include "partials/program_form.html" %}
+{% endblock %}

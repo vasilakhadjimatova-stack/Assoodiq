@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ m.full_name }}{% endblock %}
+{% block content %}
+{% set here = request.full_path.rstrip('?') %}
+<a class="crumb" href="{{ url_for('dastur.members') }}">{{ ui.icon('left', 'sm') }} A'zolar</a>
+<div class="head">
+  <div style="display:flex;gap:16px;align-items:center">
+    <div class="avatar" style="width:56px;height:56px;font-size:22px;background:var(--gold-bg);color:var(--gold)">{{ m.full_name[:1] }}</div>
+    <div>
+      <div class="head-t">{{ m.full_name }}</div>
+      <div class="head-s">{{ m.business or 'Biznes ko\'rsatilmagan' }}{% if m.city %} · {{ m.city }}{% endif %}{% if m.phone %} · <a class="link" href="tel:{{ m.phone }}">{{ m.phone }}</a>{% endif %}</div>
+    </div>
+  </div>
+  <div class="head-a"><button class="btn outline" data-open="member-modal">{{ ui.icon('pencil', 'sm') }} Tahrirlash</button></div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-l">Jami to'lagan</div><div class="stat-v ok-t">{{ ui.som(total_paid) }}</div></div>
+  <div class="stat"><div class="stat-l">Qoldiq qarz</div><div class="stat-v {{ 'bad-t' if total_due > 0 }}">{{ ui.som(total_due) }}</div></div>
+  <div class="stat"><div class="stat-l">Dasturlar</div><div class="stat-v">{{ enrs|length }}</div><div class="stat-s">a'zo bo'lgan: {{ m.created_at|d }}</div></div>
+</div>
+
+<div class="grid g-2">
+  <div class="card">
+    <div class="card-h"><h3>Dasturlari</h3></div>
+    <div class="card-b">
+      {% for r in enrs %}
+      {% set e = r.enrollment %}
+      <div class="zrow" style="align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <a class="t-main" href="{{ url_for('dastur.program', pid=e.program_id) }}" style="font-weight:700">{{ e.program.name }}</a>
+          <small>{{ e.program.kind_name }} · {{ e.joined_at|d }}{% if e.valid_until %} · obuna {{ e.valid_until|d }} gacha{% endif %}</small>
+          <div class="bar thin" style="margin-top:8px;max-width:260px"><i style="width:{{ (r.progress * 100)|round }}%"></i></div>
+          <small style="margin-top:4px">{{ r.paid|num }} / {{ r.price|num }} so'm</small>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          {% if r.due > 0 %}
+            <b class="bad-t">{{ r.due|num }}</b>
+            <button class="btn tonal sm" data-open="pay-modal" data-set-enrollment-id="{{ e.id }}" data-set-amount="{{ r.due|round(2) }}" data-set-member="{{ e.program.name }}" data-set-category-id="{{ pay_categories[e.id].id if pay_categories[e.id] }}">To'lov</button>
+          {% else %}<span class="pill ok">To'langan</span>{% endif %}
+          {% if e.program.billing != 'bir_martalik' %}
+          <form method="post" action="{{ url_for('dastur.renew', eid=e.id) }}"><input type="hidden" name="next" value="{{ here }}"><button class="btn ghost sm">{{ ui.icon('renew', 'sm') }} Uzaytirish</button></form>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="empty"><b>Hali dasturga yozilmagan</b>Dastur sahifasidan «A'zo qo'shish» orqali yozing.</div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h3>To'lovlar tarixi</h3></div>
+    <div class="card-b" style="padding-top:4px">
+      {% for t in payments %}{{ ui.tx_row(t) }}{% else %}<div class="empty"><b>To'lov yo'q</b></div>{% endfor %}
+      {% if m.note %}<p class="muted" style="margin-top:14px">{{ m.note }}</p>{% endif %}
+    </div>
+  </div>
+</div>
+
+{{ ui.pay_modal(f_accounts, None, aqd_types, here) }}
+{% include "partials/member_form.html" %}
+{% endblock %}

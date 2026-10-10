@@ -1,0 +1,15 @@
+<dialog class="modal" id="member-modal">
+  <form method="post" action="{{ url_for('dastur.member_save', mid=m.id) if m else url_for('dastur.member_save') }}">
+    <div class="modal-h"><h3>{{ "A'zoni tahrirlash" if m else "Yangi a'zo" }}</h3><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b">
+      <div class="field"><label>Ism-familiya</label><input type="text" name="full_name" value="{{ m.full_name if m }}" required></div>
+      <div class="form-grid">
+        <div class="field"><label>Telefon</label><input type="tel" name="phone" value="{{ m.phone if m }}" placeholder="+998"></div>
+        <div class="field"><label>Shahar</label><input type="text" name="city" value="{{ m.city if m }}"></div>
+        <div class="field full"><label>Biznesi / sohasi</label><input type="text" name="business" value="{{ m.business if m }}"></div>
+      </div>
+      <div class="field"><label>Izoh</label><textarea name="note">{{ m.note if m }}</textarea></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
+  </form>
+</dialog>

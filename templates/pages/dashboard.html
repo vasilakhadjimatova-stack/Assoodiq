@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Bosh sahifa{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">Assalomu alaykum, {{ g.user.name.split(' ')[0] }}</div>
+    <div class="head-s">{{ today|d('long') }} · <span class="gold-t">{{ today|hijri }}</span> · {{ month_name }} oyi holati</div>
+  </div>
+  <div class="head-a">
+    <button class="btn outline" data-open="tx-modal" data-set-kind="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</button>
+    <button class="btn solid" data-open="tx-modal" data-set-kind="kirim">{{ ui.icon('plus', 'sm') }} Kirim</button>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat hero">
+    <div class="stat-l">{{ ui.icon('wallet', 'sm') }} Umumiy balans</div>
+    <div class="stat-v">{{ ui.som(total) }}</div>
+    <div class="stat-s">{{ accounts|length }} ta hisobda, dollar kursi bo'yicha so'mda</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">Kirim · {{ month_name }}</div>
+    <div class="stat-v">{{ ui.som(cur.income) }}</div>
+    <div class="stat-s">{{ ui.delta(d_income) }} o'tgan oyga nisbatan</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">Chiqim · {{ month_name }}</div>
+    <div class="stat-v">{{ ui.som(cur.expense) }}</div>
+    <div class="stat-s">{{ ui.delta(d_expense, inverse=True) }} o'tgan oyga nisbatan</div>
+  </div>
+  <div class="stat wide-m">
+    <div class="stat-l">Sof foyda · {{ month_name }}</div>
+    <div class="stat-v {{ 'bad-t' if cur.profit < 0 }}">{{ ui.som(cur.profit) }}</div>
+    <div class="stat-s">{% if cur.income %}Rentabellik {{ (cur.profit / cur.income)|pct }}{% else %}Bu oy kirim yo'q{% endif %}</div>
+  </div>
+</div>
+
+<div class="grid g-main">
+  <div class="card">
+    <div class="card-h">
+      <h3>Kirim va chiqim</h3><span class="sub">so'nggi 12 oy</span>
+      <div class="act legend"><span><i style="background:var(--chart-in)"></i>Kirim</span><span><i style="background:var(--chart-out)"></i>Chiqim</span></div>
+    </div>
+    <div class="card-b">
+      {{ ui.month_chart(series) }}
+      {% set y_in = series|sum(attribute='income') %}{% set y_out = series|sum(attribute='expense') %}
+      <div class="chart-sum">
+        <div><span>12 oy kirim</span><b>{{ y_in|short }}</b></div>
+        <div><span>12 oy chiqim</span><b>{{ y_out|short }}</b></div>
+        <div><span>Sof foyda</span><b class="{{ 'bad-t' if y_in < y_out else 'ok-t' }}">{{ (y_in - y_out)|short }}</b>{% if y_in %} <span style="display:inline">· {{ ((y_in - y_out) / y_in)|pct }}</span>{% endif %}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h3>Hisoblar</h3><div class="act"><a class="link" href="{{ url_for('kassa.ledger') }}">Kassa {{ ui.icon('right', 'sm') }}</a></div></div>
+    <div class="card-b">
+      {% for r in accounts %}
+      <a class="acc" href="{{ url_for('kassa.ledger', hisob=r.account.id) }}">
+        <div class="acc-k">{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }}</div>
+        <div><b>{{ r.account.name }}</b><span>{{ r.account.kind_name }} · {{ r.account.currency }}</span></div>
+        <div class="r">{{ ui.som(r.balance, r.account.currency) }}</div>
+      </a>
+      {% else %}
+      <div class="empty"><b>Hisob yo'q</b>Sozlamalarda kassa va kartalarni qo'shing.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="grid g-3 mt">
+  <div class="card">
+    <div class="card-h"><h3>Zakot</h3><span class="sub">2,5%</span><div class="act"><a class="link" href="{{ url_for('islomiy.zakat') }}">Hisoblash {{ ui.icon('right', 'sm') }}</a></div></div>
+    <div class="card-b" style="display:flex;gap:18px;align-items:center">
+      {% set ratio = (zakat.base / nisob) if nisob else 0 %}
+      <div class="ring" style="--p: {{ ([ratio, 1]|min * 100)|round }}">
+        {% if ratio >= 1 %}<span>{{ ratio|round(1) }}×<small>nisob</small></span>{% else %}<span>{{ (ratio * 100)|round|int }}%<small>nisobdan</small></span>{% endif %}
+      </div>
+      <div>
+        {% if zakat.reached %}
+          <div class="faint" style="font-size:12.5px;font-weight:700">Taxminiy zakot</div>
+          <div style="font-size:22px;font-weight:800">{{ ui.som(zakat.due) }}</div>
+        {% else %}
+          <div style="font-weight:700">Nisobga yetmagan</div>
+        {% endif %}
+        <div class="faint" style="font-size:12.5px;margin-top:6px">
+          {% if hawl %}Havl: <b class="gold-t">{{ hawl.date|hijri }}</b><br>{{ hawl.date|d }} · {{ hawl.days }} kun qoldi
+          {% else %}Havl sanasi belgilanmagan{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h3>Undirilishi kerak</h3><div class="act"><a class="link" href="{{ url_for('dastur.members', holat='qarzdor') }}">Qarzdorlar {{ ui.icon('right', 'sm') }}</a></div></div>
+    <div class="card-b">
+      <div class="zrow"><div><label>O'quvchilar to'lovi</label><small>kurs va klub bo'yicha qoldiq</small></div><b>{{ ui.som(member_due) }}</b></div>
+      <div class="zrow"><div><label>Berilgan qarzlar</label><small>{% if debts.overdue %}<span class="bad-t">{{ debts.overdue }} tasi muddati o'tgan</span>{% else %}qarz daftari{% endif %}</small></div><b>{{ ui.som(debts.berilgan) }}</b></div>
+      <div class="zrow"><div><label>Biz olgan qarzlar</label><small>qaytarilishi kerak</small></div><b>{{ ui.som(debts.olingan) }}</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h3>Diqqat talab</h3></div>
+    <div class="card-b">
+      {% if purif.remaining > 0 %}
+      <a class="zrow" href="{{ url_for('islomiy.purity') }}"><div><label>Tozalash fondi</label><small>shubhali tushumdan chiqarilishi kerak</small></div><span class="pill warn">{{ purif.remaining|short }}</span></a>
+      {% endif %}
+      {% for e in expiring[:4] %}
+      <a class="zrow" href="{{ url_for('dastur.member', mid=e.member_id) }}"><div><label>{{ e.member.full_name }}</label><small>{{ e.program.name }}</small></div>
+        <span class="pill {{ 'bad' if e.valid_until < today else 'info' }}">{{ 'Tugagan' if e.valid_until < today else e.valid_until|d }}</span></a>
+      {% endfor %}
+      {% if not expiring and purif.remaining <= 0 %}
+      <div class="empty" style="padding:16px">{{ ui.icon('check') }}<b>Hammasi joyida</b>Obunalar va fondlar tartibda.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="grid g-main mt">
+  <div class="card">
+    <div class="card-h"><h3>Dasturlar bo'yicha natija</h3><div class="act"><a class="link" href="{{ url_for('hisobot.pnl') }}">Hisobot {{ ui.icon('right', 'sm') }}</a></div></div>
+    <div class="card-b" style="padding-top:6px">
+      <div class="table-wrap">
+      <table class="table cards">
+        <thead><tr><th>Dastur</th><th class="r">Yig'ildi</th><th class="r">Xarajat</th><th class="r">Foyda</th><th style="width:22%">To'lov holati</th></tr></thead>
+        <tbody>
+        {% for s in programs %}
+          <tr>
+            <td><a href="{{ url_for('dastur.program', pid=s.program.id) }}"><div class="t-main">{{ s.program.name }}</div><div class="t-sub">{{ s.program.kind_name }} · {{ s.members }} a'zo</div></a></td>
+            <td class="r"><span class="lbl">Yig'ildi</span>{{ s.collected|num }}</td>
+            <td class="r"><span class="lbl">Xarajat</span>{{ s.expenses|num }}</td>
+            <td class="r"><span class="lbl">Foyda</span><b class="{{ 'bad-t' if s.profit < 0 }}">{{ s.profit|num }}</b></td>
+            <td><span class="lbl">To'lov</span><div style="flex:1;max-width:160px"><div class="bar thin"><i style="width:{{ (s.progress * 100)|round }}%"></i></div><div class="faint" style="font-size:11.5px;margin-top:3px">{{ s.progress|pct }} yig'ilgan</div></div></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5"><div class="empty">Hali dastur yo'q</div></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h3>Bu oy xarajatlari</h3><span class="sub">guruhlar bo'yicha</span></div>
+    <div class="card-b">
+      {% for e in expenses %}
+      <div class="hbar" title="{{ e.name }}: {{ e.value|num }} so'm">
+        <span class="n">{{ e.name }}</span><span class="v">{{ e.value|short }} <span class="faint">· {{ e.share|pct }}</span></span>
+        <div class="bar"><i style="width:{{ (e.share * 100)|round(1) }}%"></i></div>
+      </div>
+      {% else %}
+      <div class="empty"><b>Bu oy chiqim yo'q</b></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-h"><h3>So'nggi yozuvlar</h3><div class="act"><a class="link" href="{{ url_for('kassa.ledger') }}">Hammasi {{ ui.icon('right', 'sm') }}</a></div></div>
+  <div class="card-b" style="padding-top:4px">
+    {% for t in recent %}{{ ui.tx_row(t) }}{% else %}<div class="empty"><b>Yozuv yo'q</b>Birinchi kirim yoki chiqimni qo'shing.</div>{% endfor %}
+  </div>
+</div>
+
+{{ ui.tx_modal('tx-modal', accounts, f_categories, f_programs, aqd_types, shariat_types, next_url=request.path) }}
+{% endblock %}
+{% block fab %}<button class="fab" data-open="tx-modal" data-set-kind="kirim" aria-label="Yangi yozuv">{{ ui.icon('plus') }}</button>{% endblock %}

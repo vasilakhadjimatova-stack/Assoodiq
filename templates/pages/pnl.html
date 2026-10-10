@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Hisobotlar{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">Foyda va zarar</div>
+    <div class="head-s">{{ year }}-yil · daromad <b>{{ t.income.total|num }}</b> · xarajat <b>{{ t.expense.total|num }}</b> · sof foyda <b class="{{ 'bad-t' if t.profit_total < 0 else 'ok-t' }}">{{ t.profit_total|num }}</b> so'm</div>
+  </div>
+  <div class="head-a">
+    <div class="seg">{% for y in years %}<a href="{{ url_for('hisobot.pnl', yil=y) }}" class="{{ 'on' if y == year }}">{{ y }}</a>{% endfor %}</div>
+    <a class="btn outline" href="{{ url_for('hisobot.pnl_excel', yil=year) }}">{{ ui.icon('download', 'sm') }} Excel</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+  <table class="table" style="min-width:1100px">
+    <thead><tr><th style="position:sticky;left:0">Modda</th>{% for m in months %}<th class="r">{{ m }}</th>{% endfor %}<th class="r">Jami</th></tr></thead>
+    <tbody>
+      <tr><td colspan="14" style="background:var(--brand-bg);color:var(--brand-txt);font-weight:800">Daromadlar</td></tr>
+      {% for g_ in t.income.groups %}
+      <tr><td>{{ g_.name }}</td>{% for v in g_.months %}<td class="r num">{{ v|short if v else '—' }}</td>{% endfor %}<td class="r"><b>{{ g_.total|num }}</b></td></tr>
+      {% endfor %}
+      <tr><td><b>Jami daromad</b></td>{% for v in t.income.totals %}<td class="r"><b>{{ v|short if v else '—' }}</b></td>{% endfor %}<td class="r"><b>{{ t.income.total|num }}</b></td></tr>
+      <tr><td colspan="14" style="background:var(--gold-bg);color:var(--gold);font-weight:800">Xarajatlar</td></tr>
+      {% for g_ in t.expense.groups %}
+      <tr><td>{{ g_.name }}</td>{% for v in g_.months %}<td class="r num">{{ v|short if v else '—' }}</td>{% endfor %}<td class="r"><b>{{ g_.total|num }}</b></td></tr>
+      {% endfor %}
+      <tr><td><b>Jami xarajat</b></td>{% for v in t.expense.totals %}<td class="r"><b>{{ v|short if v else '—' }}</b></td>{% endfor %}<td class="r"><b>{{ t.expense.total|num }}</b></td></tr>
+    </tbody>
+    <tfoot><tr><td>Sof foyda</td>{% for v in t.profit %}<td class="r {{ 'bad-t' if v < 0 }}">{{ v|short if v else '—' }}</td>{% endfor %}<td class="r {{ 'bad-t' if t.profit_total < 0 else 'ok-t' }}">{{ t.profit_total|num }}</td></tr></tfoot>
+  </table>
+  </div>
+</div>
+<p class="faint" style="font-size:12.5px">Qarz berish/olish va hisoblar orasidagi o'tkazmalar foyda-zararga kirmaydi. Dollar tushumlar yozilgan kundagi kurs bo'yicha so'mda.</p>
+
+<div class="card mt">
+  <div class="card-h"><h3>Dasturlar iqtisodiyoti</h3><span class="sub">barcha davr uchun</span></div>
+  <div class="card-b" style="padding-top:6px">
+    <div class="table-wrap">
+    <table class="table cards">
+      <thead><tr><th>Dastur</th><th class="r">A'zolar</th><th class="r">Yig'ildi</th><th class="r">Xarajat</th><th class="r">Foyda</th><th class="r">Rentabellik</th><th class="r">1 a'zo jalbi</th></tr></thead>
+      <tbody>
+      {% for s in programs %}
+      <tr>
+        <td><a href="{{ url_for('dastur.program', pid=s.program.id) }}"><div class="t-main">{{ s.program.name }}</div><div class="t-sub">{{ s.program.kind_name }} · {{ s.program.status_name }}</div></a></td>
+        <td class="r"><span class="lbl">A'zolar</span>{{ s.members }}</td>
+        <td class="r"><span class="lbl">Yig'ildi</span>{{ s.collected|num }}</td>
+        <td class="r"><span class="lbl">Xarajat</span>{{ s.expenses|num }}</td>
+        <td class="r"><span class="lbl">Foyda</span><b class="{{ 'bad-t' if s.profit < 0 }}">{{ s.profit|num }}</b></td>
+        <td class="r"><span class="lbl">Rentabellik</span>{{ s.margin|pct if s.collected else '—' }}</td>
+        <td class="r"><span class="lbl">1 a'zo jalbi</span>{{ s.cac|num if s.cac else '—' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{# Dastur qo'shish / tahrirlash oynasi. `p` berilsa — tahrirlash #}
+<dialog class="modal" id="prog-modal">
+  <form method="post" action="{{ url_for('dastur.program_save', pid=p.id) if p else url_for('dastur.program_save') }}">
+    <div class="modal-h"><h3>{{ 'Dasturni tahrirlash' if p else 'Yangi dastur' }}</h3><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b">
+      <div class="field"><label>Nomi</label><input type="text" name="name" value="{{ p.name if p }}" required placeholder="Masalan: Halol tijorat asoslari — 5-potok"></div>
+      <div class="field"><span class="fl">Turi</span>
+        <div class="chips">{% for k, v in kinds.items() %}<label class="chip"><input type="radio" name="kind" value="{{ k }}" {{ 'checked' if (p.kind if p else 'kurs') == k }}>{{ v }}</label>{% endfor %}</div>
+      </div>
+      <div class="field"><span class="fl">To'lov tartibi</span>
+        <div class="chips">{% for k, v in billings.items() %}<label class="chip"><input type="radio" name="billing" value="{{ k }}" {{ 'checked' if (p.billing if p else 'bir_martalik') == k }}>{{ v }}</label>{% endfor %}</div>
+        <span class="hint">Obunali klubda har uzaytirishda a'zoga yana bir davr narxi hisoblanadi.</span>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Narxi</label><input name="price" inputmode="decimal" data-money value="{{ p.price|num if p else '' }}"></div>
+        <div class="field"><span class="fl">Valyuta</span>
+          <div class="chips">{% for c in ('UZS', 'USD') %}<label class="chip"><input type="radio" name="currency" value="{{ c }}" {{ 'checked' if (p.currency if p else 'UZS') == c }}>{{ "So'm" if c == 'UZS' else 'Dollar' }}</label>{% endfor %}</div>
+        </div>
+        <div class="field"><label>Boshlanishi</label><input type="date" name="start_date" value="{{ p.start_date.isoformat() if p and p.start_date }}"></div>
+        <div class="field"><label>Tugashi</label><input type="date" name="end_date" value="{{ p.end_date.isoformat() if p and p.end_date }}"></div>
+        <div class="field"><label>O'rinlar soni</label><input type="number" name="capacity" min="0" value="{{ p.capacity if p and p.capacity }}"></div>
+        <div class="field"><label>Holati</label>
+          <select name="status">{% for k, v in statuses.items() %}<option value="{{ k }}" {{ 'selected' if (p.status if p else 'faol') == k }}>{{ v }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      <div class="field"><label>Tavsif</label><textarea name="description">{{ p.description if p }}</textarea></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
+  </form>
+</dialog>
