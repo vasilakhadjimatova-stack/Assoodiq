@@ -21,19 +21,19 @@
   </div>
   <div class="stat has-spark">
     {{ ui.spark(series|map(attribute='income'), 'in', 'var(--chart-in)', '12 oylik kirim trendi') }}
-    <div class="stat-l">Kirim · {{ month_name }}</div>
+    <div class="stat-l"><span class="kpi-ic in">{{ ui.icon('in') }}</span>Kirim · {{ month_name }}</div>
     <div class="stat-v">{{ ui.som(cur.income) }}</div>
     <div class="stat-s">{{ ui.delta(d_income) }} o'tgan oyga nisbatan</div>
   </div>
   <div class="stat has-spark">
     {{ ui.spark(series|map(attribute='expense'), 'out', 'var(--chart-out)', '12 oylik chiqim trendi') }}
-    <div class="stat-l">Chiqim · {{ month_name }}</div>
+    <div class="stat-l"><span class="kpi-ic out">{{ ui.icon('out') }}</span>Chiqim · {{ month_name }}</div>
     <div class="stat-v">{{ ui.som(cur.expense) }}</div>
     <div class="stat-s">{{ ui.delta(d_expense, inverse=True) }} o'tgan oyga nisbatan</div>
   </div>
   <div class="stat wide-m has-spark">
     {{ ui.spark(series|map(attribute='profit'), 'pr', 'var(--brand-txt)', '12 oylik sof foyda trendi') }}
-    <div class="stat-l">Sof foyda · {{ month_name }}</div>
+    <div class="stat-l"><span class="kpi-ic pr">{{ ui.icon('up') }}</span>Sof foyda · {{ month_name }}</div>
     <div class="stat-v {{ 'bad-t' if cur.profit < 0 }}">{{ ui.som(cur.profit) }}</div>
     <div class="stat-s">{% if cur.income %}Rentabellik {{ (cur.profit / cur.income)|pct }}{% else %}Bu oy kirim yo'q{% endif %}</div>
   </div>

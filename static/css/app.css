@@ -320,8 +320,8 @@ a.stat:hover, .prog:hover { box-shadow: var(--shadow-hover); transform: translat
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .chart .gl { stroke: var(--grid); stroke-width: 1; }
 .chart .ax { fill: var(--txt3); font: 600 11px var(--font); }
-.chart .b-in { fill: var(--chart-in); }
-.chart .b-out { fill: var(--chart-out); }
+.chart .b-in { fill: url(#g-in); }
+.chart .b-out { fill: url(#g-out); }
 .chart .hit { fill: transparent; cursor: pointer; }
 .chart .col:hover .hit { fill: color-mix(in srgb, var(--surface2) 70%, transparent); }
 .chart .pl { fill: none; stroke: var(--txt); stroke-width: 2; stroke-linejoin: round; }
@@ -629,3 +629,128 @@ details.more .menu { position: absolute; right: 0; top: calc(100% + 4px); backgr
   .kv b { font-size: 13.5px; }
   .month-nav span { min-width: 104px; }
 }
+
+/* ══ Premium qatlam: boy ranglar va mayda elementlar sayqali ══════════════ */
+:root {
+  /* Zumrad va shampan-oltin shkalalari (brend + urg'u) */
+  --em-950: #022C22; --em-900: #053B2E; --em-800: #065A47; --em-700: #0B6B53; --em-600: #188B63;
+  --em-500: #3CB885; --em-300: #78D1AB; --em-100: #DDF3E8; --em-50: #F0FAF5;
+  --au-700: #7E5A12; --au-600: #9A6A12; --au-500: #C49A3C; --au-300: #E3C47C; --au-100: #F6EBCF; --au-50: #FBF6EA;
+  --grad-em: linear-gradient(135deg, #0B6B53 0%, #065A47 45%, #043A2E 100%);
+  --grad-au: linear-gradient(135deg, #EBD08F 0%, #C49A3C 55%, #A17220 100%);
+  --grad-mint: linear-gradient(90deg, #3CB885, #188B63);
+  --grad-amber: linear-gradient(90deg, #DDB463, #B8801C);
+}
+::selection { background: color-mix(in srgb, var(--em-300) 45%, transparent); }
+* { scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Sarlavha: nozik zumrad tusli matn */
+.head-t { background: linear-gradient(92deg, var(--txt) 30%, color-mix(in srgb, var(--brand-txt) 75%, var(--txt))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* Balans kartasi: chuqur zumrad, yalpiz nur va oltin ip */
+.stat.hero { background: radial-gradient(120% 140% at 100% 0%, rgba(120, 209, 171, .30) 0, transparent 46%), var(--grad-em);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .10) inset, 0 20px 44px -20px rgba(6, 90, 71, .7); }
+.stat.hero::before { content: ""; position: absolute; left: 20px; right: 20px; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--au-300), transparent); }
+.stat.hero .stat-l, .stat.hero .stat-l .ic { color: var(--au-300); }
+
+/* Ko'rsatkich ikonkalari */
+.stat-l { gap: 8px; }
+.kpi-ic { width: 26px; height: 26px; border-radius: 8px; display: inline-grid; place-items: center; flex: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent); }
+.kpi-ic .ic { width: 15px; height: 15px; }
+.kpi-ic.in { background: var(--brand-bg); color: var(--brand-txt); }
+.kpi-ic.out { background: var(--gold-bg); color: var(--gold); }
+.kpi-ic.pr { background: linear-gradient(135deg, var(--brand-bg), var(--gold-bg)); color: var(--brand-txt); }
+
+/* Holat belgilari: rang nuqtasi va nozik chegara (rang yolg'iz ma'no tashimaydi — matn bor) */
+.pill { border: 1px solid color-mix(in srgb, currentColor 16%, transparent); letter-spacing: .1px; }
+.pill.ok::before, .pill.bad::before, .pill.warn::before, .pill.info::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+
+/* Progress chiziqlari: gradient */
+.bar { box-shadow: inset 0 1px 1px rgba(14, 26, 21, .05); }
+.bar > i { background: var(--grad-mint); }
+.bar.gold > i, .hbar .bar > i { background: var(--grad-amber); }
+
+/* Chiplar */
+.chip { transition: border-color .15s, background .15s, color .15s, box-shadow .15s; }
+.chip:hover { border-color: color-mix(in srgb, var(--brand) 45%, var(--line2)); color: var(--txt); }
+.chip.on, .chip:has(input:checked) { box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent); font-weight: 700; }
+.chip:has(input:focus-visible) { box-shadow: var(--ring); }
+
+/* Kiritish maydonlari */
+.input:hover, input:not([type=radio]):not([type=checkbox]):hover, select:hover, textarea:hover { border-color: color-mix(in srgb, var(--brand) 32%, var(--line2)); }
+input::placeholder, textarea::placeholder { color: var(--txt3); font-weight: 500; }
+select { -webkit-appearance: none; appearance: none; padding-right: 36px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2385928B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; }
+input[type=date]::-webkit-calendar-picker-indicator, input[type=month]::-webkit-calendar-picker-indicator { opacity: .5; cursor: pointer; }
+input[type=date]::-webkit-calendar-picker-indicator:hover { opacity: .9; }
+
+/* Segment va tablar */
+.seg a { transition: color .15s, background .15s; }
+.seg a:hover:not(.on) { color: var(--txt); }
+.seg a.on { box-shadow: 0 1px 2px rgba(14, 26, 21, .08), 0 0 0 1px var(--line); }
+.seg a.on .n { color: var(--brand-txt); }
+.tabs a { transition: color .15s; }
+.tabs a:hover { color: var(--txt2); }
+
+/* Jadval sarlavhasi tasmasi */
+.table thead th { background: var(--surface2); }
+.table thead th:first-child { border-top-left-radius: 10px; } .table thead th:last-child { border-top-right-radius: 10px; }
+.table tbody tr td { transition: background .12s; }
+
+/* Ikonka plitkalari: kirim — zumrad, chiqim — oltin (grafik ranglari bilan bir xil) */
+.tx-i, .acc-k { box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent); }
+.tx-i.out { background: var(--gold-bg); color: var(--gold); }
+.acc-k { background: linear-gradient(140deg, var(--brand-bg), var(--surface2)); color: var(--brand-txt); }
+
+/* Avatar: zumrad gradient + oltin halqa */
+.avatar { background: linear-gradient(140deg, #3CB885, #065A47); color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px color-mix(in srgb, #C49A3C 60%, transparent); }
+
+/* Zakot halqasi: oltin gradient */
+.ring { background: conic-gradient(var(--au-300) 0, var(--au-600) calc(var(--p) * 1%), var(--surface2) 0); }
+.ring::before { box-shadow: inset 0 1px 3px rgba(14, 26, 21, .07); }
+.zres { background: radial-gradient(120% 120% at 100% 0%, rgba(120, 209, 171, .28), transparent 50%), var(--grad-em); box-shadow: 0 20px 44px -20px rgba(6, 90, 71, .7); }
+.zres::before { content: ""; position: absolute; left: 22px; right: 22px; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--au-300), transparent); }
+
+/* Oltin tugma */
+.btn.gold { background: var(--grad-au); color: #3A2906; box-shadow: 0 1px 0 rgba(255, 255, 255, .35) inset, 0 6px 16px -6px rgba(161, 114, 32, .55); }
+.btn.gold:hover { filter: brightness(1.04); }
+.btn.tonal { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 14%, transparent); }
+
+/* Havolalar: strelka biroz suriladi */
+.link .ic { transition: transform .15s; }
+.link:hover { text-decoration: none; color: var(--em-600); }
+.link:hover .ic { transform: translateX(2px); }
+
+/* Bo'sh holat */
+.empty .ic { width: 46px; height: 46px; padding: 12px; border-radius: 14px; background: var(--brand-bg); color: var(--brand-txt); }
+
+/* Xabarlar: ikonka, shisha fon va tugash chizig'i */
+.flash { position: relative; overflow: hidden; display: flex; gap: 10px; align-items: flex-start; border-left: 0; padding: 12px 16px 13px 14px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.flash .ic { color: var(--ok); margin-top: 1px; }
+.flash.bad .ic { color: var(--bad); }
+.flash::after { content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--ok); transform-origin: left; animation: drain 5s linear forwards; }
+.flash.bad::after { background: var(--bad); }
+@keyframes drain { to { transform: scaleX(0); } }
+
+/* Oynalar: yumshoq paydo bo'lish, chuqurroq fon */
+dialog.modal::backdrop { background: rgba(4, 20, 15, .5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+dialog.modal[open] { animation: pop .22s cubic-bezier(.2, .8, .2, 1); }
+@keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+.modal-h { background: linear-gradient(180deg, color-mix(in srgb, var(--surface2) 70%, var(--surface)), var(--surface)); }
+
+/* Yon panel: faol bo'lim gradienti, bo'lim nomlarida oltin nuqta */
+.nav a.on { background: linear-gradient(90deg, var(--side-on-bg), color-mix(in srgb, var(--side-on-bg) 25%, transparent)); }
+.nav-h { display: flex; align-items: center; gap: 8px; }
+.nav-h::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: #C49A3C; }
+
+/* Kurs kartochkasi: yuqorida brend chizig'i */
+.prog { position: relative; overflow: hidden; }
+.prog::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--grad-mint); opacity: 0; transition: opacity .2s; }
+.prog:hover::before { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) { .flash::after, dialog.modal[open] { animation: none !important; } }

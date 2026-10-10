@@ -126,6 +126,10 @@
 {% set bw = [slot * 0.3, 18]|min %}
 <div class="chart" data-chart>
   <svg viewBox="0 0 {{ W }} {{ H }}" role="img" aria-label="Oylar bo'yicha kirim va chiqim">
+    <defs>
+      <linearGradient id="g-in" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:color-mix(in srgb, var(--chart-in) 78%, #fff)"/><stop offset="1" style="stop-color:var(--chart-in)"/></linearGradient>
+      <linearGradient id="g-out" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:color-mix(in srgb, var(--chart-out) 75%, #fff)"/><stop offset="1" style="stop-color:var(--chart-out)"/></linearGradient>
+    </defs>
     {% for i in range(5) %}
       {% set y = PT + (H - PB - PT) * (1 - i / 4) %}
       <line class="gl" x1="{{ PL }}" x2="{{ W }}" y1="{{ y }}" y2="{{ y }}"/>
