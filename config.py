@@ -24,7 +24,8 @@ def _db_url():
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-assoodiq-secret")
+    # Bo'sh bo'lsa ilova bazada saqlanadigan tasodifiy kalitni oladi (core/bootstrap.py)
+    SECRET_KEY = os.environ.get("SECRET_KEY") or None
     SQLALCHEMY_DATABASE_URI = _db_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = 60 * 60 * 24 * 14  # 14 kun
@@ -36,5 +37,6 @@ class Config:
 
 class TestConfig(Config):
     TESTING = True
+    SECRET_KEY = "test"
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     WTF_CSRF_ENABLED = False

@@ -101,6 +101,11 @@ def create_app(config_object=Config):
 
     with app.app_context():
         db.create_all()
+        if not app.testing:
+            from core.bootstrap import base_setup, secret_key
+            base_setup()
+            if not app.config.get("SECRET_KEY"):
+                app.config["SECRET_KEY"] = secret_key()
 
     return app
 

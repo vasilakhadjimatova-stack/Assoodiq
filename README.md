@@ -47,8 +47,24 @@ almashtiring):
 
 **Testlar:** `python -m pytest -q`
 
-**Bulutga joylash** (Railway yoki VPS): `Procfile` tayyor. `DATABASE_URL` (PostgreSQL) va
-`SECRET_KEY` muhit o'zgaruvchilarini bering, `.env.example` faylida namunasi bor.
+## Railway'ga joylash
+
+`railway.json` va `Procfile` tayyor. Ilova birinchi ishga tushganda bo'sh bazaga hisoblar,
+kategoriyalar va bitta **rahbar**ni o'zi yaratadi, `seed.py`ni ishga tushirish shart emas.
+
+1. Loyiha canvasida **+ Add → Database → PostgreSQL** qo'shing. Busiz yozuvlar konteyner
+   diskiga tushadi va har deployda o'chib ketadi.
+2. Assoodiq servisi → **Variables**:
+   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
+   - `ADMIN_CODE` = rahbarning 6 xonali kirish kodi (o'zingiz o'ylab toping)
+   - `SESSION_COOKIE_SECURE` = `1`
+3. **Settings → Networking → Generate Domain**.
+4. Rahbar kodi bilan kiring. Sozlamalar → Xodimlar'da buxgalter va menejerlarni qo'shing,
+   har biriga tizim kod beradi.
+
+`ADMIN_CODE` berilmasa, tasodifiy kod yaratiladi va **Deploy Logs**'ga
+`[assoodiq] ... kirish kodi: ...` qatori bilan yoziladi. Sessiya kaliti (`SECRET_KEY`)
+berilmasa, bazada saqlanadigan tasodifiy kalit ishlatiladi.
 
 ## Tuzilishi
 

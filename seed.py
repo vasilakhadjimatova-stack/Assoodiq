@@ -12,44 +12,16 @@ from app import create_app
 from core import finance as F
 from core import hijri
 from core.extensions import db
+from core.bootstrap import base_setup
 from core.models import (
     Account, Category, Debt, Enrollment, Member, Program, Transaction, User, ZakatSnapshot,
 )
 
-ACCOUNTS = [
-    ("Asosiy kassa", "naqd", "UZS", 4_000_000),
-    ("Korporativ karta", "karta", "UZS", 6_500_000),
-    ("Bank hisobi", "bank", "UZS", 42_000_000),
-    ("Payme", "payme", "UZS", 0),
-    ("Click", "click", "UZS", 0),
-    ("Dollar kassa", "naqd", "USD", 1_200),
-]
-
-# (nomi, turi, guruh, tizim kodi, dastur turi)
-CATEGORIES = [
-    ("Kurs to'lovlari", "kirim", "Ta'lim daromadi", None, "kurs"),
-    ("Klub a'zoligi", "kirim", "Ta'lim daromadi", None, "klub"),
-    ("Tadbir chiptalari", "kirim", "Tadbirlar", None, "tadbir"),
-    ("Konsalting", "kirim", "Konsalting", None, "konsalting"),
-    ("Kitob va mahsulot savdosi", "kirim", "Savdo", None, None),
-    ("Boshqa kirim", "kirim", "Boshqa", None, None),
-    ("Reklama (Instagram, Telegram)", "chiqim", "Marketing", None, None),
-    ("Kontent va video", "chiqim", "Marketing", None, None),
-    ("Mentorlar haqi", "chiqim", "Jamoa", None, None),
-    ("Xodimlar oyligi", "chiqim", "Jamoa", None, None),
-    ("Ofis ijarasi", "chiqim", "Ofis", None, None),
-    ("Servislar va dasturlar", "chiqim", "Ofis", None, None),
-    ("Zal ijarasi", "chiqim", "Tadbirlar", None, None),
-    ("Kofe-breyk va tashkiliy", "chiqim", "Tadbirlar", None, None),
-    ("Kitob xaridi", "chiqim", "Savdo", None, None),
-    ("Soliq va majburiy to'lovlar", "chiqim", "Soliq", None, None),
-    ("Bank xizmatlari", "chiqim", "Boshqa", None, None),
-    ("Zakot", "chiqim", "Diniy majburiyatlar", "zakot", None),
-    ("Tozalash (nohalol tushumdan)", "chiqim", "Diniy majburiyatlar", "tozalash", None),
-    ("Sadaqa va xayriya", "chiqim", "Diniy majburiyatlar", "sadaqa", None),
-]
-
-USERS = [("Rahbar", "rahbar", "100100"), ("Buxgalter", "buxgalter", "200200"), ("Menejer", "menejer", "300300")]
+# Namuna uchun boshlang'ich qoldiqlar
+DEMO_OPENING = {"Asosiy kassa": 4_000_000, "Korporativ karta": 6_500_000, "Bank hisobi": 42_000_000,
+                "Dollar kassa": 1_200}
+# Lokal sinov uchun kodlar — prod'da ishlatilmaydi
+DEMO_USERS = [("Rahbar", "rahbar", "100100"), ("Buxgalter", "buxgalter", "200200"), ("Menejer", "menejer", "300300")]
 
 FIRST = ["Akmal", "Bekzod", "Dilshod", "Farrux", "Jasur", "Javohir", "Laziz", "Mirzo", "Nodir", "Otabek",
          "Rustam", "Sardor", "Sherzod", "Shoxrux", "Ulug'bek", "Zafar", "Abdulloh", "Sanjar", "Ibrohim",
@@ -63,25 +35,13 @@ BIZ = ["Qurilish mollari savdosi", "Kiyim do'koni", "Oziq-ovqat ulgurji", "Mebel
 CITIES = ["Toshkent", "Toshkent", "Toshkent", "Samarqand", "Namangan", "Andijon", "Farg'ona", "Buxoro", "Qarshi"]
 
 
-def base_setup():
-    if Account.query.count() == 0:
-        for i, (n, k, c, ob) in enumerate(ACCOUNTS):
-            db.session.add(Account(name=n, kind=k, currency=c, opening_balance=ob, sort=i))
-    if Category.query.count() == 0:
-        for i, (n, k, grp, code, pk) in enumerate(CATEGORIES):
-            db.session.add(Category(name=n, kind=k, group=grp, system_code=code, program_kind=pk, sort=i))
-    if User.query.count() == 0:
-        for n, r, c in USERS:
-            u = User(name=n, role=r)
-            u.set_code(c)
-            db.session.add(u)
-    db.session.commit()
-
-
 def demo(today=None):
     rnd = random.Random(7)
     today = today or date.today()
     acc = {a.name: a for a in Account.query.all()}
+    for name, ob in DEMO_OPENING.items():
+        if name in acc:
+            acc[name].opening_balance = ob
     cat = {c.name: c for c in Category.query.all()}
     admin = User.query.filter_by(role="rahbar").first()
     start = F.shift_month(today.replace(day=1), -11)
@@ -317,12 +277,14 @@ def demo(today=None):
 
 
 if __name__ == "__main__":
+    import os
+    os.environ.setdefault("ADMIN_CODE", "100100")  # namuna rahbari standart kod bilan
     app = create_app()
     with app.app_context():
         if "--reset" in sys.argv:
             db.drop_all()
             db.create_all()
-        base_setup()
+        base_setup(users=DEMO_USERS)
         if "--demo" in sys.argv:
             if Transaction.query.count():
                 print("Bazada allaqachon yozuvlar bor — namuna qo'shilmadi (--reset bilan qayta urining).")

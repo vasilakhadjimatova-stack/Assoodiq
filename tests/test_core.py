@@ -8,14 +8,15 @@ from core import finance as F
 from core import hijri
 from core.extensions import db
 from core.models import Account, Category, Debt, Enrollment, Member, Program, Transaction, User
-from seed import base_setup
+from core.bootstrap import base_setup
+from seed import DEMO_USERS
 
 
 @pytest.fixture
 def app():
     app = create_app(TestConfig)
     with app.app_context():
-        base_setup()
+        base_setup(users=DEMO_USERS)
         yield app
         db.session.remove()
         db.drop_all()
@@ -225,3 +226,25 @@ def test_new_user_code_shown_once_and_works(app):
     code = re.search(r"Kirish kodi: (\d{6})", text).group(1)
     u = User.query.filter_by(name="Yangi menejer").one()
     assert u.check_code(code)
+
+
+def test_first_run_creates_single_admin_from_env(monkeypatch):
+    monkeypatch.setenv("ADMIN_CODE", "482915")
+    app = create_app(TestConfig)
+    with app.app_context():
+        base_setup()
+        users = User.query.all()
+        assert [(u.role, u.check_code("482915")) for u in users] == [("rahbar", True)]
+        assert Account.query.count() and Category.query.filter_by(system_code="zakot").count() == 1
+        base_setup()  # qayta chaqirish hech narsani takrorlamaydi
+        assert User.query.count() == 1
+        db.drop_all()
+
+
+def test_secret_key_persisted_in_db():
+    from core.bootstrap import secret_key
+    app = create_app(TestConfig)
+    with app.app_context():
+        k1 = secret_key()
+        assert len(k1) == 64 and secret_key() == k1
+        db.drop_all()
