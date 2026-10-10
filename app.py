@@ -23,7 +23,7 @@ def fmt_num(value, decimals=0):
         v = float(value or 0)
     except (TypeError, ValueError):
         return value
-    s = f"{abs(v):,.{decimals}f}".replace(",", " ")
+    s = f"{abs(v):,.{decimals}f}".replace(",", " ")  # oddiy (bo'linmas) probel: 1 500 000
     return ("−" if v < 0 else "") + s
 
 

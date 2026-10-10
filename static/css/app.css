@@ -87,7 +87,7 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
 .num, .money, td.r, .stat-v { font-variant-numeric: tabular-nums; }
 .muted { color: var(--txt2); }
 .faint { color: var(--txt3); }
-.cur { font-size: .78em; font-weight: 600; color: var(--txt3); margin-left: 2px; }
+.cur { font-size: .78em; font-weight: 600; color: var(--txt3); margin-left: .3em; }
 .ok-t { color: var(--ok); } .bad-t { color: var(--bad); } .gold-t { color: var(--gold); }
 .ic { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .ic.sm { width: 15px; height: 15px; }
