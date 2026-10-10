@@ -1,4 +1,4 @@
-# Assoodiq — Halol hisob
+# Assoodiq — Islom moliyasi
 
 Assoodiq'ning kurslari, klublari va kundalik moliyasini Google Sheets o'rniga yuritish uchun
 dastur. Islom moliyasi qoidalari (zakot, tozalash, qarz daftari, aqd turlari) tizimning
