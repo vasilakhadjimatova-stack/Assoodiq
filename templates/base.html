@@ -59,6 +59,9 @@
         <button class="icon-btn" type="button" data-nav-open>{{ ui.icon('menu') }}</button>
         <a class="topbar-logo" href="/" aria-label="Assoodiq">{% include "partials/mark.svg" %}{% include "partials/wordmark.svg" %}</a>
       </div>
+      {% if demo_mode %}
+      <div class="demo-bar" role="status">{{ ui.icon('info', 'sm') }}<span><b>Test rejimi:</b> namuna ma'lumotlar bilan ishlayapsiz. Haqiqiy ishni boshlashdan oldin ularni tozalang.</span>{% if g.user.role == 'rahbar' %}<a class="link" href="{{ url_for('sozlama.index', bolim='malumotlar') }}">Tozalash {{ ui.icon('right', 'sm') }}</a>{% endif %}</div>
+      {% endif %}
       {% block content %}{% endblock %}
     </div>
   </main>

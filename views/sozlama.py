@@ -23,6 +23,7 @@ def index():
         categories=Category.query.order_by(Category.kind, Category.sort, Category.name).all(),
         users=User.query.order_by(User.id).all(), roles=ROLES, account_kinds=ACCOUNT_KINDS,
         program_kinds=PROGRAM_KINDS, tab=request.args.get("bolim", "umumiy"),
+        stats=_data_stats(),
     )
 
 
@@ -39,6 +40,31 @@ def save_general():
     db.session.commit()
     flash("Sozlamalar saqlandi.", "ok")
     return redirect(url_for("sozlama.index"))
+
+
+@bp.route("/namuna", methods=["POST"])
+def demo_load():
+    """Bo'sh bazaga namuna (test) ma'lumot yuklash — faqat rahbar."""
+    require_role("rahbar")
+    from core.demo import load_demo
+    if load_demo():
+        flash("Namuna ma'lumotlar yuklandi: 8 dastur, 46 a'zo, 12 oylik kirim-chiqim. Haqiqiy ishdan oldin tozalang.", "ok")
+    else:
+        flash("Bazada allaqachon yozuvlar bor — namuna faqat bo'sh bazaga yuklanadi.", "bad")
+    return redirect(url_for("main.dashboard"))
+
+
+@bp.route("/tozalash", methods=["POST"])
+def data_clear():
+    """Barcha moliyaviy yozuvlarni o'chirish (haqiqiy ishni toza boshlash uchun)."""
+    require_role("rahbar")
+    if (request.form.get("tasdiq") or "").strip().upper() != "TOZALASH":
+        flash("Tasdiqlash uchun TOZALASH so'zini yozing.", "bad")
+        return redirect(url_for("sozlama.index", bolim="malumotlar"))
+    from core.demo import clear_data
+    clear_data()
+    flash("Barcha yozuvlar o'chirildi. Xodimlar, hisoblar va kategoriyalar saqlandi — haqiqiy ishni boshlashingiz mumkin.", "ok")
+    return redirect(url_for("sozlama.index", bolim="malumotlar"))
 
 
 @bp.route("/hisob", methods=["POST"])
@@ -129,6 +155,12 @@ def user_toggle(uid):
         u.active = not u.active
         db.session.commit()
     return redirect(url_for("sozlama.index", bolim="xodimlar"))
+
+
+def _data_stats():
+    from core.models import Debt, Member, Program, Transaction
+    return {"tx": Transaction.query.count(), "programs": Program.query.count(),
+            "members": Member.query.count(), "debts": Debt.query.count()}
 
 
 def _new_code():

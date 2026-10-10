@@ -96,6 +96,7 @@ def create_app(config_object=Config):
         return {
             "today": date.today(),
             "org_name": get_setting("org_name") if g.get("user") else "Assoodiq",
+            "demo_mode": bool(g.get("user")) and get_setting("demo_loaded") == "1",
             "can": lambda section: bool(g.get("user")) and section in ROLE_SECTIONS.get(g.user.role, set()),
         }
 

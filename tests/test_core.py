@@ -248,3 +248,36 @@ def test_secret_key_persisted_in_db():
         k1 = secret_key()
         assert len(k1) == 64 and secret_key() == k1
         db.drop_all()
+
+
+# ── Test rejimi: namuna yuklash va tozalash ──
+
+def test_demo_load_and_clear(app):
+    client = app.test_client()
+    login(client, "100100")
+    client.post("/sozlamalar/namuna")
+    assert Transaction.query.count() > 100 and Program.query.count() == 8
+    assert F.get_setting("demo_loaded") == "1"
+    assert "Test rejimi" in client.get("/").get_data(as_text=True)
+
+    before = Transaction.query.count()
+    r = client.post("/sozlamalar/namuna", follow_redirects=True)  # ikkinchi marta yuklanmaydi
+    assert Transaction.query.count() == before and "allaqachon" in r.get_data(as_text=True)
+
+    client.post("/sozlamalar/tozalash", data={"tasdiq": "xato"})  # tasdiqsiz o'chmaydi
+    assert Transaction.query.count() == before
+
+    users, cats = User.query.count(), Category.query.count()
+    client.post("/sozlamalar/tozalash", data={"tasdiq": "TOZALASH"})
+    assert Transaction.query.count() == Program.query.count() == Member.query.count() == Debt.query.count() == 0
+    assert User.query.count() == users and Category.query.count() == cats
+    assert F.total_balance_uzs() == 0
+    assert "Test rejimi" not in client.get("/").get_data(as_text=True)
+
+
+def test_demo_controls_only_for_rahbar(app):
+    client = app.test_client()
+    login(client, "200200")  # buxgalter
+    assert client.post("/sozlamalar/namuna").status_code == 403
+    assert client.post("/sozlamalar/tozalash", data={"tasdiq": "TOZALASH"}).status_code == 403
+    assert Transaction.query.count() == 0

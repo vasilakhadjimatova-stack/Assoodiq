@@ -62,6 +62,11 @@ kategoriyalar va bitta **rahbar**ni o'zi yaratadi, `seed.py`ni ishga tushirish s
 4. Rahbar kodi bilan kiring. Sozlamalar → Xodimlar'da buxgalter va menejerlarni qo'shing,
    har biriga tizim kod beradi.
 
+**Test rejimi.** Sozlamalar → Ma'lumotlar bo'limida rahbar bo'sh bazaga 12 oylik namuna
+ma'lumot yuklaydi (8 dastur, 46 a'zo, kirim-chiqim, qarz, zakot). Test rejimida har sahifada
+ogohlantirish chiqadi. Haqiqiy ishdan oldin shu bo'limda `TOZALASH` deb yozib, barcha
+yozuvlarni o'chirasiz. Xodimlar, hisoblar va kategoriyalar saqlanadi.
+
 `ADMIN_CODE` berilmasa, tasodifiy kod yaratiladi va **Deploy Logs**'ga
 `[assoodiq] ... kirish kodi: ...` qatori bilan yoziladi. Sessiya kaliti (`SECRET_KEY`)
 berilmasa, bazada saqlanadigan tasodifiy kalit ishlatiladi.

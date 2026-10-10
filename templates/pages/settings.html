@@ -3,7 +3,7 @@
 {% block content %}
 <div class="head"><div><div class="head-t">Sozlamalar</div><div class="head-s">Kurslar, nisob, hisoblar, kategoriyalar va xodimlar</div></div></div>
 <div class="tabs">
-  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar')) %}
+  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar'), ('malumotlar', "Ma'lumotlar")) %}
   <a href="{{ url_for('sozlama.index', bolim=k) }}" class="{{ 'on' if tab == k }}">{{ v }}</a>
   {% endfor %}
 </div>
@@ -115,6 +115,39 @@
     </div>
   </form>
   {% endif %}
+</div>
+{% elif tab == 'malumotlar' %}
+<div class="stats" style="max-width:900px">
+  <div class="stat"><div class="stat-l">Kassa yozuvlari</div><div class="stat-v">{{ stats.tx|num }}</div></div>
+  <div class="stat"><div class="stat-l">Dasturlar</div><div class="stat-v">{{ stats.programs }}</div></div>
+  <div class="stat"><div class="stat-l">A'zolar</div><div class="stat-v">{{ stats.members }}</div></div>
+  <div class="stat"><div class="stat-l">Qarzlar</div><div class="stat-v">{{ stats.debts }}</div></div>
+</div>
+<div class="grid g-2" style="max-width:900px">
+  <div class="card">
+    <div class="card-h"><h3>Test rejimi</h3>{% if demo_mode %}<span class="pill warn">Yoqilgan</span>{% endif %}</div>
+    <div class="card-b">
+      <p class="muted" style="margin-top:0">Jamoa dasturni sinab ko'rishi uchun bo'sh bazaga 12 oylik namuna yuklanadi: 8 ta kurs va klub, 46 a'zo, kirim-chiqim, qarzlar va zakot hisobi. Namunadagi ismlar va raqamlar to'qima.</p>
+      {% if g.user.role == 'rahbar' %}
+      <form method="post" action="{{ url_for('sozlama.demo_load') }}">
+        <button class="btn solid" {{ 'disabled' if stats.tx or stats.programs or stats.members }}>{{ ui.icon('download', 'sm') }} Namuna ma'lumot yuklash</button>
+      </form>
+      {% if stats.tx or stats.programs or stats.members %}<p class="faint" style="font-size:12.5px;margin-bottom:0">Bazada yozuvlar bor — namuna faqat bo'sh bazaga yuklanadi.</p>{% endif %}
+      {% else %}<p class="faint">Faqat rahbar yuklay oladi.</p>{% endif %}
+    </div>
+  </div>
+  <div class="card" style="border-color:color-mix(in srgb, var(--bad) 30%, var(--line))">
+    <div class="card-h"><h3>Barcha yozuvlarni tozalash</h3></div>
+    <div class="card-b">
+      <p class="muted" style="margin-top:0">Kassa, dasturlar, a'zolar, qarzlar va zakot tarixi o'chadi, hisoblar qoldig'i nolga tushadi. <b>Xodimlar, hisoblar, kategoriyalar va sozlamalar saqlanadi.</b> Bu amalni qaytarib bo'lmaydi.</p>
+      {% if g.user.role == 'rahbar' %}
+      <form method="post" action="{{ url_for('sozlama.data_clear') }}" style="display:flex;gap:8px;flex-wrap:wrap" onsubmit="return window.confirm(this.dataset.msg)" data-msg="Barcha yozuvlar o'chiriladi. Davom etasizmi?">
+        <input type="text" name="tasdiq" placeholder="TOZALASH deb yozing" autocomplete="off" style="max-width:220px">
+        <button class="btn danger">{{ ui.icon('trash', 'sm') }} Tozalash</button>
+      </form>
+      {% else %}<p class="faint">Faqat rahbar tozalay oladi.</p>{% endif %}
+    </div>
+  </div>
 </div>
 {% endif %}
 {% endblock %}

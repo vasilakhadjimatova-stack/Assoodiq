@@ -499,6 +499,11 @@ details.more .menu { position: absolute; right: 0; top: calc(100% + 4px); backgr
   :root:not([data-theme="light"]) .side .mark .q4, :root:not([data-theme="light"]) .topbar .mark .q4 { fill: #12805F; }
 }
 
+.demo-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 18px; border-radius: 12px; background: var(--warn-bg); color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 25%, transparent); font-size: 13px; font-weight: 600; }
+.demo-bar span { flex: 1; min-width: 200px; color: var(--txt); }
+.demo-bar b { color: var(--warn); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
 /* Tab */
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; overflow-x: auto; }
 .tabs a { padding: 10px 14px; font-weight: 700; color: var(--txt3); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
