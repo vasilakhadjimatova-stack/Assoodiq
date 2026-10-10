@@ -101,6 +101,22 @@
 </div>
 {%- endmacro %}
 
+{# Kichik trend chizig'i (sparkline): 12 oylik qiymatlar, o'qsiz #}
+{% macro spark(values, uid, color="var(--chart-in)", label="") -%}
+{% set vals = values|list %}
+{% if vals|length > 1 %}
+{% set mx = [vals|max, 0]|max %}{% set mn = [vals|min, 0]|min %}{% set rng = (mx - mn) or 1 %}
+{% set step = 100 / (vals|length - 1) %}
+{% set pts = [] %}
+{% for v in vals %}{% set _ = pts.append('%.2f,%.2f' % (step * loop.index0, 30 - (v - mn) / rng * 26)) %}{% endfor %}
+<svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none" role="img" aria-label="{{ label }}">
+  <defs><linearGradient id="sp-{{ uid }}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:{{ color }};stop-opacity:.22"/><stop offset="1" style="stop-color:{{ color }};stop-opacity:0"/></linearGradient></defs>
+  <path d="M0,32 L{{ pts|join(' L') }} L100,32 Z" fill="url(#sp-{{ uid }})"/>
+  <polyline points="{{ pts|join(' ') }}" fill="none" style="stroke:{{ color }}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+</svg>
+{% endif %}
+{%- endmacro %}
+
 {# 12 oylik kirim/chiqim grafigi — guruhlangan ustunlar, hover'da tooltip #}
 {% macro month_chart(series) -%}
 {% set W, H, PL, PB, PT = 720, 250, 74, 30, 10 %}

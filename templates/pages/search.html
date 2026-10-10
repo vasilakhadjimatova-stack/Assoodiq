@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Qidiruv{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">Qidiruv</div>
+    <div class="head-s">{% if q|length >= 2 %}«{{ q }}» bo'yicha <b>{{ total }}</b> ta natija{% else %}Yuqoridagi maydonga kamida 2 ta harf yozing (Ctrl+K){% endif %}</div>
+  </div>
+</div>
+
+{% if q|length >= 2 and not total %}
+<div class="card empty">{{ ui.icon('search') }}<b>Hech narsa topilmadi</b>Boshqa so'z bilan urinib ko'ring.</div>
+{% endif %}
+
+<div class="grid g-2">
+  {% if members %}
+  <div class="card"><div class="card-h"><h3>A'zolar</h3><span class="sub">{{ members|length }}</span></div>
+    <div class="card-b" style="padding-top:6px">
+      {% for m in members %}
+      <a class="acc" href="{{ url_for('dastur.member', mid=m.id) }}">
+        <div class="avatar" style="background:var(--brand-bg);color:var(--brand-txt)">{{ m.full_name[:1] }}</div>
+        <div><b>{{ m.full_name }}</b><span>{{ m.business or '—' }}{% if m.phone %} · {{ m.phone }}{% endif %}</span></div>
+        <div class="r">{{ ui.icon('right', 'sm') }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% if programs %}
+  <div class="card"><div class="card-h"><h3>Dasturlar</h3><span class="sub">{{ programs|length }}</span></div>
+    <div class="card-b" style="padding-top:6px">
+      {% for p in programs %}
+      <a class="acc" href="{{ url_for('dastur.program', pid=p.id) }}">
+        <div class="acc-k">{{ ui.icon('cap', 'sm') }}</div>
+        <div><b>{{ p.name }}</b><span>{{ p.kind_name }} · {{ p.status_name }}</span></div>
+        <div class="r">{{ ui.som(p.price, p.currency) }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% if txs %}
+  <div class="card"><div class="card-h"><h3>Kassa yozuvlari</h3><span class="sub">{{ txs|length }}</span></div>
+    <div class="card-b" style="padding-top:4px">{% for t in txs %}{{ ui.tx_row(t) }}{% endfor %}</div>
+  </div>
+  {% endif %}
+  {% if debts %}
+  <div class="card"><div class="card-h"><h3>Qarzlar</h3><span class="sub">{{ debts|length }}</span></div>
+    <div class="card-b" style="padding-top:6px">
+      {% for d in debts %}
+      <a class="acc" href="{{ url_for('qarz.detail', did=d.id) }}">
+        <div class="acc-k">{{ ui.icon('book', 'sm') }}</div>
+        <div><b>{{ d.counterparty }}</b><span>{{ 'Berilgan' if d.direction == 'berilgan' else 'Olingan' }} · {{ d.date|d }}{% if d.closed %} · yopilgan{% endif %}</span></div>
+        <div class="r">{{ ui.som(d.amount, d.currency) }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

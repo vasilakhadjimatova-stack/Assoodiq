@@ -369,3 +369,15 @@ def test_exports_are_valid_xlsx(app):
         assert r.status_code == 200, url
         wb = load_workbook(BytesIO(r.data))
         assert len(wb.sheetnames) == sheets and wb.worksheets[0].max_row > 1
+
+
+def test_global_search_respects_roles(app):
+    from core.demo import demo
+    demo()
+    client = app.test_client()
+    login(client, "100100")
+    page = client.get("/qidiruv/?q=Karim").get_data(as_text=True)
+    assert "Karimov" in page and "Kassa yozuvlari" in page and "natija" in page
+    login(client, "300300")
+    page = client.get("/qidiruv/?q=Karim").get_data(as_text=True)
+    assert "Qarzlar" not in page  # menejer qarz daftarini ko'rmaydi

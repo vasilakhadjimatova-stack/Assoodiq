@@ -231,6 +231,28 @@
     if (document.activeElement === input) box.classList.add('focus');
   });
 
+  // Ctrl+K / ⌘K — qidiruvga o'tish; "/" ham (yozish maydonida bo'lmasa)
+  document.addEventListener('keydown', function (e) {
+    var box = document.querySelector('[data-search]');
+    if (!box) return;
+    var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey) || (e.key === '/' && !typing)) {
+      e.preventDefault(); box.focus(); box.select();
+    }
+  });
+
+  // "Yangi yozuv": sahifada kirim/chiqim oynasi bo'lsa — shu yerning o'zida ochiladi
+  document.querySelectorAll('[data-quick-add]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var dlg = document.getElementById('tx-modal');
+      if (!dlg || !dlg.querySelector('.kind-tabs')) return;
+      e.preventDefault();
+      var opener = document.createElement('button');
+      opener.dataset.open = 'tx-modal'; opener.dataset.setKind = 'kirim'; opener.hidden = true;
+      document.body.appendChild(opener); opener.click(); opener.remove();
+    });
+  });
+
   // Xabarlar o'zi yo'qoladi
   setTimeout(function () {
     document.querySelectorAll('.flash').forEach(function (f) {

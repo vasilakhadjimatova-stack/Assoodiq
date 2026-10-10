@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=10">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=11">
   <script>
     document.documentElement.classList.add('js');
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
@@ -54,6 +54,19 @@
   </aside>
 
   <main class="main">
+    <header class="appbar">
+      <div class="appbar-in">
+        <form class="appbar-search" action="{{ url_for('qidiruv.search') }}" role="search">
+          {{ ui.icon('search', 'sm') }}
+          <input type="search" name="q" value="{{ request.args.get('q', '') if request.endpoint == 'qidiruv.search' else '' }}" placeholder="Qidirish: a'zo, telefon, dastur, izoh…" aria-label="Qidirish" data-search {{ 'autofocus' if request.endpoint == 'qidiruv.search' }}>
+          <kbd>Ctrl K</kbd>
+        </form>
+        <div class="appbar-r">
+          <div class="datechip" title="Bugun">{{ ui.icon('calendar', 'sm') }}<span>{{ today|d('long') }}</span><i></i><span class="gold-t">{{ today|hijri }}</span></div>
+          <a class="btn solid sm" href="{{ url_for('kassa.ledger', yangi='kirim') }}" data-quick-add>{{ ui.icon('plus', 'sm') }} Yangi yozuv</a>
+        </div>
+      </div>
+    </header>
     <div class="wrap">
       <div class="topbar">
         <button class="icon-btn" type="button" data-nav-open>{{ ui.icon('menu') }}</button>
@@ -82,7 +95,7 @@
   {% for cat, msg in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
 </div>
 {% endblock %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=10"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=11"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

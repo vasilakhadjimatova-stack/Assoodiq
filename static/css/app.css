@@ -1,15 +1,15 @@
 /* Assoodiq — Islom moliyasi. Faqat tokenlar orqali rang beriladi. */
 
 :root {
-  --bg: #F4F1E9;
+  --bg: #F4F6F5;
   --surface: #FFFFFF;
-  --surface2: #F2EEE4;
-  --surface3: #E9E3D6;
-  --line: #E3DCCD;
-  --line2: #D6CDBB;
-  --txt: #15201B;
-  --txt2: #4B5852;
-  --txt3: #848E88;
+  --surface2: #F2F5F3;
+  --surface3: #E8EDEA;
+  --line: #E5EAE7;
+  --line2: #D3DCD7;
+  --txt: #0E1A15;
+  --txt2: #4A5953;
+  --txt3: #85928B;
   --brand: #065A47;
   --brand-strong: #04473A;
   --brand-bg: #E0F1E9;
@@ -26,7 +26,7 @@
   --on-solid: #FFFFFF;
   --chart-in: #108A60;
   --chart-out: #B8801C;
-  --grid: #ECE6DA;
+  --grid: #EDF1EF;
   --hero1: #0A6650;
   --hero2: #054536;
   --side-bg: #FFFFFF;
@@ -36,9 +36,11 @@
   --side-on-bg: #E3F3EB;
   --side-on-txt: #065A47;
   --logo-sub: #188B63;
-  --shadow: 0 1px 2px rgba(20, 35, 28, .05), 0 4px 16px rgba(20, 35, 28, .05);
-  --shadow-lg: 0 10px 40px rgba(10, 30, 22, .18);
-  --r: 14px;
+  --shadow: 0 1px 2px rgba(14, 26, 21, .04), 0 1px 1px rgba(14, 26, 21, .02), 0 10px 28px -14px rgba(14, 26, 21, .12);
+  --shadow-hover: 0 1px 2px rgba(14, 26, 21, .05), 0 16px 36px -14px rgba(6, 90, 71, .22);
+  --shadow-lg: 0 24px 60px -12px rgba(6, 30, 22, .28), 0 2px 6px rgba(6, 30, 22, .06);
+  --ring: 0 0 0 4px color-mix(in srgb, var(--brand) 16%, transparent);
+  --r: 16px;
   --r-sm: 10px;
   --font: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --display: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -56,7 +58,7 @@
     --warn: #E0B25A; --warn-bg: #2E2410; --info: #7DB0DD; --info-bg: #14263A;
     --chart-in: #22A06F; --chart-out: #BA8724; --grid: #1C2C25;
     --side-bg: #0C1814; --side-txt: #DCE8E2; --side-txt2: #7E9289; --side-hover: rgba(255, 255, 255, .05); --side-on-bg: rgba(60, 184, 133, .14); --side-on-txt: #78D1AB; --logo-sub: #78D1AB; --logo-txt: #4CC394; --hero1: #0B5C48; --hero2: #063A2D;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 10px 40px rgba(0, 0, 0, .5);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px -14px rgba(0, 0, 0, .5); --shadow-hover: 0 16px 36px -14px rgba(0, 0, 0, .6); --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, .6);
     color-scheme: dark;
   }
 }
@@ -70,14 +72,17 @@
   --warn: #E0B25A; --warn-bg: #2E2410; --info: #7DB0DD; --info-bg: #14263A;
   --chart-in: #22A06F; --chart-out: #BA8724; --grid: #1C2C25;
   --side-bg: #0C1814; --side-txt: #DCE8E2; --side-txt2: #7E9289; --side-hover: rgba(255, 255, 255, .05); --side-on-bg: rgba(60, 184, 133, .14); --side-on-txt: #78D1AB; --logo-sub: #78D1AB; --logo-txt: #4CC394; --hero1: #0B5C48; --hero2: #063A2D;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 10px 40px rgba(0, 0, 0, .5);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px -14px rgba(0, 0, 0, .5); --shadow-hover: 0 16px 36px -14px rgba(0, 0, 0, .6); --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(1200px 520px at 75% -120px, color-mix(in srgb, var(--mint) 16%, transparent), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--txt);
   font: 500 14px/1.5 var(--font);
   -webkit-font-smoothing: antialiased;
@@ -143,6 +148,20 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
 
 .main { min-width: 0; padding: 26px 32px 60px; }
 .wrap { max-width: 1240px; margin: 0 auto; }
+/* Yuqori panel: qidiruv, sana, tez qo'shish — aylantirganda yopishib turadi */
+.appbar { position: sticky; top: 0; z-index: 40; margin: -26px -32px 24px; padding: 12px 32px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(14px); backdrop-filter: saturate(1.4) blur(14px);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent); }
+.appbar-in { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+.appbar-search { position: relative; flex: 1; max-width: 460px; }
+.appbar-search .ic { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--txt3); pointer-events: none; }
+.appbar-search input[type=search] { height: 40px; padding: 0 70px 0 38px; border-radius: 12px; background: var(--surface); border-color: var(--line); box-shadow: 0 1px 2px rgba(14, 26, 21, .04); font-weight: 600; }
+.appbar-search kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font: 700 10.5px var(--font); color: var(--txt3); background: var(--surface2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 2px 6px; pointer-events: none; }
+.appbar-r { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.datechip { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); color: var(--txt2); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.datechip .ic { color: var(--txt3); }
+.datechip i { width: 3px; height: 3px; border-radius: 50%; background: var(--line2); }
+@media (max-width: 1180px) { .datechip { display: none; } }
 .topbar { display: none; }
 .bottom-nav { display: none; }
 
@@ -161,12 +180,14 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
   border-radius: 10px; border: 1px solid transparent; font: 650 13.5px/1 var(--font); cursor: pointer;
   white-space: nowrap; transition: background .15s, border-color .15s, color .15s;
 }
-.btn.solid { background: var(--brand); color: var(--on-solid); }
-.btn.solid:hover { background: var(--brand-strong); }
+.btn.solid { background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 88%, #fff) 0%, var(--brand) 100%); color: var(--on-solid); box-shadow: 0 1px 0 rgba(255, 255, 255, .18) inset, 0 1px 2px rgba(6, 60, 45, .3), 0 6px 16px -6px rgba(6, 90, 71, .45); }
+.btn.solid:hover { background: linear-gradient(180deg, var(--brand) 0%, var(--brand-strong) 100%); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: none; box-shadow: var(--ring); }
 .btn.gold { background: var(--gold); color: #fff; }
 .btn.tonal { background: var(--brand-bg); color: var(--brand-txt); }
 .btn.tonal:hover { filter: brightness(.97); }
-.btn.outline { background: var(--surface); border-color: var(--line2); color: var(--txt); }
+.btn.outline { background: var(--surface); border-color: var(--line2); color: var(--txt); box-shadow: 0 1px 2px rgba(14, 26, 21, .05); }
 .btn.outline:hover { border-color: var(--brand); color: var(--brand-txt); }
 .btn.ghost { background: transparent; color: var(--txt2); }
 .btn.ghost:hover { background: var(--surface2); color: var(--txt); }
@@ -200,8 +221,25 @@ a.stat:hover { border-color: var(--line2); }
 .stat.hero::after { content: ""; position: absolute; inset: 0; background: url("../img/pattern.svg") right -30px center/110px repeat-y; opacity: .5; pointer-events: none; }
 .stat.hero .stat-l, .stat.hero .stat-s { color: rgba(242, 247, 244, .75); }
 .stat.hero .cur { color: rgba(242, 247, 244, .65); }
-.delta { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; }
-.delta.up { color: var(--ok); } .delta.down { color: var(--bad); }
+.delta { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; font-size: 11.5px; padding: 1px 7px 1px 5px; border-radius: 999px; margin-right: 4px; }
+.delta .ic { width: 13px; height: 13px; }
+.delta.up { color: var(--ok); background: var(--ok-bg); } .delta.down { color: var(--bad); background: var(--bad-bg); }
+.spark { position: absolute; top: 16px; right: 16px; width: 76px; height: 28px; overflow: visible; }
+.has-spark .stat-l { padding-right: 84px; }
+.acc-stats { grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); }
+.acc-stats .stat { padding: 14px 16px; }
+a.stat { transition: box-shadow .2s, transform .2s, border-color .2s; }
+a.stat:hover, .prog:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+/* Sahifa ochilganda kartalar yumshoq, ketma-ket paydo bo'ladi */
+.wrap > .head, .wrap > .stats > *, .wrap > .card, .wrap > .grid > *, .prog-grid > *, .wrap > .toolbar {
+  animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
+.wrap > .stats > :nth-child(2) { animation-delay: .04s; } .wrap > .stats > :nth-child(3) { animation-delay: .08s; }
+.wrap > .stats > :nth-child(4) { animation-delay: .12s; } .wrap > .stats > :nth-child(n+5) { animation-delay: .16s; }
+.wrap > .grid > :nth-child(2) { animation-delay: .1s; } .wrap > .grid > :nth-child(3) { animation-delay: .15s; }
+.wrap > .grid, .wrap > .card { animation-delay: .08s; }
+.prog-grid > :nth-child(2) { animation-delay: .04s; } .prog-grid > :nth-child(3) { animation-delay: .08s; } .prog-grid > :nth-child(n+4) { animation-delay: .12s; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .wrap *, .prog-grid > * { animation: none !important; } }
 
 /* ── Holat belgilari ───────────────────────────────────────────────────── */
 .pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 11px; font-size: 11.5px; font-weight: 700; white-space: nowrap; background: var(--surface2); color: var(--txt2); }
@@ -302,8 +340,8 @@ a.stat:hover { border-color: var(--line2); }
 
 /* ── Dastur kartalari ──────────────────────────────────────────────────── */
 .prog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-.prog { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; transition: border-color .15s, transform .15s; }
-.prog:hover { border-color: var(--line2); transform: translateY(-1px); }
+.prog { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; transition: box-shadow .2s, transform .2s; }
+
 .prog-top { display: flex; gap: 8px; align-items: center; }
 .prog h3 { font: 750 17px/1.3 var(--display); letter-spacing: -.2px; }
 .prog .meta { color: var(--txt3); font-size: 12.5px; font-weight: 600; margin-top: 4px; }
@@ -511,6 +549,7 @@ details.more .menu { position: absolute; right: 0; top: calc(100% + 4px); backgr
 .tabs a.on { color: var(--brand-txt); border-color: var(--brand); }
 
 .fab { display: none; }
+.mob-only { display: none; }
 
 /* ── Mobil ─────────────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
@@ -523,6 +562,8 @@ details.more .menu { position: absolute; right: 0; top: calc(100% + 4px); backgr
   body.nav-open::after { content: ""; position: fixed; inset: 0; background: rgba(6, 20, 15, .45); z-index: 55; }
   body.nav-open .fab { display: none; }
   .main { padding: 16px 16px 96px; }
+  .appbar { display: none; }
+  .mob-only { display: block; }
   .topbar { display: flex; align-items: center; gap: 10px; margin: -4px 0 14px; }
   .topbar-logo { display: flex; align-items: center; gap: 10px; }
   .topbar-logo .mark { width: 30px; height: 30px; }
@@ -539,6 +580,8 @@ details.more .menu { position: absolute; right: 0; top: calc(100% + 4px); backgr
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .stat { padding: 14px; }
   .stat-v { font-size: 17px; }
+  .spark { display: none; }
+  .has-spark .stat-l { padding-right: 0; }
   .stat.hero, .stat.wide-m { grid-column: 1 / -1; }
   .card-h .act.legend { margin-left: 0; width: 100%; }
   .chart .ax { font-size: 21px; }
