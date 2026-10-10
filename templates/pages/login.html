@@ -3,9 +3,10 @@
 {% block body %}
 <div class="login">
   <div class="login-art">
-    <div class="brand login-brand" aria-label="Assoodiq">
-      <span class="brand-tile"><img src="{{ url_for('static', filename='img/mark.svg') }}" alt=""></span>
-      <div class="brand-txt">{% include "partials/wordmark.svg" %}<div class="brand-sub">Halol hisob</div></div>
+    <div class="login-lockup" aria-label="Assoodiq">
+      {% include "partials/mark.svg" %}
+      {% include "partials/wordmark.svg" %}
+      <div class="brand-sub">Halol hisob</div>
     </div>
     <div>
       <h1>Tijoratning barakasi to'g'ri hisobdan boshlanadi</h1>
@@ -18,7 +19,6 @@
   </div>
   <div class="login-form">
     <form class="login-box" method="post">
-      <img class="login-mark" src="{{ url_for('static', filename='img/mark.svg') }}" alt="">
       <h2>Xush kelibsiz</h2>
       <p class="muted" style="margin:6px 0 24px">Davom etish uchun 6 xonali kirish kodingizni kiriting.</p>
       <input class="input code-in" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" autofocus placeholder="••••••" required>
