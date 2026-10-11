@@ -283,10 +283,10 @@
   function setKview(v) {
     document.documentElement.dataset.kview = v;
     document.querySelectorAll('[data-kview]').forEach(function (b) { b.classList.toggle('on', b.dataset.kview === v); });
-    try { localStorage.setItem('kview', v); } catch (e) {}
+    try { localStorage.setItem('kview2', v); } catch (e) {}
   }
   if (document.querySelector('.kv-toggle')) {
-    setKview(document.documentElement.dataset.kview || 'table');
+    setKview(document.documentElement.dataset.kview || 'list');
     document.querySelectorAll('[data-kview]').forEach(function (b) {
       b.addEventListener('click', function () { setKview(b.dataset.kview); });
     });
@@ -373,72 +373,43 @@
     form.addEventListener('change', function (e) { if (e.target.name === 'kind') update(); });
   });
 
-  // Tez yozish qatori: oxirgi tanlovlar eslab qolinadi, saqlangach fokus yana shu yerda
-  var qe = document.querySelector('[data-qe]');
-  if (qe) {
-    var QE_KEYS = ['kind', 'date', 'account_id', 'category_id'];
+  // Tez yozish (o'ng panel va jadval ostidagi qator): oxirgi tanlovlar eslab qolinadi,
+  // saqlangach fokus yana shu yerda, yangi yozuv belgilanadi
+  var qeForms = Array.prototype.slice.call(document.querySelectorAll('[data-qe]'));
+  function visibleQe() { return qeForms.filter(function (f) { return f.offsetParent !== null; })[0] || null; }
+  var QE_KEYS = ['kind', 'date', 'account_id', 'category_id'];
+  qeForms.forEach(function (qe) {
     qe.addEventListener('submit', function () {
       var keep = {};
       QE_KEYS.forEach(function (k) {
-        var el = k === 'kind' ? qe.querySelector('[name=kind]:checked') : qe.querySelector('[name=' + k + ']');
+        var el = qe.querySelector('[name=' + k + ']:checked') || qe.querySelector('select[name=' + k + '], input[name=' + k + ']:not([type=radio])');
         if (el) keep[k] = el.value;
       });
       try { sessionStorage.setItem('qe', JSON.stringify(keep)); } catch (e) {}
-      var btn = qe.querySelector('.qe-save'); if (btn) btn.classList.add('busy');
+      var btn = qe.querySelector('.qe-save, .k-save'); if (btn) btn.classList.add('busy');
     });
-    var qp = new URLSearchParams(location.search);
-    if (qp.get('tez')) {
-      var saved = {};
-      try { saved = JSON.parse(sessionStorage.getItem('qe') || '{}'); } catch (e) {}
+  });
+  var qp = new URLSearchParams(location.search);
+  if (qp.get('tez') && qeForms.length) {
+    var saved = {};
+    try { saved = JSON.parse(sessionStorage.getItem('qe') || '{}'); } catch (e) {}
+    qeForms.forEach(function (qe) {
       if (saved.kind) { setField(qe, 'kind', saved.kind); syncTxForm(qe); }
       ['date', 'account_id', 'category_id'].forEach(function (k) { setField(qe, k, saved[k]); });
-      var row = document.querySelector('[data-tx="' + qp.get('belgi') + '"]');
-      if (row) { row.classList.add('just-added'); row.scrollIntoView({ block: 'center' }); }
-      var w = qe.querySelector('[name=counterparty]');
-      if (w) w.focus({ preventScroll: true });
-      qp.delete('tez'); qp.delete('belgi');
-      history.replaceState(null, '', location.pathname + (qp.toString() ? '?' + qp : ''));
-    }
-  }
-
-  // Bir nechta qatorni belgilash (Shift — oraliq) va ular bilan amal
-  var bulk = document.querySelector('[data-bulk]');
-  if (bulk) {
-    var ledgerCard = bulk.closest('.ledger');
-    var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-sel]'));
-    var selAll = document.querySelector('[data-sel-all]'), lastIdx = null;
-    var refresh = function () {
-      var n = boxes.filter(function (b) { return b.checked; }).length;
-      bulk.querySelector('[data-sel-count]').textContent = n;
-      ledgerCard.classList.toggle('has-sel', n > 0);
-      boxes.forEach(function (b) { b.closest('tr').classList.toggle('is-sel', b.checked); });
-      if (selAll) { selAll.checked = n > 0 && n === boxes.length; selAll.indeterminate = n > 0 && n < boxes.length; }
-    };
-    boxes.forEach(function (b, i) {
-      b.addEventListener('click', function (e) {
-        if (e.shiftKey && lastIdx !== null) {
-          for (var k = Math.min(lastIdx, i); k <= Math.max(lastIdx, i); k++) boxes[k].checked = b.checked;
-        }
-        lastIdx = i;
-        refresh();
-      });
     });
-    if (selAll) selAll.addEventListener('change', function () { boxes.forEach(function (b) { b.checked = selAll.checked; }); refresh(); });
-    bulk.querySelector('[data-sel-clear]').addEventListener('click', function () { boxes.forEach(function (b) { b.checked = false; }); refresh(); });
-    bulk.addEventListener('submit', function (e) {
-      var sb = e.submitter;
-      if (sb && sb.dataset.confirm && !window.confirm(sb.dataset.confirm)) e.preventDefault();
+    document.querySelectorAll('[data-tx="' + qp.get('belgi') + '"]').forEach(function (row) {
+      row.classList.add('just-added');
+      if (row.offsetParent !== null) row.scrollIntoView({ block: 'center' });
     });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && ledgerCard.classList.contains('has-sel') && !document.querySelector('dialog[open]')) {
-        boxes.forEach(function (b) { b.checked = false; }); refresh();
-      }
-    });
+    var vq = visibleQe(), w = vq && vq.querySelector('[name=counterparty]');
+    if (w) w.focus({ preventScroll: true });
+    qp.delete('tez'); qp.delete('belgi');
+    history.replaceState(null, '', location.pathname + (qp.toString() ? '?' + qp : ''));
   }
 
   // Jadvalda qatorni ikki marta bosish — tahrirlash oynasi
   document.addEventListener('dblclick', function (e) {
-    var tr = e.target.closest('tr.can-edit');
+    var tr = e.target.closest('tr.can-edit, .k-row.can-edit');
     if (!tr || e.target.closest('details, a, button, label')) return;
     var btn = tr.querySelector('[data-edit]');
     if (btn) { window.getSelection && window.getSelection().removeAllRanges(); btn.click(); }
@@ -448,7 +419,7 @@
   document.addEventListener('keydown', function (e) {
     if ((e.key !== 'n' && e.key !== 'N' && e.key !== 'т' && e.key !== 'Т') || e.ctrlKey || e.metaKey || e.altKey) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
-    var who = qe && qe.offsetParent !== null ? qe.querySelector('[name=counterparty]') : null;
+    var vq = visibleQe(), who = vq ? vq.querySelector('[name=amount]') : null;
     if (who) { e.preventDefault(); who.scrollIntoView({ block: 'center' }); who.focus(); return; }
     var opener = document.querySelector('.fab[data-open], [data-open="tx-modal"]');
     if (opener) { e.preventDefault(); opener.click(); }

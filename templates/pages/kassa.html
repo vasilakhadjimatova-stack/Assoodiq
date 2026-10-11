@@ -4,35 +4,24 @@
 {% set here = request.full_path.rstrip('?') %}
 {% set can_edit = g.user.role != 'menejer' %}
 {% set keep = {'oy': month.strftime('%Y-%m'), 'tur': kind or None, 'hisob': acc_id, 'kat': cat_id, 'q': q or None} %}
-<div class="head">
+{% set WD = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba", "Yakshanba"] %}
+<div class="head k-head">
   <div>
     <div class="head-t">Kassa</div>
-    <div class="head-s k-meta" title="Foyda-zarar bo'yicha: faqat halol kirim va xarajatlar (o'tkazma, qarz va tozalash fondi kirmaydi). Jadval ostidagi «Jami» esa barcha pul harakati.">{{ month_name }}: kirim <b class="ok-t">{{ totals.income|num }}</b> · chiqim <b>{{ totals.expense|num }}</b> · sof <b>{{ totals.profit|num }}</b> so'm</div>
+    <div class="head-s">{% if account %}{{ account.name }} daftari{% else %}Barcha hisoblar{% endif %} · {{ month_name }} · {{ table|length }} ta yozuv</div>
   </div>
   <div class="head-a">
+    <div class="seg kv-toggle" role="group" aria-label="Ko'rinish">
+    <button type="button" data-kview="list" title="Ro'yxat va yozish paneli">{{ ui.icon('list', 'sm') }} Ro'yxat</button>
+    <button type="button" data-kview="table" title="Jadval — Sheets'dagidek">{{ ui.icon('table', 'sm') }} Jadval</button>
+  </div>
     {% if can_edit %}
     <a class="btn ghost desk-only" href="{{ url_for('kassa.import_rows') }}" title="Google Sheets yoki Excel'dan yozuvlarni ko'chirish">{{ ui.icon('sheet', 'sm') }} Sheets'dan ko'chirish</a>
     <a class="btn ghost" href="{{ url_for('kassa.export', **request.args) }}" title="Ko'rsatilgan yozuvlarni Excel'ga">{{ ui.icon('download', 'sm') }} Excel</a>
-    <button class="btn outline" data-open="tx-modal" data-set-kind="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</button>
+    <button class="btn outline k-addbtn" data-open="tx-modal" data-set-kind="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</button>
     {% endif %}
-    <button class="btn solid" data-open="tx-modal" data-set-kind="kirim">{{ ui.icon('plus', 'sm') }} Kirim</button>
+    <button class="btn solid k-addbtn" data-open="tx-modal" data-set-kind="kirim">{{ ui.icon('plus', 'sm') }} Kirim</button>
   </div>
-</div>
-<div class="k-sum" aria-label="{{ month_name }} yakuni">
-  <div><span>Kirim</span><b class="ok-t">{{ totals.income|short }}</b></div>
-  <div><span>Chiqim</span><b>{{ totals.expense|short }}</b></div>
-  <div><span>Sof foyda</span><b class="{{ 'bad-t' if totals.profit < 0 else 'ok-t' }}">{{ totals.profit|short }}</b></div>
-</div>
-
-<div class="acc-strip" role="navigation" aria-label="Hisoblar">
-  <a href="{{ url_for('kassa.ledger', **dict(keep, hisob=None)) }}" class="acc-chip {{ 'on' if not acc_id }}">
-    <span class="ac-i">{{ ui.icon('wallet', 'sm') }}</span><span class="ac-t"><span>Barcha hisoblar</span><b>{{ f_accounts|sum(attribute='balance_uzs')|money }} <small>so'm</small></b></span>
-  </a>
-  {% for r in f_accounts %}
-  <a href="{{ url_for('kassa.ledger', **dict(keep, hisob=r.account.id)) }}" class="acc-chip {{ 'on' if acc_id == r.account.id }}" title="Faqat shu hisob daftari">
-    <span class="ac-i">{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }}</span><span class="ac-t"><span>{{ r.account.name }}</span><b>{{ r.balance|money(r.account.currency) }}{% if r.account.currency != 'USD' %} <small>so'm</small>{% endif %}</b></span>
-  </a>
-  {% endfor %}
 </div>
 
 <form class="toolbar" method="get">
@@ -61,11 +50,59 @@
   <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Qidirish: kim yoki izoh"></label>
   {% if no_cat_count and cat_id != 'yoq' and can_edit %}<a class="pill warn k-nocat" href="{{ url_for('kassa.ledger', **dict(keep, kat='yoq')) }}" title="Kategoriyasi qo'yilmagan kirim/chiqimlar — hisobotda «Boshqa» bo'lib ketadi">{{ ui.icon('alert', 'sm') }} {{ no_cat_count }} ta kategoriyasiz</a>{% endif %}
   {% if filtered %}<a class="btn ghost sm" href="{{ url_for('kassa.ledger', oy=month.strftime('%Y-%m'), hisob=acc_id) }}" title="Filtrni tozalash">{{ ui.icon('x', 'sm') }} Tozalash</a>{% endif %}
-  <div class="seg kv-toggle" role="group" aria-label="Ko'rinish">
-    <button type="button" data-kview="table" title="Jadval — Sheets'dagidek" aria-label="Jadval">{{ ui.icon('table', 'sm') }}</button>
-    <button type="button" data-kview="list" title="Ro'yxat — kunlar bo'yicha" aria-label="Ro'yxat">{{ ui.icon('list', 'sm') }}</button>
-  </div>
 </form>
+
+<div class="k-layout">
+<div class="k-main">
+
+{# ── Ro'yxat: kunlar bo'yicha, har yozuvdan keyingi qoldiq bilan ── #}
+<div class="kv-list">
+  {% for r in table|reverse|list %}
+    {% set t = r.t %}
+    {% if loop.first or t.date != loop.previtem.t.date %}
+      {% if not loop.first %}</div></section>{% endif %}
+      {% set dt = day_totals.get(t.date) %}
+      <section class="k-day">
+        <header>
+          <span class="k-dnum">{{ t.date.day }}</span>
+          <div class="k-dname"><b>{{ 'Bugun' if t.date == today else ('Kecha' if (today - t.date).days == 1 else WD[t.date.weekday()]) }}</b><span>{{ t.date|d('long') }}</span></div>
+          {% if dt %}<div class="k-dsum">{% if dt[0] %}<span class="ok-t">+{{ dt[0]|short }}</span>{% endif %}{% if dt[1] %}<span>−{{ dt[1]|short }}</span>{% endif %}</div>{% endif %}
+        </header>
+        <div class="k-rows">
+    {% endif %}
+    {% set refund = t.kind == 'kirim' and t.amount < 0 %}
+    {% set incoming = t.kind in ('kirim', 'qarz_kirim') and not refund %}
+    <div class="k-row{{ ' can-edit' if can_edit and t.kind in ('kirim', 'chiqim') and t.amount > 0 }}" data-tx="{{ t.id }}">
+      <span class="k-ic {{ 'in' if incoming else ('mv' if t.kind == 'otkazma' else 'out') }}">{{ ui.icon('in' if incoming else ('swap' if t.kind == 'otkazma' else 'out'), 'sm') }}</span>
+      <div class="k-m">
+        <div class="k-t"><b>{% if t.kind == 'otkazma' %}{{ t.account.name }} → {{ t.to_account.name }}{% else %}{{ t.counterparty or (t.category.name if t.category else t.kind_name) }}{% endif %}</b>
+          {% if refund %}<span class="pill bad">Qaytarildi</span>{% endif %}
+          {% if t.kind in ('qarz_kirim', 'qarz_chiqim') %}<span class="pill gold">Qarz</span>{% endif %}
+          {% if t.shariat != 'halol' %}<span class="pill {{ 'bad' if t.shariat == 'nohalol' else 'warn' }}">{{ 'Nohalol' if t.shariat == 'nohalol' else 'Shubhali' }}</span>{% endif %}
+        </div>
+        <div class="k-s">
+          {%- set parts = [] %}
+          {%- if t.category and t.kind != 'otkazma' and t.counterparty %}{% set _ = parts.append(t.category.name) %}{% endif %}
+          {%- if not account and t.kind != 'otkazma' %}{% set _ = parts.append(t.account.name) %}{% endif %}
+          {%- if t.program %}{% set _ = parts.append(t.program.name) %}{% endif %}
+          {%- if t.note %}{% set _ = parts.append(t.note) %}{% endif %}
+          {%- if not t.category and t.kind in ('kirim', 'chiqim') and can_edit %}<span class="k-nocat-t">kategoriyasiz</span>{% if parts %} · {% endif %}{% endif %}{{ parts|join(' · ') }}
+        </div>
+      </div>
+      <div class="k-amt">
+        <b class="{{ 'in' if incoming else ('mv' if t.kind == 'otkazma' else '') }}">{{ '+' if incoming else ('' if t.kind == 'otkazma' else '−') }}{{ t.amount|abs|money(t.currency) }}{% if t.currency != 'USD' %} <small>so'm</small>{% endif %}</b>
+        <span title="Shu yozuvdan keyingi qoldiq{{ '' if account else ' (barcha hisoblar)' }}">qoldiq {{ r.bal|short }}</span>
+      </div>
+      {% if can_edit %}{{ ui.tx_menu(t, here) }}{% endif %}
+    </div>
+    {% if loop.last %}</div></section>{% endif %}
+  {% else %}
+  <div class="card empty">{{ ui.icon('wallet') }}<b>Bu davrda yozuv yo'q</b>O'ngdagi formaga yozing yoki boshqa oyni tanlang.</div>
+  {% endfor %}
+  {% if table %}
+  <div class="k-open">{{ ui.icon('calendar', 'sm') }} Oy boshidagi qoldiq{% if account %} · {{ account.name }}{% endif %}: <b>{{ opening|money(ledger_cur) }}{{ '' if ledger_cur == 'USD' else " so'm" }}</b></div>
+  {% endif %}
+</div>
 
 {# ── Jadval: Sheets'dagi kassa daftari kabi — eskidan yangiga, qoldiq ustuni bilan ── #}
 <div class="card ledger kv-table">
@@ -167,19 +204,64 @@
   </form>
 </div>
 
-{# ── Ro'yxat: kunlar bo'yicha guruhlangan (telefonda doim shu) ── #}
-<div class="card kv-list">
-  <div class="card-b" style="padding-top:6px;padding-bottom:6px">
-    {% for t in rows %}
-      {% if loop.first or t.date != loop.previtem.date %}
-        {% set dt = day_totals.get(t.date) %}
-        <div class="day-h"><span>{{ t.date|d('long') }}</span>{% if dt %}<span class="day-sum">{% if dt[0] %}<b class="ok-t">+{{ dt[0]|short }}</b>{% endif %}{% if dt[1] %}<b>−{{ dt[1]|short }}</b>{% endif %}</span>{% endif %}</div>
-      {% endif %}
-      {{ ui.tx_row(t, show_actions=can_edit, next_url=here, show_date=False) }}
-    {% else %}
-      <div class="empty">{{ ui.icon('wallet') }}<b>Bu davrda yozuv yo'q</b>Yangi kirim yoki chiqim qo'shing yoki boshqa oyni tanlang.</div>
+</div>
+
+{# ── O'ng panel: yozish formasi, oy yakuni, hisoblar ── #}
+<aside class="k-side">
+  <div class="card k-month">
+    <div class="k-month-h"><span>{{ month_name }}</span><span class="faint" title="Foyda-zarar bo'yicha: halol kirim va xarajatlar; o'tkazma, qarz va tozalash fondi kirmaydi">foyda-zarar {{ ui.icon('info', 'sm') }}</span></div>
+    <div class="k-m3">
+      <div><span>Kirim</span><b class="ok-t">{{ totals.income|short }}</b></div>
+      <div><span>Chiqim</span><b>{{ totals.expense|short }}</b></div>
+      <div><span>Sof</span><b class="{{ 'bad-t' if totals.profit < 0 else 'ok-t' }}">{{ totals.profit|short }}</b></div>
+    </div>
+    <div class="k-mbal"><div><span>Oy boshida</span><b>{{ opening|short }}</b></div>{{ ui.icon('right', 'sm') }}<div><span>Hozir{% if account %} · {{ account.name }}{% endif %}</span><b>{{ closing|short }}</b></div></div>
+  </div>
+
+  <form class="card k-new tx-form" method="post" action="{{ url_for('kassa.create') }}" data-kind="kirim" data-qe autocomplete="off"{% if f_hints %} data-hints='{{ f_hints|tojson }}'{% endif %}{% if f_members %} data-members='{{ f_members|tojson }}'{% endif %}>
+    <input type="hidden" name="next" value="{{ here }}">
+    <input type="hidden" name="quick" value="1">
+    <input type="hidden" name="program_id" value="">
+    <div class="k-new-h"><h3>Yangi yozuv</h3>{% if can_edit %}<button type="button" class="link" data-open="tx-modal" data-set-kind="otkazma">{{ ui.icon('swap', 'sm') }} O'tkazma</button>{% endif %}</div>
+    <div class="k-kind" role="radiogroup" aria-label="Turi">
+      <label class="in"><input type="radio" name="kind" value="kirim" checked>{{ ui.icon('in', 'sm') }} Kirim</label>
+      {% if can_edit %}<label class="out"><input type="radio" name="kind" value="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</label>{% endif %}
+    </div>
+    <div class="k-amount"><input name="amount" inputmode="decimal" data-money required placeholder="0" aria-label="Summa" autocomplete="off"><span>so'm</span></div>
+    <div class="field"><label><span data-show="kirim">Kimdan</span><span data-show="chiqim">Kimga</span></label>
+      <input type="text" name="counterparty" list="side-cp" placeholder="Ism yoki tashkilot">
+      {% if f_names %}<datalist id="side-cp">{% for n in f_names %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
+    </div>
+    {% if f_members %}
+    <div class="field m-link" data-member-link hidden>
+      <label>{{ ui.icon('cap', 'sm') }} O'quvchi to'lovi</label>
+      <select name="enrollment_id"><option value="">— Dasturga bog'lamaslik —</option></select>
+      <span class="hint">Summa o'quvchining qarzidan ayiriladi.</span>
+    </div>
+    {% endif %}
+    <div class="field"><label>Kategoriya</label>
+      <select name="category_id">{% for c in f_categories %}<option value="{{ c.id }}" data-kind="{{ c.kind }}">{{ c.name }}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><span class="fl">Hisob</span>
+      <div class="chips">
+        {% for r in f_accounts %}<label class="chip"><input type="radio" name="account_id" value="{{ r.account.id }}" {{ 'checked' if (account and account.id == r.account.id) or (not account and loop.first) }}>{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }}{{ r.account.name }}</label>{% endfor %}
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Sana</label><input type="date" name="date" value="{{ qe_date.isoformat() }}"></div>
+      <div class="field"><label>Izoh</label><input type="text" name="note" placeholder="Ixtiyoriy"></div>
+    </div>
+    <button class="btn solid block k-save">{{ ui.icon('check', 'sm') }} Saqlash <kbd>Enter</kbd></button>
+  </form>
+
+  <div class="card k-accs">
+    <div class="k-month-h"><span>Hisoblar</span><span class="faint">bosilsa — faqat shu hisob</span></div>
+    <a href="{{ url_for('kassa.ledger', **dict(keep, hisob=None)) }}" class="k-acc {{ 'on' if not acc_id }}"><span class="ac-i">{{ ui.icon('wallet', 'sm') }}</span><span>Barcha hisoblar</span><b>{{ f_accounts|sum(attribute='balance_uzs')|short }}</b></a>
+    {% for r in f_accounts %}
+    <a href="{{ url_for('kassa.ledger', **dict(keep, hisob=r.account.id)) }}" class="k-acc {{ 'on' if acc_id == r.account.id }}"><span class="ac-i">{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }}</span><span>{{ r.account.name }}</span><b class="{{ 'bad-t' if r.balance < 0 }}">{{ r.balance|money('USD') if r.account.currency == 'USD' else r.balance|short }}</b></a>
     {% endfor %}
   </div>
+</aside>
 </div>
 
 {{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, next_url=here) }}
