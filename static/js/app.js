@@ -474,6 +474,21 @@
     else legacy();
   });
 
+  // O'quvchi ilovasi: taklif havolasi va QR
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-invite]');
+    if (!b) return;
+    var out = b.closest('.modal-b').querySelector('[data-invite-out]');
+    b.disabled = true;
+    fetch(b.dataset.invite, { method: 'POST', credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+      b.disabled = false;
+      if (!d.ok) return;
+      out.hidden = false;
+      out.innerHTML = '<div class="tg-qr">' + d.qr + '</div><div class="tg-copy"><input type="text" readonly data-copy-src><button type="button" class="btn tonal sm" data-copy>Nusxa</button></div>';
+      out.querySelector('input').value = d.link;
+    }).catch(function () { b.disabled = false; });
+  });
+
   // Telegram: qarzdorlarga — tayyor shablon, matn maydoni kerak emas
   document.querySelectorAll('[data-tg-text]').forEach(function (box) {
     var form = box.closest('form');

@@ -10,7 +10,8 @@ from core import finance as F
 from core import hijri
 from core.extensions import db
 from core.models import (
-    Account, Attendance, Category, Debt, Enrollment, Lesson, Member, MemberEvent, Notification, Program, Setting, TelegramLink, Transaction, User, ZakatSnapshot,
+    Account, Attendance, Category, Debt, Enrollment, Lecture, LectureProgress, Lesson, LoginCode, Member, MemberEvent,
+    Module, Notification, Program, Setting, StudentAccess, TelegramLink, Transaction, User, ZakatSnapshot,
 )
 
 # Namuna uchun boshlang'ich qoldiqlar
@@ -261,6 +262,7 @@ def demo(today=None):
 
     # ── Dars jadvali (kalendar) ──
     demo_lessons(today, admin, p6=p6, mur=mur, club=club, cons=cons, nxt=nxt)
+    demo_curriculum(today, p6=p6, mur=mur)
 
     F.set_setting("hawl_start", (today - timedelta(days=290)).isoformat())
     F.set_setting("inventory_value", "14000000")
@@ -332,6 +334,65 @@ def demo_lessons(today, admin, p6, mur, club, cons, nxt):
                                       marked_at=at, marked_by=admin.id))
 
 
+CURRICULUM = [
+    ("1-modul. Halol savdo asoslari", [
+        ("Kurs bilan tanishuv: nima o'rganamiz", "video", 9, True),
+        ("Halol va harom: savdoda asosiy tamoyillar", "video", 24, False),
+        ("Bitim (aqd) rukunlari va shartlari", "video", 31, False),
+        ("Qo'llanma: savdo shartnomasi namunasi", "matn", 0, False),
+    ]),
+    ("2-modul. Riba va undan saqlanish", [
+        ("Riba nima va nega taqiqlangan", "video", 27, False),
+        ("Bank krediti, nasiya va bo'lib to'lash", "video", 34, False),
+        ("Amaliy mashq: shartnomani tekshirish", "matn", 0, False),
+    ]),
+    ("3-modul. Islomiy moliya mahsulotlari", [
+        ("Murobaha: ustama bilan sotish", "video", 29, False),
+        ("Ijara va ijara-vaqtincha egalik", "video", 26, False),
+        ("Mushoraka va mudoraba: sheriklik", "video", 38, False),
+        ("Zakot va biznes: hisoblash amaliyoti", "video", 33, False),
+    ]),
+]
+
+DEMO_BODY = {
+    "matn": ("Ushbu qo'llanmada darsda ko'rilgan mavzu bo'yicha amaliy namuna berilgan.\n\n"
+             "1. Tomonlar: sotuvchi va xaridor kimligi, ularning roziligi aniq yozilsin.\n"
+             "2. Mahsulot: nomi, miqdori, sifati va topshirish muddati.\n"
+             "3. Narx: aniq summa, to'lov muddati. Kechikish uchun foiz (jarima-riba) qo'yilmaydi.\n\n"
+             "Savollaringizni keyingi darsda ustozga bering yoki guruhda yozing."),
+    "video": ("Darsdan keyin o'zingizga savol bering: bu qoida mening biznesimda qanday qo'llanadi? "
+              "Javobingizni daftaringizga yozib qo'ying — keyingi darsda muhokama qilamiz."),
+}
+
+
+def demo_curriculum(today, p6, mur):
+    """Namuna o'quv dasturi: bo'limlar, mavzular va o'quvchilar progressi (video fayllarsiz)."""
+    from datetime import datetime as _dt
+    rnd = random.Random(5)
+    for program, mods in ((p6, CURRICULUM), (mur, CURRICULUM[2:] + CURRICULUM[:1])):
+        lectures = []
+        for mi, (mtitle, items) in enumerate(mods):
+            mod = Module(program_id=program.id, title=mtitle, position=mi)
+            db.session.add(mod)
+            db.session.flush()
+            for li, (title, kind, mins, free) in enumerate(items):
+                lec = Lecture(module_id=mod.id, title=title, kind=kind, duration=mins * 60, position=li,
+                              free=free, body=DEMO_BODY[kind])
+                db.session.add(lec)
+                lectures.append(lec)
+        db.session.flush()
+        for e in Enrollment.query.filter(Enrollment.program_id == program.id, Enrollment.status != "chiqqan").all():
+            upto = rnd.randint(0, len(lectures))
+            for i, lec in enumerate(lectures[:upto + 1]):
+                done = i < upto
+                if i == upto and i < len(lectures):
+                    pos = rnd.randint(60, max(lec.duration // 2, 61)) if lec.duration else 0
+                else:
+                    pos = lec.duration
+                db.session.add(LectureProgress(member_id=e.member_id, lecture_id=lec.id, position=pos, done=done,
+                                               updated_at=_dt.combine(today, _dt.min.time()) - timedelta(days=len(lectures) - i)))
+
+
 def has_records():
     return bool(Transaction.query.first() or Program.query.first() or Member.query.first()
                 or Debt.query.first())
@@ -351,6 +412,11 @@ def clear_data():
     """Barcha moliyaviy yozuvlarni o'chiradi. Xodimlar, hisoblar, kategoriyalar va
     sozlamalar (kurs, nisob narxi) saqlanib qoladi; hisoblar qoldig'i nolga tushadi."""
     Transaction.query.delete()
+    LectureProgress.query.delete()
+    Lecture.query.delete()
+    Module.query.delete()
+    StudentAccess.query.delete()
+    LoginCode.query.delete()
     Notification.query.delete()
     TelegramLink.query.delete()
     Attendance.query.delete()

@@ -969,3 +969,211 @@ def test_telegram_settings_broadcast_and_lesson_reminder(app, tg):
     page = client.get(f"/azolar/{b.id}").get_data(as_text=True)
     assert "t.me/assoodiq_test_bot?start=" in page
     assert "Ulangan" in client.get(f"/azolar/{a.id}").get_data(as_text=True)
+
+
+# ── O'quvchi ilovasi ──
+
+def test_prayer_times_and_qibla():
+    from datetime import datetime
+    from core import prayer as P
+    lat, lng = P.CITIES["Toshkent"]
+    for d in (date(2026, 3, 20), date(2026, 6, 21), date(2026, 12, 21)):
+        t = P.compute(d, lat, lng)
+        order = [t[k] for k, _ in P.PRAYERS]
+        assert all(order[i] < order[i + 1] for i in range(5)), (d, order)
+        assert 12 <= t["peshin"] <= 12.75  # Toshkentda quyosh tikkasi ~12:10–12:35
+        assert P.compute(d, lat, lng, asr="shafii")["asr"] < t["asr"]  # Hanafiy asr kechroq
+    # tuzatish daqiqalari
+    base = P.compute(date(2026, 3, 20), lat, lng)["bomdod"]
+    assert abs(P.compute(date(2026, 3, 20), lat, lng, offsets=[5, 0, 0, 0, 0, 0])["bomdod"] - base - 5 / 60) < 1e-9
+    deg, km = P.qibla(lat, lng)
+    assert 238 <= deg <= 243 and 3400 <= km <= 3650 and P.compass_word(deg) == "janubi-g'arb"
+    key, name, at = P.next_prayer(datetime(2026, 10, 11, 23, 30), lat, lng)
+    assert key == "bomdod" and at.date() == date(2026, 10, 12)
+    assert P.iso_at(datetime(2026, 1, 2, 4, 5)).endswith("+05:00")
+
+
+def _course(with_valid_until=None):
+    from core.models import Lecture, Module
+    p = Program(name="Kurs A", kind="kurs", price=1_000_000)
+    m = Member(full_name="Ali Valiyev", phone="+998 90 111 22 33")
+    db.session.add_all([p, m])
+    db.session.commit()
+    e = Enrollment(member_id=m.id, program_id=p.id, price=1_000_000, joined_at=date(2026, 1, 1),
+                   valid_until=with_valid_until)
+    mod = Module(program_id=p.id, title="1-modul", position=0)
+    db.session.add_all([e, mod])
+    db.session.commit()
+    l1 = Lecture(module_id=mod.id, title="Kirish", kind="video", duration=600, position=0, free=True)
+    l2 = Lecture(module_id=mod.id, title="Asosiy dars", kind="video", duration=1200, position=1)
+    l3 = Lecture(module_id=mod.id, title="Qo'llanma", kind="matn", body="Birinchi xatboshi.\n\nIkkinchi.", position=2)
+    db.session.add_all([l1, l2, l3])
+    db.session.commit()
+    return p, m, e, (l1, l2, l3)
+
+
+def test_student_invite_login_courses_and_progress(app):
+    from core import student as S
+    from core.models import LectureProgress
+    p, m, e, (l1, l2, l3) = _course()
+    client = app.test_client()
+    # kirmagan — kirish sahifasiga; xodim sahifalari ham yopiq
+    assert client.get("/app/").headers["Location"].endswith("/app/kirish")
+    tok = S.issue_invite(m)
+    assert client.get(f"/app/k/{tok}").headers["Location"].endswith("/app/")
+    home = client.get("/app/").get_data(as_text=True)
+    assert "Ali" in home and "Kurs A" in home and "Keyingi namoz" in home
+    assert client.get("/").status_code == 302  # o'quvchi sessiyasi xodim paneliga kiritmaydi
+    for path in ("/app/kurslar", f"/app/kurs/{p.id}", "/app/jadval", "/app/ibodat", "/app/zakot", "/app/profil"):
+        assert client.get(path).status_code == 200, path
+    page = client.get(f"/app/dars/{l3.id}").get_data(as_text=True)
+    assert "Birinchi xatboshi." in page and "Ikkinchi." in page
+    # 90% ko'rilsa — tugatilgan
+    r = client.post(f"/app/dars/{l2.id}/progress", json={"position": 300, "duration": 1200}).get_json()
+    assert r["ok"] and not r["done"]
+    assert client.post(f"/app/dars/{l2.id}/progress", json={"position": 1100, "duration": 1200}).get_json()["done"]
+    client.post(f"/app/dars/{l3.id}/progress", json={"done": True})
+    c = S.courses(m)[0]
+    assert (c["done"], c["lectures"], c["next"].id) == (2, 3, l1.id)
+    assert "AQ" in client.get("/app/profil").get_data(as_text=True)  # QR karta kodi
+    # yangi havola — eskisi ishlamaydi; barcha qurilmalardan chiqarish
+    tok2 = S.issue_invite(m)
+    assert client.get(f"/app/k/{tok}").headers["Location"].endswith("/app/kirish")
+    S.revoke_all(m)
+    assert client.get("/app/").headers["Location"].endswith("/app/kirish")
+    assert client.get(f"/app/k/{tok2}").headers["Location"].endswith("/app/kirish")
+    assert LectureProgress.query.filter_by(member_id=m.id, done=True).count() == 2
+
+
+def test_student_locked_when_subscription_expired(app):
+    from core import student as S
+    p, m, e, (l1, l2, l3) = _course(with_valid_until=date.today() - timedelta(days=1))
+    other = Program(name="Boshqa kurs", kind="kurs", price=1)
+    db.session.add(other)
+    db.session.commit()
+    client = app.test_client()
+    client.get(f"/app/k/{S.issue_invite(m)}")
+    assert S.can_view(m, l1) == (True, "")          # ochiq dars
+    assert S.can_view(m, l2) == (False, "expired")
+    assert "Dars yopiq" in client.get(f"/app/dars/{l2.id}").get_data(as_text=True)
+    assert client.post(f"/app/dars/{l2.id}/progress", json={"done": True}).status_code == 403
+    assert "Obunangiz" in client.get(f"/app/kurs/{p.id}").get_data(as_text=True)
+    assert client.get(f"/app/kurs/{other.id}").status_code == 302  # yozilmagan kurs
+
+
+def test_student_login_by_telegram_code_and_mini_app(app, tg):
+    import hashlib
+    import hmac
+    import json as _json
+    import time as _time
+    from urllib.parse import urlencode
+    from core.models import TelegramLink
+    p, m, e, _ = _course()
+    db.session.add(TelegramLink(member_id=m.id, chat_id="777"))
+    db.session.commit()
+    client = app.test_client()
+    # noma'lum raqam
+    page = client.post("/app/kirish", data={"phone": "+998 99 000 00 00"}).get_data(as_text=True)
+    assert "Kod yuborib bo" in page
+    page = client.post("/app/kirish", data={"phone": "90 111 22 33"}).get_data(as_text=True)
+    assert "Kodni kiriting" in page
+    msg = _sent(tg)[-1]
+    assert msg["chat_id"] == "777"
+    import re
+    code = re.search(r"<b>(\d{6})</b>", msg["text"]).group(1)
+    assert "Kod noto" in client.post("/app/kirish/kod", data={"code": "000000" if code != "000000" else "111111"}).get_data(as_text=True)
+    assert client.post("/app/kirish/kod", data={"code": code}).headers["Location"].endswith("/app/")
+    assert client.get("/app/").status_code == 200
+    # Telegram Mini App: imzolangan initData bilan avtomatik kirish
+    token = F.get_setting("tg_token")
+    fields = {"auth_date": str(int(_time.time())), "query_id": "AAE", "user": _json.dumps({"id": 777, "first_name": "Ali"})}
+    check = "\n".join(f"{k}={v}" for k, v in sorted(fields.items()))
+    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
+    fields["hash"] = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+    c2 = app.test_client()
+    r = c2.post("/app/tg", json={"initData": urlencode(fields)}).get_json()
+    assert r["ok"] and c2.get("/app/").status_code == 200
+    bad = dict(fields, user=_json.dumps({"id": 778, "first_name": "X"}))
+    assert app.test_client().post("/app/tg", json={"initData": urlencode(bad)}).status_code == 400
+
+
+def test_curriculum_editor_bunny_upload_and_settings(app, monkeypatch):
+    from core import bunny
+    from core.models import Lecture, Module
+    calls = []
+
+    def fake_api(method, path, payload=None, timeout=15):
+        calls.append((method, path, payload))
+        if method == "POST" and path == "/videos":
+            return True, {"guid": "vid-123"}
+        if method == "GET" and path.startswith("/videos/"):
+            return True, {"status": 4, "length": 754, "encodeProgress": 100}
+        return True, {}
+
+    monkeypatch.setattr(bunny, "api", fake_api)
+    client = app.test_client()
+    login(client, "300300")  # menejer ham o'quv dasturini tuza oladi
+    p = Program(name="Kurs V", kind="kurs", price=1)
+    db.session.add(p)
+    db.session.commit()
+    assert "O'quv dasturi" in client.get("/oquv/").get_data(as_text=True)
+    client.post(f"/oquv/{p.id}/bolim", data={"title": "Kirish"})
+    client.post(f"/oquv/{p.id}/bolim", data={"title": "Amaliyot"})
+    m1, m2 = Module.query.order_by(Module.position).all()
+    client.post(f"/oquv/bolim/{m2.id}/surish", data={"dir": "up"})
+    assert [x.title for x in Module.query.order_by(Module.position).all()] == ["Amaliyot", "Kirish"]
+    client.post(f"/oquv/{p.id}/mavzu", data={"module_id": m1.id, "title": "Video 1", "kind": "video", "published": "on"})
+    client.post(f"/oquv/{p.id}/mavzu", data={"module_id": m1.id, "title": "Matn", "kind": "matn", "minutes": "7",
+                                             "body": "Salom", "published": "on", "free": "on"})
+    v, t = Lecture.query.order_by(Lecture.position).all()
+    assert t.duration == 420 and t.free and v.published
+    # Bunny sozlanmagan — video yuklash rad etiladi; menejer sozlamani o'zgartira olmaydi
+    assert client.post(f"/oquv/mavzu/{v.id}/video").status_code == 400
+    assert client.post("/oquv/sozla", data={"bunny_library": "42"}).status_code == 403
+    rahbar = app.test_client()
+    login(rahbar, "100100")
+    rahbar.post("/oquv/sozla", data={"bunny_library": "42", "bunny_key": "secret-key", "bunny_token_key": "tk",
+                                     "prayer_method": "ISNA", "prayer_asr": "shafii", "app_city": "Samarqand",
+                                     "off_bomdod": "3", "off_xufton": "-99"})
+    assert F.get_setting("prayer_offsets") == "3,0,0,0,0,-30" and F.get_setting("app_city") == "Samarqand"
+    assert "O'quvchi ilovasi" in rahbar.get("/sozlamalar/?bolim=ilova").get_data(as_text=True)
+    r = client.post(f"/oquv/mavzu/{v.id}/video").get_json()
+    expire = r["headers"]["AuthorizationExpire"]
+    assert r["ok"] and r["headers"]["VideoId"] == "vid-123" and r["endpoint"].endswith("/tusupload")
+    assert r["headers"]["AuthorizationSignature"] == hashlib_sha256(f"42secret-key{expire}vid-123")
+    assert "secret-key" not in str(r)
+    s = client.get(f"/oquv/mavzu/{v.id}/holat?uploaded=1").get_json()
+    assert s["status"] == "tayyor" and db.session.get(Lecture, v.id).duration == 754
+    url = bunny.embed_url("vid-123", now=1000)
+    assert url.startswith("https://iframe.mediadelivery.net/embed/42/vid-123?token=")
+    assert f"token={hashlib_sha256('tkvid-12315400')}&expires=15400" in url  # 4 soat
+    # o'chirish Bunny'dagi videoni ham o'chiradi
+    client.post(f"/oquv/mavzu/{v.id}/ochirish")
+    assert ("DELETE", "/videos/vid-123", None) in calls and db.session.get(Lecture, v.id) is None
+    # o'quvchi kartasidan taklif havolasi
+    mem = Member(full_name="Test O'quvchi")
+    db.session.add(mem)
+    db.session.commit()
+    inv = client.post(f"/oquv/taklif/{mem.id}").get_json()
+    assert "/app/k/" in inv["link"] and "<svg" in inv["qr"]
+
+
+def hashlib_sha256(s):
+    import hashlib
+    return hashlib.sha256(s.encode()).hexdigest()
+
+
+def test_prayer_api_manifest_and_service_worker(app):
+    client = app.test_client()
+    d = client.get("/app/api/namoz?city=Buxoro&days=7").get_json()
+    assert d["city"] == "Buxoro" and len(d["today"]) == 6 and len(d["week"]) == 7
+    assert d["next"]["at"].endswith("+05:00") and 230 < d["qibla"]["deg"] < 245
+    d = client.get("/app/api/namoz?lat=21.4&lng=39.8&tz=3").get_json()
+    assert d["city"] is None and d["qibla"]["km"] < 10
+    assert client.get("/app/api/namoz?lat=abc").get_json()["city"] == "Toshkent"
+    man = client.get("/app/manifest.webmanifest")
+    assert man.mimetype == "application/manifest+json" and man.get_json()["scope"] == "/app/"
+    sw = client.get("/app/sw.js")
+    assert sw.mimetype == "application/javascript" and b"caches" in sw.data
+    r = client.get("/app/kirish")
+    assert "frame-ancestors" in r.headers["Content-Security-Policy"] and "X-Frame-Options" not in r.headers

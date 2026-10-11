@@ -1,0 +1,40 @@
+{% import "partials/ui.html" as ui with context %}
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}{{ org_name }}{% endblock %}</title>
+  <link rel="manifest" href="{{ url_for('ilova.manifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/app-192.png') }}">
+  <meta name="theme-color" content="#065A47">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="{{ org_name }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}?v=2">
+  <script>try { var t = localStorage.getItem('aq-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="https://telegram.org/js/telegram-web-app.js" async></script>
+</head>
+<body>
+{% with msgs = get_flashed_messages(with_categories=true) %}{% for cat, msg in msgs[:1] %}
+<div class="toast {{ cat }}" data-toast>{{ ui.icon('check' if cat == 'ok' else 'info', 'sm') }}<span>{{ msg }}</span></div>
+{% endfor %}{% endwith %}
+<div class="ap">
+{% block body %}{% endblock %}
+</div>
+{% if me %}
+<nav class="tabs" aria-label="Asosiy menyu">
+  {% for key, label, ic, ep in (('home', 'Bosh', 'home', 'ilova.home'), ('kurs', 'Kurslar', 'play', 'ilova.courses'), ('jadval', 'Jadval', 'calendar', 'ilova.schedule'), ('ibodat', 'Ibodat', 'mosque', 'ilova.ibodat'), ('profil', 'Profil', 'users', 'ilova.profile')) %}
+  <a href="{{ url_for(ep) }}" class="{{ 'on' if tab == key }}" {{ 'aria-current=page' if tab == key }}><i>{{ ui.icon(ic) }}</i>{{ label }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+<script src="{{ url_for('static', filename='js/student.js') }}?v=2"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

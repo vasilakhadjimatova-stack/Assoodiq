@@ -283,6 +283,88 @@ class Notification(db.Model):
     member = db.relationship("Member")
 
 
+# ── O'quvchi ilovasi: o'quv dasturi va video darslar ───────────────────────
+
+class Module(db.Model):
+    """O'quv dasturining bo'limi (masalan, «1-modul. Halol savdo asoslari»)."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey("program.id"), nullable=False, index=True)
+    title = db.Column(db.String(160), nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=_now)
+
+    program = db.relationship("Program", backref=db.backref("modules", lazy="dynamic", order_by="Module.position"))
+
+
+LECTURE_KINDS = {"video": "Video dars", "matn": "Matn / qo'llanma"}
+VIDEO_STATUS = {"": "Video yo'q", "yuklanmoqda": "Yuklanmoqda", "ishlanmoqda": "Tayyorlanmoqda",
+                "tayyor": "Tayyor", "xato": "Xato"}
+
+
+class Lecture(db.Model):
+    """Bo'lim ichidagi mavzu: Bunny Stream'dagi video yoki matnli qo'llanma."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    module_id = db.Column(db.Integer, db.ForeignKey("module.id"), nullable=False, index=True)
+    title = db.Column(db.String(160), nullable=False)
+    kind = db.Column(db.String(10), nullable=False, default="video")
+    body = db.Column(db.Text, default="")                 # tavsif yoki qo'llanma matni
+    video_id = db.Column(db.String(64), default="")       # Bunny Stream GUID
+    video_status = db.Column(db.String(12), default="")
+    duration = db.Column(db.Integer, default=0)           # soniya
+    position = db.Column(db.Integer, nullable=False, default=0)
+    published = db.Column(db.Boolean, nullable=False, default=True)
+    free = db.Column(db.Boolean, nullable=False, default=False)  # obuna tugagan bo'lsa ham ochiq
+    created_at = db.Column(db.DateTime, default=_now)
+
+    module = db.relationship("Module", backref=db.backref("lectures", order_by="Lecture.position",
+                                                          cascade="all, delete-orphan"))
+
+    @property
+    def minutes(self):
+        return round((self.duration or 0) / 60)
+
+
+class LectureProgress(db.Model):
+    """O'quvchi mavzuni qayergacha ko'rgani va tugatgani."""
+
+    __table_args__ = (db.UniqueConstraint("member_id", "lecture_id"),)
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=False, index=True)
+    lecture_id = db.Column(db.Integer, db.ForeignKey("lecture.id"), nullable=False, index=True)
+    position = db.Column(db.Integer, default=0)   # soniya
+    done = db.Column(db.Boolean, nullable=False, default=False)
+    updated_at = db.Column(db.DateTime, default=_now, index=True)
+
+    lecture = db.relationship("Lecture", backref=db.backref("progress", cascade="all, delete-orphan"))
+
+
+class StudentAccess(db.Model):
+    """O'quvchining ilovaga kirishi: taklif havolasi (xeshi) va sessiyalar versiyasi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=False, unique=True)
+    token_hash = db.Column(db.String(64), unique=True)
+    version = db.Column(db.Integer, nullable=False, default=1)  # oshirilsa — barcha qurilmalardan chiqadi
+    created_at = db.Column(db.DateTime, default=_now)
+    last_seen = db.Column(db.DateTime)
+
+    member = db.relationship("Member", backref=db.backref("app_access", uselist=False))
+
+
+class LoginCode(db.Model):
+    """Telegram orqali yuborilgan bir martalik kirish kodi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=False, index=True)
+    code_hash = db.Column(db.String(64), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    used = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=_now, index=True)
+
+
 class MemberEvent(db.Model):
     """A'zo tarixidagi voqealar (to'lov va yozilish o'z jadvalidan olinadi):
     obuna uzaytirildi, dasturdagi holati o'zgardi, dasturga yozildi."""

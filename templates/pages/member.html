@@ -32,6 +32,7 @@
     {% endif %}
     {% if can_edit and open_programs %}<button class="mp-btn" data-open="m-enroll-modal">{{ ui.icon('cap', 'sm') }} Dasturga yozish</button>{% endif %}
     <button class="mp-btn {{ 'tg-on' if tg.link and tg.link.active }}" data-open="tg-modal" title="Telegram">{{ ui.icon('send', 'sm') }} Telegram{% if tg.link and tg.link.active %} ✓{% endif %}</button>
+    <button class="mp-btn {{ 'tg-on' if app.access and app.access.last_seen }}" data-open="app-modal" title="O'quvchi ilovasi">{{ ui.icon('phone-pay', 'sm') }} Ilova{% if app.access and app.access.last_seen %} ✓{% endif %}</button>
     <a class="mp-btn" href="{{ url_for('dastur.cards', a=m.id) }}" target="_blank" title="QR a'zo kartasini chop etish">{{ ui.icon('sheet', 'sm') }} QR karta</a>
     <button class="mp-btn icon" data-open="member-modal" title="Tahrirlash" aria-label="Tahrirlash">{{ ui.icon('pencil', 'sm') }}</button>
   </div>
@@ -204,6 +205,34 @@
     <span class="hint">Yoki o'quvchi botga <b>@{{ tg.bot }}</b> yozib, telefon raqamini yuborsin{% if m.phone %} (bazadagi raqam: {{ m.phone }}){% else %} — avval kartaga telefon raqamini kiriting{% endif %}.</span>
   </div>
   {% endif %}
+</dialog>
+<dialog class="modal" id="app-modal">
+  <div class="modal-h"><div><h3>{{ ui.icon('phone-pay', 'sm') }} O'quvchi ilovasi</h3><div class="faint" style="font-size:13px;font-weight:650">{{ m.full_name }}</div></div><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+  <div class="modal-b" style="display:flex;flex-direction:column;gap:14px">
+    {% if app.access and app.access.last_seen %}
+    <div class="tg-linked">{{ ui.icon('check', 'sm') }} Ilovadan foydalanadi · oxirgi kirish {{ app.access.last_seen|localdt }}</div>
+    {% else %}
+    <div class="tr-paid rf-info">{{ ui.icon('info', 'sm') }}<span>O'quvchi hali ilovaga kirmagan. Shaxsiy havola yarating va yuboring — bosishi bilan kiradi.</span></div>
+    {% endif %}
+    {% if app.courses %}
+    <div class="app-prog">
+      {% for c in app.courses %}
+      <div><span>{{ c.program.name }}</span><b>{{ c.done }}/{{ c.lectures }}</b><div class="bar thin"><i style="width:{{ (c.pct * 100)|round }}%"></i></div></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="tg-join" data-invite-out hidden></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn solid sm" data-invite="{{ url_for('oquv.invite', mid=m.id) }}">{{ ui.icon('renew', 'sm') }} Taklif havolasi va QR</button>
+      {% if tg.enabled and tg.link and tg.link.active %}
+      <form method="post" action="{{ url_for('oquv.invite_telegram', mid=m.id) }}" class="inline"><input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}"><button class="btn tonal sm">{{ ui.icon('send', 'sm') }} Telegram'ga yuborish</button></form>
+      {% endif %}
+      {% if app.access %}
+      <form method="post" action="{{ url_for('oquv.invite_revoke', mid=m.id) }}" class="inline" onsubmit="return confirm(this.dataset.msg)" data-msg="O'quvchi barcha qurilmalardan chiqarilsinmi? Eski havola ham ishlamay qoladi."><input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}"><button class="btn ghost sm">{{ ui.icon('logout', 'sm') }} Barcha qurilmalardan chiqarish</button></form>
+      {% endif %}
+    </div>
+    <span class="hint">Har safar yangi havola yaratilganda eskisi ishlamay qoladi. Havolani faqat o'quvchining o'ziga yuboring.</span>
+  </div>
 </dialog>
 {% include "partials/member_form.html" %}
 {% endblock %}

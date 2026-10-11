@@ -16,6 +16,9 @@ ichiga qurilgan.
 | **Dars jadvali** | «Darslar markazi»: zumrad bannerda keyingi darsgacha jonli sanoq, davr bo'yicha halqa (nechta dars o'tdi, necha soat), hijriy sanalar. Ko'rinishlar: **Hafta** — kunlar kartalarida dars chiptalari (chiptani boshqa kunga sudrab ko'chirish), **Soatlar** — vaqt to'ri (sudrash va cho'zish), **Oy**, **Yo'l xaritasi** — har kurs boshidan oxirigacha: o'tgan / keyingi / bekor darslar va «Bugun» belgisi. Takrorlanuvchi darslar, «N-dars» raqami, zal yoki o'qituvchi to'qnashuvi haqida ogohlantirish, seriyani tahrirlash/o'chirish. Klaviatura: C, T, ←/→, H/S/O/Y |
 | **Davomat va QR skaner** | Har darsda davomat: keldi / kechikdi / kelmadi / sababli, «qolganlar keldi» bir bosishda. Har a'zoga QR kodli karta (A4 da 8 tadan chop etiladi, kod `AQ` + raqam + nazorat raqami). QR skaner USB/Bluetooth orqali klaviatura kabi ulanadi: davomat sahifasi ochiq tursa, karta tutilishi bilan «keldi» (10 daqiqadan kech — «kechikdi») belgilanadi, ovozli signal bilan; telefon kamerasi bilan skaner ham bor. O'quvchi kartasida va dastur sahifasida davomat foizi |
 | **Telegram eslatmalar** | O'quvchilarga bot orqali avtomatik eslatma: darsdan N soat oldin (vaqti, joyi, ustozi bilan), obuna tugashidan N kun oldin va har oyning belgilangan kunida qarzdorlarga to'lov eslatmasi. Har biri bir marta yuboriladi (takror yo'q). Qo'lda: bitta o'quvchiga, butun dasturga yoki faqat qarzdorlarga xabar, darsdan «Eslatma yuborish». O'quvchi kartadagi shaxsiy havola/QR yoki telefon raqami orqali ulanadi; botda «📅 Jadval» va «💳 To'lov» tugmalari, /stop. Barcha xabarlar jurnali Sozlamalarda |
+| **O'quvchi ilovasi** | `/app` manzilida alohida mobil ilova: telefonga o'rnatiladi (PWA) va Telegram bot ichida «Ilova» tugmasi bilan ochiladi (Mini App). Ichida: kurslar va o'quv dasturi (bo'lim → mavzu), video darslar, qayerda to'xtagani va progress, dars jadvali va davomat tarixi, to'lovlar va qoldiq, davomat uchun shaxsiy QR karta. Obunasi tugaganlarga darslar yopiladi («ochiq dars»lardan tashqari). Kirish: shaxsiy taklif havolasi/QR, Telegram'ga keladigan 6 xonali kod yoki Mini App orqali avtomatik |
+| **Video darslar (Bunny Stream)** | «O'quv dasturi» bo'limida bo'lim va mavzular tuziladi, video brauzerdan to'g'ridan-to'g'ri Bunny'ga yuklanadi (katta fayl ham serverni band qilmaydi, uzilsa davom etadi). Ko'rish havolasi muddatli token bilan imzolanadi — boshqaga berib bo'lmaydi |
+| **Namoz vaqtlari, qibla, zakot** | Ilovada: O'zbekiston shaharlari yoki GPS bo'yicha namoz vaqtlari (keyingi namozgacha teskari sanoq, haftalik jadval), telefon kompasi bilan qibla ko'rsatkichi, shaxsiy zakot kalkulyatori (oltin/kumush nisobi). Hisoblash usuli, asr mazhabi va har namozga daqiqa tuzatish — Sozlamalarda |
 | **Kurs va klublar** | Har bir potok/klub/tadbir bo'yicha: a'zolar soni, kutilgan va yig'ilgan summa, xarajat, sof foyda, rentabellik, 1 a'zoni jalb qilish narxi |
 | **A'zolar** | O'quvchi va klub a'zolari, kim qancha to'lagan va qancha qarz. Klub obunasini bir tugma bilan uzaytirish, muddati tugayotganlar ro'yxati |
 | **Zakot** | Naqd, undiriladigan haqlar, tovar zaxirasi va qarzlar daftardan avtomatik yig'iladi. Nisob oltin (85 g) yoki kumush (595 g) bo'yicha. Havl sanasi hijriy taqvimda, hisob-kitoblar tarixi saqlanadi |
@@ -71,6 +74,11 @@ kategoriyalar va bitta **rahbar**ni o'zi yaratadi, `seed.py`ni ishga tushirish s
    o'rniga `TELEGRAM_BOT_TOKEN` o'zgaruvchisini ham berish mumkin. Eslatmalarni har daqiqada
    ilova ichidagi fon oqimi tekshiradi (bitta gunicorn worker yetarli; `TELEGRAM_SCHEDULER=0` —
    o'chiradi).
+6. *(ixtiyoriy)* **Video darslar.** [bunny.net](https://bunny.net/stream/) da Stream kutubxonasi
+   oching. Sozlamalar → O'quvchi ilovasi'ga Library ID, API Key va (Security bo'limidagi)
+   Token authentication key'ni kiriting. Bunny'da «Embed view token authentication»ni yoqing.
+   Ilova manzili: `https://<domen>/app/` — Telegram bot ulangan bo'lsa, botning menyusida
+   «Ilova» tugmasi o'zi paydo bo'ladi.
 
 **Test rejimi.** Sozlamalar → Ma'lumotlar bo'limida rahbar bo'sh bazaga 12 oylik namuna
 ma'lumot yuklaydi (8 dastur, 46 a'zo, kirim-chiqim, qarz, zakot). Test rejimida har sahifada
@@ -93,6 +101,9 @@ core/
   hijri.py          Hijriy taqvim (jadval usuli) va havl sanasi
   attendance.py     Davomat: a'zo QR kodi, dars ro'yxati, belgilash va statistika
   calendar.py       Dars jadvali: haftalik takrorlash, kun ichida joylashtirish, to'qnashuvlar
+  student.py        O'quvchi ilovasi: kirish (taklif, kod, Mini App imzosi), kurslar va progress
+  prayer.py         Namoz vaqtlari (astronomik hisob), qibla yo'nalishi va masofasi
+  bunny.py          Bunny Stream: video yaratish, TUS yuklash imzosi, himoyalangan ko'rish havolasi
   telegram.py       Telegram bot: yuborish, shablonlar, avtomatik eslatmalar, webhook buyruqlari
   sheets.py         Google Sheets / Excel'dan import: ustunlarni tanish, summa va sana formatlari, takrorlar
 views/              Bo'limlar: kassa, dastur, qarz, islomiy, hisobot, sozlama, auth
@@ -113,6 +124,10 @@ o'zgarmaydi.
 - Sessiya cookie: `HttpOnly`, `SameSite=Lax`, HTTPS'da `Secure`; kalit bazada saqlanadi
 - Boshqa saytdan yuborilgan o'zgartiruvchi so'rovlar (CSRF) `Origin` tekshiruvi bilan rad etiladi
 - `X-Frame-Options`, `Referrer-Policy`, moliyaviy sahifalarda `Cache-Control: no-store`
+- O'quvchi ilovasi xodimlar panelidan alohida sessiya bilan ishlaydi; taklif havolasi bazada faqat
+  xesh ko'rinishida saqlanadi, «barcha qurilmalardan chiqarish» eski havola va sessiyalarni bekor qiladi
+- Telegram Mini App kirishi `initData` imzosini bot tokeni bilan tekshiradi; kirish kodi 10 daqiqa,
+  5 urinish; Bunny API kaliti brauzerga hech qachon berilmaydi
 - Telegram webhook maxfiy manzil va `X-Telegram-Bot-Api-Secret-Token` sarlavhasi bilan tekshiriladi
 - Rollar server tomonda tekshiriladi (menejer chiqim/tahrir/eksport/dastur narxini o'zgartira olmaydi)
 

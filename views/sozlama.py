@@ -36,7 +36,26 @@ def index():
               if request.args.get("bolim") == "tarix" else []),
         actions=audit.ACTIONS,
         tg=_telegram_context() if request.args.get("bolim") == "telegram" else None,
+        app=_app_context() if request.args.get("bolim") == "ilova" else None,
     )
+
+
+def _app_context():
+    from datetime import date
+
+    from core import bunny
+    from core import prayer as P
+    from core.models import StudentAccess
+    from views.oquv import app_url
+
+    def mask(v):
+        return (v[:4] + "…" + v[-4:]) if len(v) > 10 else ("•" * len(v))
+    ps = P.settings()
+    lat, lng = P.CITIES[ps["city"]]
+    return {"bunny": bunny.conf(), "bunny_on": bunny.enabled(), "mask": mask, "ps": ps,
+            "methods": P.METHODS, "cities": P.CITIES, "prayers": P.PRAYERS, "link": app_url(),
+            "preview": P.day_schedule(date.today(), lat, lng, method=ps["method"], asr=ps["asr"], offsets=ps["offsets"]),
+            "users": StudentAccess.query.filter(StudentAccess.last_seen.isnot(None)).count()}
 
 
 def _telegram_context():

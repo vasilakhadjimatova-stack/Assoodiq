@@ -83,7 +83,11 @@ def connect_webhook():
         F.set_setting("tg_webhook", base)
         T.api("setMyCommands", {"commands": [{"command": "jadval", "description": "Yaqin darslar"},
                                              {"command": "tolov", "description": "To'lov qoldig'i"},
+                                             {"command": "ilova", "description": "O'quvchi ilovasi"},
                                              {"command": "stop", "description": "Eslatmalarni to'xtatish"}]})
+        if base.startswith("https://"):  # bot menyusida «Ilova» tugmasi — Telegram Mini App
+            T.api("setChatMenuButton", {"menu_button": {"type": "web_app", "text": "Ilova",
+                                                        "web_app": {"url": f"{base}/app/"}}})
         db.session.commit()
         flash("Bot saytga ulandi — o'quvchilar endi /start orqali ulana oladi.", "ok")
     else:

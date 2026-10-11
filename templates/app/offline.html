@@ -1,0 +1,6 @@
+{% extends "app/base.html" %}
+{% block title %}Internet yo'q · {{ org_name }}{% endblock %}
+{% block body %}
+<div class="login"><div class="lg-top"><div class="lg-logo">{% include "partials/mark.svg" %}</div><h1 style="margin-top:16px">Internet yo'q</h1><p>Aloqa tiklanganda sahifa o'zi yangilanadi.</p></div>
+<div class="card lg-box"><button class="btn solid block" onclick="location.reload()">Qayta urinish</button></div></div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "app/base.html" %}
+{% import "app/_macros.html" as am with context %}
+{% block title %}Kurslarim · {{ org_name }}{% endblock %}
+{% block body %}
+<header class="hx slim">
+  <div class="hx-bar"><h1>Kurslarim</h1></div>
+  <div class="hx-sub">{{ courses|length }} ta dastur · {{ courses|sum(attribute='lectures') }} ta dars · {{ courses|sum(attribute='done') }} tasi tugatilgan</div>
+</header>
+<main class="ap-main">
+  {% if courses %}
+  <div class="cl">{% for c in courses %}{{ am.course_card(c) }}{% endfor %}</div>
+  {% else %}
+  <div class="card empty">{{ ui.icon('cap') }}<b>Hali kursga yozilmagansiz</b>Administrator sizni kursga yozganda u shu yerda paydo bo'ladi.</div>
+  {% endif %}
+</main>
+{% endblock %}

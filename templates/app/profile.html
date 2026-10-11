@@ -1,0 +1,68 @@
+{% extends "app/base.html" %}
+{% block title %}Profil · {{ org_name }}{% endblock %}
+{% block body %}
+<header class="hx slim">
+  <div class="hx-bar"><h1>Profil</h1></div>
+  <div class="pf">
+    <div class="pf-av">{{ first_name[:1] }}</div>
+    <div style="min-width:0"><b>{{ me.full_name }}</b><span>{{ me.phone or '' }}{% if me.business %} · {{ me.business }}{% endif %}</span></div>
+  </div>
+</header>
+<main class="ap-main">
+  <section id="qr">
+    <div class="card qrc big">
+      <div class="qrc-q">{{ qr_svg(code) }}</div>
+      <div><b>{{ code }}</b><p>Darsga kelganda shu kodni skanerga tuting — davomat avtomatik belgilanadi.</p></div>
+    </div>
+  </section>
+
+  <div class="mstat">
+    <div><span>To'langan</span><b style="color:var(--ok)">{{ paid|num }}</b></div>
+    <div><span>Qoldiq</span><b style="{{ 'color:var(--bad)' if due > 0 }}">{{ due|num if due > 0 else '—' }}</b></div>
+  </div>
+
+  {% if courses %}
+  <section>
+    <div class="sec-h"><h2>To'lovlar holati</h2></div>
+    <div class="card card-p" style="display:flex;flex-direction:column;gap:14px">
+      {% for c in courses %}
+      <div>
+        <div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px;font-weight:700;margin-bottom:6px">
+          <span>{{ c.program.name }}{% if c.enrollment.valid_until %} <span class="muted">· {{ c.enrollment.valid_until|d }} gacha</span>{% endif %}</span>
+          <span class="num">{{ c.paid|num }} / {{ c.price|num }}</span>
+        </div>
+        <div class="bar gold"><i style="width:{{ ([(c.paid / c.price) if c.price else 1, 1]|min * 100)|round }}%"></i></div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section>
+    <div class="sec-h"><h2>To'lovlar tarixi</h2></div>
+    <div class="card list">
+      {% for t in payments %}
+      <div class="li">
+        <span class="li-i" style="{{ 'background:var(--bad-bg);color:var(--bad)' if t.amount < 0 }}">{{ ui.icon('in' if t.amount >= 0 else 'out', 'sm') }}</span>
+        <div class="li-b"><b>{{ t.enrollment.program.name if t.enrollment else "To'lov" }}</b><small>{{ t.date|d }}{% if t.amount < 0 %} · qaytarildi{% endif %}</small></div>
+        <span class="li-v {{ 'ok' if t.amount >= 0 else 'bad' }}">{{ '+' if t.amount >= 0 }}{{ t.amount_uzs|num }}</span>
+      </div>
+      {% else %}
+      <div class="empty">{{ ui.icon('wallet') }}<b>To'lovlar hali yo'q</b></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><h2>Sozlamalar</h2></div>
+    <div class="card list">
+      <div class="set-row">{{ ui.icon('send', 'sm') }}<span style="flex:1">Telegram eslatmalari</span>
+        {% if tg and tg.active %}<span class="tag ok">Ulangan</span>{% elif bot %}<a class="tag" href="https://t.me/{{ bot }}?start={{ code }}" target="_blank" rel="noopener">Ulash</a>{% else %}<span class="muted" style="font-size:12px">—</span>{% endif %}</div>
+      <div class="set-row">{{ ui.icon('moon', 'sm') }}<span>Mavzu</span>
+        <div class="seg" data-theme-seg><button type="button" data-t="">Avto</button><button type="button" data-t="light">Yorug'</button><button type="button" data-t="dark">Tungi</button></div></div>
+      <div class="set-row" data-install hidden>{{ ui.icon('install', 'sm') }}<span style="flex:1">Ilovani o'rnatish</span><button type="button" class="btn sm solid" data-install-btn>O'rnatish</button></div>
+      <form class="set-row" method="post" action="{{ url_for('ilova.logout') }}" style="margin:0">{{ ui.icon('logout', 'sm') }}<button class="btn ghost sm" style="padding:0;height:auto;color:var(--bad)">Chiqish</button></form>
+    </div>
+  </section>
+</main>
+{% endblock %}

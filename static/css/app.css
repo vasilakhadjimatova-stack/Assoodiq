@@ -2077,3 +2077,69 @@ input.tg-num { width: 46px; height: 26px; padding: 0 6px; margin: 0 2px; border-
   .dv-pn { flex-wrap: wrap; }
 }
 .field[hidden] { display: none; }
+
+/* ── O'quv dasturi (xodimlar) ── */
+.oq-note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin-bottom: 16px; border-radius: 12px; background: var(--gold-bg); color: var(--txt2); font-size: 13px; font-weight: 600; line-height: 1.5; }
+.oq-note .ic { color: var(--gold); flex: none; margin-top: 2px; }
+.oq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.oq-card { display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); transition: box-shadow .2s, transform .2s; }
+.oq-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+.oq-card-h { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.oq-card-h > div { min-width: 0; }
+.oq-card-h b { display: block; font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oq-card-h span { font-size: 12.5px; color: var(--txt3); font-weight: 600; }
+.oq-ic { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; background: var(--brand-bg); color: var(--brand-txt); }
+.oq-nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.oq-nums div { padding: 8px 10px; border-radius: 10px; background: var(--surface2); }
+.oq-nums b { display: block; font-size: 17px; font-weight: 800; white-space: nowrap; }
+.oq-nums b small { font-size: 11px; color: var(--txt3); margin-left: 1px; }
+.oq-nums span { font-size: 11px; color: var(--txt3); font-weight: 700; }
+.oq-go { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--brand-txt); }
+.oq-mods { display: flex; flex-direction: column; gap: 16px; max-width: 1080px; }
+.oq-mod { padding: 0; overflow: hidden; }
+.oq-mod-h { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--surface2); }
+.oq-n { width: 32px; height: 32px; flex: none; border-radius: 10px; display: grid; place-items: center; font-weight: 800; background: var(--brand); color: #fff; }
+.oq-title { flex: 1; min-width: 0; display: flex; gap: 6px; }
+.oq-title input { height: 36px; font-weight: 800; font-size: 15px; background: transparent; border-color: transparent; }
+.oq-title input:hover { border-color: var(--line2); }
+.oq-act { display: flex; align-items: center; gap: 2px; flex: none; }
+.oq-act form.inline { display: contents; }
+.oq-act .icon-btn:disabled { opacity: .3; cursor: default; }
+.oq-lec { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.oq-li { width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--brand-bg); color: var(--brand-txt); }
+.oq-li.matn { background: var(--gold-bg); color: var(--gold); }
+.oq-lb { flex: 1; min-width: 0; }
+.oq-lb > b { display: block; font-size: 14px; font-weight: 700; }
+.oq-lb > span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 4px; font-size: 12px; color: var(--txt3); font-weight: 600; }
+.oq-lb > span > span { display: inline-flex; align-items: center; gap: 3px; }
+.oq-lb em { font-style: normal; }
+.oq-lb em:empty { display: none; }
+.oq-up { margin-top: 8px; max-width: 420px; }
+.oq-up small { font-size: 12px; color: var(--txt2); font-weight: 600; }
+.oq-file { position: relative; overflow: hidden; cursor: pointer; margin-right: 4px; }
+.oq-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.oq-add { display: flex; align-items: center; gap: 6px; width: 100%; padding: 12px 14px; border: 0; background: transparent; color: var(--brand-txt); font: 700 13.5px var(--font); cursor: pointer; }
+.oq-add:hover { background: var(--surface2); }
+label.check { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+label.check input { width: 18px; height: 18px; accent-color: var(--brand); }
+@media (max-width: 860px) {
+  .oq-lec { flex-wrap: wrap; }
+  .oq-lec .oq-act { width: 100%; justify-content: flex-end; }
+  .oq-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.ap-link { display: flex; gap: 18px; align-items: center; padding: 18px; }
+.ap-link-q { width: 128px; flex: none; padding: 8px; border-radius: 14px; background: #fff; border: 1px solid var(--line); }
+.ap-link-q svg { display: block; width: 100%; height: auto; }
+.ap-link-q svg path { fill: #0E241C; }
+.ap-link b { font-size: 16px; font-weight: 800; }
+.ap-link p { margin: 4px 0 10px; font-size: 13px; color: var(--txt2); line-height: 1.5; }
+.ap-link .hint { display: block; margin-top: 8px; }
+.pr-adj { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pr-adj label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; padding: 8px 10px; border-radius: 10px; background: var(--surface2); }
+.pr-adj span { font-size: 12px; font-weight: 700; color: var(--txt3); }
+.pr-adj b { grid-row: 2; font-size: 15px; font-variant-numeric: tabular-nums; }
+.pr-adj input { grid-row: 1 / 3; grid-column: 2; width: 56px; height: 34px; text-align: center; padding: 0 4px; }
+@media (max-width: 860px) { .ap-link { flex-direction: column; align-items: flex-start; } .pr-adj { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.app-prog { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface2); }
+.app-prog > div { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 13px; font-weight: 600; }
+.app-prog .bar { grid-column: 1 / -1; }

@@ -1,0 +1,46 @@
+{% extends "app/base.html" %}
+{% block title %}{{ p.name }} · {{ org_name }}{% endblock %}
+{% block body %}
+{% set ns = namespace(cur=none, n=0) %}
+<header class="hx" style="background:radial-gradient(130% 90% at 100% 0%, rgba(227,196,124,.3), transparent 46%), linear-gradient(160deg, {{ color_for(p.id) }}, #043A2E)">
+  <div class="hx-bar"><a class="hx-back" href="{{ url_for('ilova.courses') }}" aria-label="Orqaga">{{ ui.icon('left') }}</a><h1>{{ p.name }}</h1></div>
+  {% if p.description %}<div class="hx-sub">{{ p.description|truncate(160) }}</div>{% endif %}
+  <div class="cs-stats">
+    <div><span>Darslar</span><b>{{ c.lectures }}</b></div>
+    <div><span>Davomiylik</span><b>{{ (c.minutes // 60) ~ ' soat' if c.minutes >= 60 else c.minutes ~ ' daq' }}</b></div>
+    <div><span>Tugatildi</span><b>{{ (c.pct * 100)|round|int }}%</b></div>
+  </div>
+  <div class="cs-prog"><div class="bar"><i style="width:{{ (c.pct * 100)|round }}%"></i></div><small><span>{{ c.done }} / {{ c.lectures }} dars</span>{% if c.next %}<span>Keyingisi: {{ c.next.title|truncate(26) }}</span>{% endif %}</small></div>
+</header>
+<main class="ap-main">
+  {% if c.locked %}
+  <div class="note">{{ ui.icon('lock') }}<span>Obunangiz <b>{{ c.enrollment.valid_until|d }}</b> da tugagan. Darslar to'lov qilinganidan keyin yana ochiladi.</span></div>
+  {% endif %}
+  {% if c.next and not c.locked %}
+  <a class="btn solid block" href="{{ url_for('ilova.lecture', lid=c.next.id) }}">{{ ui.icon('play', 'sm') }} {{ 'Boshlash' if not c.done else 'Davom ettirish' }}</a>
+  {% endif %}
+
+  {% for m in modules %}
+  {% set all_done = m.done == m.lectures|length %}
+  <details class="mod" {{ 'open' if not all_done or loop.first }}>
+    <summary>
+      <span class="mod-n {{ 'done' if all_done }}">{% if all_done %}{{ ui.icon('check', 'sm') }}{% else %}{{ loop.index }}{% endif %}</span>
+      <span class="mod-t"><b>{{ m.module.title }}</b><small>{{ m.done }}/{{ m.lectures|length }} dars · {{ (m.lectures|sum(attribute='duration')) // 60 }} daq</small></span>
+      {{ ui.icon('right', 'sm') }}
+    </summary>
+    {% for x in m.lectures %}
+    {% set pr = prog.get(x.id) %}
+    {% set locked = c.locked and not x.free %}
+    {% set is_cur = c.next and c.next.id == x.id and not locked %}
+    <a class="lec {{ 'done' if pr and pr.done }} {{ 'lock' if locked }} {{ 'cur' if is_cur }}" href="{{ url_for('ilova.lecture', lid=x.id) }}">
+      <span class="lec-i">{% if locked %}{{ ui.icon('lock', 'sm') }}{% elif pr and pr.done %}{{ ui.icon('check', 'sm') }}{% elif x.kind == 'matn' %}{{ ui.icon('file', 'sm') }}{% else %}{{ ui.icon('play', 'sm') }}{% endif %}</span>
+      <span class="lec-b"><b>{{ x.title }}</b><small>{{ 'Video' if x.kind == 'video' else "Qo'llanma" }}{% if x.duration %} · {{ x.minutes or 1 }} daq{% endif %}{% if x.free and c.locked %} · <span class="tag ok">Ochiq</span>{% endif %}</small></span>
+      {% if is_cur %}<span class="tag">Keyingi</span>{% endif %}
+    </a>
+    {% endfor %}
+  </details>
+  {% else %}
+  <div class="card empty">{{ ui.icon('book') }}<b>O'quv dasturi tayyorlanmoqda</b>Darslar qo'shilishi bilan shu yerda ko'rinadi.</div>
+  {% endfor %}
+</main>
+{% endblock %}

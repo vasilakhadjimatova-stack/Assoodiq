@@ -3,7 +3,7 @@
 {% block content %}
 <div class="head"><div><div class="head-t">Sozlamalar</div><div class="head-s">Kurslar, nisob, hisoblar, kategoriyalar va xodimlar</div></div></div>
 <div class="tabs">
-  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar'), ('telegram', 'Telegram'), ('malumotlar', "Ma'lumotlar"), ('tarix', "O'zgarishlar tarixi")) %}
+  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar'), ('telegram', 'Telegram'), ('ilova', "O'quvchi ilovasi"), ('malumotlar', "Ma'lumotlar"), ('tarix', "O'zgarishlar tarixi")) %}
   <a href="{{ url_for('sozlama.index', bolim=k) }}" class="{{ 'on' if tab == k }}">{{ v }}</a>
   {% endfor %}
 </div>
@@ -212,6 +212,48 @@
       </div>
     </div>
   </div>
+</div>
+{% elif tab == 'ilova' %}
+<div class="tg">
+  <div class="card ap-link">
+    <div class="ap-link-q">{{ qr_svg(app.link) }}</div>
+    <div style="min-width:0;flex:1">
+      <b>O'quvchi ilovasi</b>
+      <p>Kurslar, video darslar, jadval, to'lovlar, QR karta, namoz vaqtlari, qibla va zakot kalkulyatori. Telefonga ilova kabi o'rnatiladi va Telegram bot ichida ham ochiladi. Hozircha <b>{{ app.users }}</b> o'quvchi kirgan.</p>
+      <div class="tg-copy" style="max-width:520px"><input type="text" value="{{ app.link }}" readonly data-copy-src><button type="button" class="btn tonal sm" data-copy>{{ ui.icon('copy', 'sm') }} Nusxa</button></div>
+      <span class="hint">O'quvchi kirishi: kartasidagi «Ilova» tugmasi (shaxsiy havola/QR), Telegram'dagi «Ilova» tugmasi yoki telefon raqami + Telegram'ga keladigan kod.</span>
+    </div>
+  </div>
+  <form method="post" action="{{ url_for('oquv.configure') }}" class="grid g-2">
+    <div class="card">
+      <div class="card-h"><h3>Video: Bunny Stream</h3>{% if app.bunny_on %}<span class="pill ok">{{ ui.icon('check', 'sm') }} ulangan</span>{% endif %}</div>
+      <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+        <div class="hint" style="line-height:1.55">1) <a class="link" href="https://bunny.net/stream/" target="_blank" rel="noopener">bunny.net</a> da ro'yxatdan o'ting → <b>Stream → Add Video Library</b>. 2) Kutubxona → <b>API</b> bo'limidan «Library ID» va «API Key» ni ko'chiring. 3) <b>Security</b> bo'limida «Embed view token authentication» ni yoqing va «Token authentication key» ni ham kiriting — shunda video havolasini boshqalarga berib bo'lmaydi.</div>
+        <div class="field"><label>Library ID</label><input type="text" name="bunny_library" value="{{ app.bunny.library }}" placeholder="123456" autocomplete="off"></div>
+        <div class="field"><label>API Key</label><input type="password" name="bunny_key" placeholder="{{ app.mask(app.bunny.key) if app.bunny.key else 'xxxxxxxx-xxxx-…' }}" autocomplete="off">
+          {% if app.bunny.key %}<span class="hint">Saqlangan: {{ app.mask(app.bunny.key) }} — o'zgartirish uchun yangisini kiriting</span>{% endif %}</div>
+        <div class="field"><label>Token authentication key <span class="faint">(tavsiya)</span></label><input type="password" name="bunny_token_key" placeholder="{{ app.mask(app.bunny.token_key) if app.bunny.token_key else 'Security → Token authentication key' }}" autocomplete="off">
+          {% if app.bunny.token_key %}<label class="check" style="font-size:12.5px"><input type="checkbox" name="bunny_token_key_clear"> Token himoyasini o'chirish</label>{% endif %}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Namoz vaqtlari</h3></div>
+      <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-grid">
+          <div class="field"><label>Shahar (standart)</label><select name="app_city">{% for c in app.cities %}<option {{ 'selected' if c == app.ps.city }}>{{ c }}</option>{% endfor %}</select></div>
+          <div class="field"><label>Asr</label><select name="prayer_asr"><option value="hanafi" {{ 'selected' if app.ps.asr == 'hanafi' }}>Hanafiy</option><option value="shafii" {{ 'selected' if app.ps.asr == 'shafii' }}>Shofeiy</option></select></div>
+          <div class="field full"><label>Hisoblash usuli</label><select name="prayer_method">{% for k, m in app.methods.items() %}<option value="{{ k }}" {{ 'selected' if k == app.ps.method }}>{{ m.name }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="hint">Masjid taqvimiga moslash uchun daqiqa tuzatish (−30…+30). Bugungi natija:</div>
+        <div class="pr-adj">
+          {% for (k, n), t in zip(app.prayers, app.preview) %}
+          <label><span>{{ n }}</span><b>{{ t.time }}</b><input name="off_{{ k }}" value="{{ app.ps.offsets[loop.index0] }}" inputmode="numeric" aria-label="{{ n }} tuzatish"></label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div style="grid-column:1/-1"><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
+  </form>
 </div>
 {% elif tab == 'malumotlar' %}
 <div class="stats" style="max-width:900px">

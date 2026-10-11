@@ -18,6 +18,8 @@ ACTIONS = {
     "transfer": "A'zo boshqa dasturga o'tkazildi",
     "refund": "O'quvchiga pul qaytarildi",
     "debt_toggle": "Qarz holati o'zgardi",
+    "content_delete": "O'quv materiali o'chirildi",
+    "app_access": "O'quvchi ilovasiga kirish o'zgardi",
 }
 
 

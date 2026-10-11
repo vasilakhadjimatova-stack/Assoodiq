@@ -419,8 +419,10 @@ def member(mid):
     att_rates = {r["enrollment"].id: member_rate(m.id, r["enrollment"].program_id) for r in enrs}
     from core import telegram as T
     tg = {"enabled": T.enabled(), "link": m.telegram, "deep": T.deep_link(m.id), "bot": T.bot_username()}
+    from core import student as S
+    app = {"access": m.app_access, "courses": [c for c in S.courses(m, paid_map) if c["lectures"]]}
     return render_template("pages/member.html", m=m, enrs=enrs, payments=payments, timeline=timeline,
-                           att_rates=att_rates, tg=tg,
+                           att_rates=att_rates, tg=tg, app=app,
                            since=member_since(m, enrs),
                            pay_count=pay_count, open_programs=open_programs, transfer_targets=transfer_targets(),
                            total_paid=sum(r["paid"] for r in enrs),

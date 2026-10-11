@@ -1,0 +1,41 @@
+{% extends "app/base.html" %}
+{% block title %}Kirish · {{ org_name }}{% endblock %}
+{% block body %}
+<div class="login">
+  <div class="lg-top">
+    <div class="lg-logo">{% include "partials/mark.svg" %}</div>
+    <div class="ar">السلام عليكم</div>
+    <h1>{{ org_name }}</h1>
+    <p>Kurslaringiz, video darslar, jadval va to'lovlar — bitta ilovada</p>
+    <div class="lg-feat">
+      <span>{{ ui.icon('play', 'sm') }} Video darslar</span>
+      <span>{{ ui.icon('mosque', 'sm') }} Namoz vaqtlari</span>
+      <span>{{ ui.icon('compass', 'sm') }} Qibla</span>
+      <span>{{ ui.icon('coins', 'sm') }} Zakot</span>
+    </div>
+  </div>
+
+  <div class="card lg-box">
+    <div class="lg-tg" data-tg-auto hidden><span class="spin"></span><span data-tg-msg>Telegram orqali kirilmoqda…</span></div>
+    {% if step == 'code' %}
+    <form method="post" action="{{ url_for('ilova.login_code') }}" style="display:flex;flex-direction:column;gap:14px">
+      <h2>Kodni kiriting</h2>
+      <p>Telegram'dagi {% if bot %}@{{ bot }} {% endif %}botimizga 6 xonali kod yubordik.</p>
+      <input class="inp code-inp" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" required autofocus aria-label="Kod">
+      <button class="btn solid block">Kirish</button>
+      <a class="btn ghost block" href="{{ url_for('ilova.login') }}">Boshqa raqam</a>
+    </form>
+    {% else %}
+    <form method="post" style="display:flex;flex-direction:column;gap:14px" data-phone-form>
+      <h2>Ilovaga kirish</h2>
+      <p>Markazda ro'yxatdan o'tgan telefon raqamingizni yozing — kirish kodi Telegram'ga keladi.</p>
+      <div class="fld"><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+998 90 123 45 67" required aria-label="Telefon raqami"></div>
+      <button class="btn solid block">{{ ui.icon('send', 'sm') }} Kod olish</button>
+    </form>
+    <div class="lg-or">yoki</div>
+    <p>Administrator bergan <b>taklif havolasi</b> yoki QR kod orqali ham kirasiz.{% if bot %} Telegram'da <b>@{{ bot }}</b> botidagi «Ilova» tugmasi sizni avtomatik kiritadi.{% endif %}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script>AQ.tgAutoLogin({{ url_for('ilova.tg_login')|tojson }});</script>{% endblock %}

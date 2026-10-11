@@ -1,0 +1,49 @@
+{% import "partials/ui.html" as ui with context %}
+{% macro prayer_widget(pr) -%}
+<div class="pw" data-pw data-api="{{ url_for('ilova.prayer_api') }}">
+  <div class="pw-h">
+    <span class="pw-ic">{{ ui.icon('mosque') }}</span>
+    <div><small>Keyingi namoz</small><b data-pw-name>{{ pr.next.name if pr.next else '—' }}</b></div>
+    <div class="pw-cd"><small data-pw-at>{{ pr.next.at.strftime('%H:%M') if pr.next }}</small><b data-countdown="{{ pr.next.iso if pr.next }}">—</b></div>
+  </div>
+  <div class="pw-row" data-pw-row>
+    {% for t in pr.times if t.key != 'quyosh' %}
+    <div class="{{ 'on' if pr.next and pr.next.key == t.key }}" data-k="{{ t.key }}"><span>{{ t.name }}</span><b>{{ t.time }}</b></div>
+    {% endfor %}
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-top:10px">
+    <span class="pw-loc">{{ ui.icon('pin', 'sm') }}<span data-pw-city>{{ pr.city }}</span></span>
+    <a class="pw-loc" href="{{ url_for('ilova.ibodat') }}">Batafsil {{ ui.icon('right', 'sm') }}</a>
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro lesson_row(les, today) -%}
+<div class="lsi {{ 'today' if les.date == today }} {{ les.status }}" style="--c:{{ color_for(les.program_id) }}">
+  <div class="lsi-d"><small>{{ wd[les.date.weekday()][:3] }}</small><b>{{ les.date.day }}</b></div>
+  <div class="lsi-b">
+    <b>{{ les.title or les.program.name }}</b>
+    <span><span>{{ ui.icon('cap', 'sm') }}{{ les.program.name }}</span>{% if les.location %}<span>{{ ui.icon('pin', 'sm') }}{{ les.location }}</span>{% endif %}{% if les.teacher %}<span>{{ ui.icon('users', 'sm') }}{{ les.teacher }}</span>{% endif %}</span>
+  </div>
+  <div class="lsi-t">{{ les.start.strftime('%H:%M') }}<small>{% if les.status == 'bekor' %}bekor{% elif les.date == today %}bugun{% else %}{{ months[les.date.month - 1][:3] }}{% endif %}</small></div>
+</div>
+{%- endmacro %}
+
+{% macro course_card(c) -%}
+{% set p = c.program %}
+<div class="cc"><a class="cc-card" href="{{ url_for('ilova.course', pid=p.id) }}" style="--c:{{ color_for(p.id) }}">
+  <div class="cc-cover">
+    <span class="cc-kind">{{ ui.icon({'kurs': 'cap', 'klub': 'users', 'tadbir': 'calendar', 'konsalting': 'briefcase'}.get(p.kind, 'cap'), 'sm') }}{{ p.kind_name }}</span>
+    {% if c.locked %}<span class="cc-lock" title="Obuna tugagan">{{ ui.icon('lock', 'sm') }}</span>{% endif %}
+    <h3>{{ p.name }}</h3>
+  </div>
+  <div class="cc-b">
+    <div class="cc-meta">
+      {% if c.lectures %}<span><b>{{ c.done }}</b>/{{ c.lectures }} dars</span><span>{{ (c.pct * 100)|round|int }}%</span>
+      {% else %}<span>O'quv dasturi tez orada</span>{% endif %}
+    </div>
+    <div class="bar"><i style="width:{{ (c.pct * 100)|round }}%"></i></div>
+    {% if c.due > 0 and c.enrollment.status != 'chiqqan' %}<div class="cc-due">{{ ui.icon('alert', 'sm') }} To'lov qoldig'i: {{ c.due|num }} so'm</div>{% endif %}
+  </div>
+</a></div>
+{%- endmacro %}

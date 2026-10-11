@@ -1,0 +1,79 @@
+{% extends "app/base.html" %}
+{% block title %}Ibodat · {{ org_name }}{% endblock %}
+{% block body %}
+<header class="hx slim">
+  <div class="hx-bar"><h1>Ibodat</h1></div>
+  <div class="hx-sub">{{ today.day }} {{ months[today.month - 1] }} · {{ today|hijri }}</div>
+  <div class="seg on-dark" style="margin-top:14px" data-tabs>
+    <button type="button" class="on" data-tab="namoz">{{ ui.icon('mosque', 'sm') }} Namoz</button>
+    <button type="button" data-tab="qibla">{{ ui.icon('compass', 'sm') }} Qibla</button>
+    <a href="{{ url_for('ilova.zakat') }}">{{ ui.icon('coins', 'sm') }} Zakot</a>
+  </div>
+</header>
+<main class="ap-main" data-ibodat data-api="{{ url_for('ilova.prayer_api') }}" data-default="{{ pr.city }}">
+  <section data-pane="namoz" style="display:flex;flex-direction:column;gap:16px">
+    <div class="card" style="padding:16px;display:flex;align-items:center;gap:14px">
+      <span class="pw-ic" style="width:50px;height:50px">{{ ui.icon('mosque', 'lg') }}</span>
+      <div style="flex:1;min-width:0"><small class="muted" style="font-size:12px;font-weight:700">Keyingi namoz</small>
+        <div style="font-size:20px;font-weight:800" data-pw-name>{{ pr.next.name if pr.next else '—' }} <span class="muted" data-pw-at>{{ pr.next.at.strftime('%H:%M') if pr.next }}</span></div></div>
+      <b class="num" style="font-size:22px;color:var(--em-txt)" data-countdown="{{ pr.next.iso if pr.next }}">—</b>
+    </div>
+    <div class="card pt" data-pt>
+      {% for t in pr.times %}
+      <div class="pt-r {{ 'on' if pr.next and pr.next.key == t.key }} {{ 'sun' if t.key == 'quyosh' }}" data-k="{{ t.key }}">
+        <i>{{ ui.icon('sun' if t.key in ('quyosh', 'peshin') else ('moon' if t.key in ('shom', 'xufton') else 'star'), 'sm') }}</i><b>{{ t.name }}</b><span>{{ t.time }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="loc">
+      <select class="inp" data-city aria-label="Shahar">
+        {% for name in cities %}<option value="{{ name }}" {{ 'selected' if name == pr.city }}>{{ name }}</option>{% endfor %}
+        <option value="gps" data-gps hidden>Mening joylashuvim</option>
+      </select>
+      <button type="button" class="btn sm" style="height:50px" data-locate title="Joylashuvni aniqlash">{{ ui.icon('locate') }}</button>
+    </div>
+    <section>
+      <div class="sec-h"><h2>Haftalik jadval</h2></div>
+      <div class="card wk-wrap"><table class="wk" data-week>
+        <thead><tr><th style="text-align:left;padding-left:14px">Kun</th>{% for k, n in (('bomdod','Bomdod'),('quyosh','Quyosh'),('peshin','Peshin'),('asr','Asr'),('shom','Shom'),('xufton','Xufton')) %}<th>{{ n }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for w in week %}<tr class="{{ 'today' if loop.first }}"><td>{{ w.date.day }} {{ months[w.date.month - 1][:3] }}</td>{% for t in w.times %}<td>{{ t.time }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table></div>
+      <p class="muted" style="font-size:12px;font-weight:600;margin:10px 4px 0">Hisob: {{ method_name }}, asr — {{ 'Hanafiy' if pr.settings.asr == 'hanafi' else 'Shofeiy' }}. Masjid taqvimidan 1–2 daqiqa farq qilishi mumkin.</p>
+    </section>
+  </section>
+
+  <section data-pane="qibla" hidden>
+    <div class="card qb" data-qibla data-deg="{{ pr.qibla[0] }}">
+      <div class="qb-dial">
+        <span class="qb-fix" aria-hidden="true"></span>
+        <div class="qb-rose" data-rose>
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <circle cx="100" cy="100" r="96" fill="var(--card2)" stroke="var(--line)" stroke-width="2"/>
+            <circle cx="100" cy="100" r="78" fill="none" stroke="var(--line)" stroke-dasharray="2 4"/>
+            {% for i in range(0, 360, 30) %}<line x1="100" y1="8" x2="100" y2="{{ 18 if i % 90 == 0 else 14 }}" stroke="var(--txt3)" stroke-width="{{ 2.5 if i % 90 == 0 else 1.5 }}" transform="rotate({{ i }} 100 100)"/>{% endfor %}
+            <text x="100" y="34" text-anchor="middle" font-size="14" font-weight="800" fill="var(--bad)">N</text>
+            <text x="170" y="105" text-anchor="middle" font-size="12" font-weight="800" fill="var(--txt3)">E</text>
+            <text x="100" y="176" text-anchor="middle" font-size="12" font-weight="800" fill="var(--txt3)">S</text>
+            <text x="30" y="105" text-anchor="middle" font-size="12" font-weight="800" fill="var(--txt3)">W</text>
+            <g data-needle transform="rotate({{ pr.qibla[0] }} 100 100)">
+              <path d="M100 100 L94 40 L100 24 L106 40 Z" fill="var(--gold)"/>
+              <path d="M100 100 L95 150 L100 160 L105 150 Z" fill="var(--txt3)" opacity=".35"/>
+              <g transform="translate(88 2)"><rect width="24" height="20" rx="3" fill="#111"/><rect y="5" width="24" height="3" fill="#D9AE5C"/></g>
+            </g>
+            <circle cx="100" cy="100" r="6" fill="var(--em)"/>
+          </svg>
+        </div>
+      </div>
+      <div class="qb-c"><b data-qdeg>{{ pr.qibla[0]|round|int }}°</b><span data-qword>{{ compass }}</span></div>
+      <div class="qb-st" data-qst>Telefonni tekis ushlang va «Kompasni yoqish»ni bosing</div>
+      <button type="button" class="btn solid block" data-compass>{{ ui.icon('compass', 'sm') }} Kompasni yoqish</button>
+      <div class="qb-info">
+        <div><span>Qibla</span><b data-qdeg2>{{ pr.qibla[0] }}°</b></div>
+        <div><span>Makkagacha</span><b data-qkm>{{ '{:,}'.format(pr.qibla[1]).replace(',', ' ') }} km</b></div>
+        <div><span>Joy</span><b data-qcity>{{ pr.city }}</b></div>
+      </div>
+    </div>
+    <p class="muted" style="font-size:12.5px;font-weight:600;margin:10px 4px 0;line-height:1.5">Oltin ko'rsatkich qibla (Ka'ba) tomonini ko'rsatadi. Kompas yo'q qurilmada: burchak shimoldan soat mili bo'yicha hisoblanadi. Temir va magnitdan uzoqroq turing.</p>
+  </section>
+</main>
+{% endblock %}

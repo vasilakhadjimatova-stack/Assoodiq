@@ -1,0 +1,44 @@
+{% extends "app/base.html" %}
+{% block title %}{{ lec.title }} · {{ org_name }}{% endblock %}
+{% block body %}
+<header class="hx slim" style="border-radius:0;padding-bottom:14px">
+  <div class="hx-bar"><a class="hx-back" href="{{ url_for('ilova.course', pid=program.id) }}" aria-label="Orqaga">{{ ui.icon('left') }}</a><h1>{{ program.name }}</h1></div>
+</header>
+{% if lec.kind == 'video' %}
+<div class="vp" data-player data-progress="{{ url_for('ilova.lecture_progress', lid=lec.id) }}" data-start="{{ prog.position if prog and not prog.done else 0 }}">
+  {% if embed %}
+  <iframe src="{{ embed }}" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="{{ lec.title }}" data-video></iframe>
+  {% elif not ok %}
+  <div class="vp-ph">{{ ui.icon('lock') }}<b>Dars yopiq</b><span>Obunangiz muddati tugagan. To'lovdan keyin dars avtomatik ochiladi.</span></div>
+  {% else %}
+  <div class="vp-ph">{{ ui.icon('video') }}<b>Video tayyorlanmoqda</b><span>Tez orada shu yerda ko'rinadi. Quyidagi qo'llanmani o'qib turishingiz mumkin.</span></div>
+  {% endif %}
+</div>
+{% endif %}
+<main class="ap-main">
+  <div class="lt">
+    <small>{{ lec.module.title }} · {{ num }}/{{ total }}</small>
+    <h1>{{ lec.title }}</h1>
+    <div class="lt-meta">
+      <span>{{ ui.icon('video' if lec.kind == 'video' else 'file', 'sm') }}{{ 'Video dars' if lec.kind == 'video' else "Qo'llanma" }}</span>
+      {% if lec.duration %}<span>{{ ui.icon('clock', 'sm') }}{{ lec.minutes or 1 }} daqiqa</span>{% endif %}
+      {% if prog and prog.done %}<span style="color:var(--ok)">{{ ui.icon('check', 'sm') }}Tugatilgan</span>{% endif %}
+    </div>
+  </div>
+
+  {% if ok %}
+    {% if paras %}<div class="card card-p body-txt">{% for p in paras %}<p>{{ p }}</p>{% endfor %}</div>{% endif %}
+    <button type="button" class="btn {{ 'ok' if prog and prog.done else 'solid' }} block" data-done data-url="{{ url_for('ilova.lecture_progress', lid=lec.id) }}" data-is="{{ '1' if prog and prog.done else '0' }}">
+      {{ ui.icon('check', 'sm') }} <span>{{ 'Tugatilgan' if prog and prog.done else 'Darsni tugatdim' }}</span>
+    </button>
+  {% else %}
+    <div class="note">{{ ui.icon('lock') }}<span>Obunangiz muddati tugagan — bu dars to'lovdan keyin ochiladi. Savollar bo'lsa, administratorga murojaat qiling.</span></div>
+  {% endif %}
+
+  <nav class="ln">
+    {% if prev %}<a href="{{ url_for('ilova.lecture', lid=prev.id) }}"><small>{{ ui.icon('left', 'sm') }} Oldingi</small><b>{{ prev.title }}</b></a>{% endif %}
+    {% if nxt %}<a class="n" href="{{ url_for('ilova.lecture', lid=nxt.id) }}"><small>Keyingi {{ ui.icon('right', 'sm') }}</small><b>{{ nxt.title }}</b></a>{% endif %}
+  </nav>
+</main>
+{% endblock %}
+{% block scripts %}{% if embed %}<script src="https://assets.mediadelivery.net/playerjs/player-0.1.0.min.js"></script><script>AQ.player();</script>{% endif %}{% endblock %}

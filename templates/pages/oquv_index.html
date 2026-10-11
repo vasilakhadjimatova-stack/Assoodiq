@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}O'quv dasturi{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">O'quv dasturi</div>
+    <div class="head-s">Video darslar va qo'llanmalar — o'quvchilar ilovada ko'radi. <b>{{ active }}</b> o'quvchi ilovaga kirgan.</div>
+  </div>
+  <div class="head-a">
+    <a class="btn ghost" href="{{ app_link }}" target="_blank" rel="noopener">{{ ui.icon('phone-pay', 'sm') }} Ilovani ochish</a>
+    {% if can('sozlama') %}<a class="btn tonal" href="{{ url_for('sozlama.index', bolim='ilova') }}">{{ ui.icon('sliders', 'sm') }} Ilova sozlamalari</a>{% endif %}
+  </div>
+</div>
+{% if not bunny_on %}
+<div class="oq-note">{{ ui.icon('info', 'sm') }}<span>Video yuklash uchun <b>Bunny Stream</b> ulanmagan. {% if can('sozlama') %}<a class="link" href="{{ url_for('sozlama.index', bolim='ilova') }}">Sozlamalar → O'quvchi ilovasi</a> bo'limida kalitlarni kiriting.{% else %}Rahbarga murojaat qiling.{% endif %} Hozircha bo'lim, mavzu va matnli qo'llanmalarni tayyorlab qo'yish mumkin.</span></div>
+{% endif %}
+<div class="oq-grid">
+  {% for p in progs %}
+  {% set st = stats[p.id] %}
+  <a class="oq-card" href="{{ url_for('oquv.program', pid=p.id) }}">
+    <div class="oq-card-h">
+      <span class="oq-ic">{{ ui.icon({'kurs': 'cap', 'klub': 'users', 'tadbir': 'calendar', 'konsalting': 'briefcase'}.get(p.kind, 'cap'), 'sm') }}</span>
+      <div><b>{{ p.name }}</b><span>{{ p.kind_name }} · {{ st.students }} faol o'quvchi</span></div>
+    </div>
+    <div class="oq-nums">
+      <div><b>{{ st.modules }}</b><span>bo'lim</span></div>
+      <div><b>{{ st.lectures }}</b><span>mavzu</span></div>
+      <div><b>{{ st.videos }}</b><span>video</span></div>
+      <div><b>{{ st.minutes // 60 }}<small>s</small> {{ st.minutes % 60 }}<small>d</small></b><span>davomiylik</span></div>
+    </div>
+    <span class="oq-go">{{ 'Tahrirlash' if st.lectures else "O'quv dasturini tuzish" }} {{ ui.icon('right', 'sm') }}</span>
+  </a>
+  {% else %}
+  <div class="card empty">{{ ui.icon('cap') }}<b>Faol dastur yo'q</b>Avval «Kurs va klublar» bo'limida dastur yarating.</div>
+  {% endfor %}
+</div>
+{% endblock %}

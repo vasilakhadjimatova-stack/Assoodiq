@@ -1,0 +1,47 @@
+{% extends "app/base.html" %}
+{% import "app/_macros.html" as am with context %}
+{% block title %}Jadval · {{ org_name }}{% endblock %}
+{% block body %}
+<header class="hx slim">
+  <div class="hx-bar"><h1>Dars jadvali</h1></div>
+  <div class="hx-sub">Keyingi 4 hafta · {{ days.values()|map('length')|sum }} ta dars</div>
+</header>
+<main class="ap-main">
+  {% for d, items in days.items() %}
+  <section>
+    <div class="sec-h"><h2>{% if d == today %}Bugun{% elif (d - today).days == 1 %}Ertaga{% else %}{{ wd[d.weekday()] }}{% endif %}<span class="muted" style="font-size:13px;font-weight:700"> · {{ d.day }} {{ months[d.month - 1] }}</span></h2></div>
+    <div class="ls">{% for les in items %}{{ am.lesson_row(les, today) }}{% endfor %}</div>
+  </section>
+  {% else %}
+  <div class="card empty">{{ ui.icon('calendar') }}<b>Rejada dars yo'q</b>Yangi darslar e'lon qilinganda shu yerda chiqadi.</div>
+  {% endfor %}
+
+  {% if rates %}
+  <section>
+    <div class="sec-h"><h2>Davomatim</h2></div>
+    <div class="card card-p" style="display:flex;flex-direction:column;gap:14px">
+      {% for r in rates %}
+      <div>
+        <div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px;font-weight:700;margin-bottom:6px"><span>{{ r.program.name }}</span><span class="num">{{ r.came }}/{{ r.total }} · {{ (r.pct * 100)|round|int }}%</span></div>
+        <div class="bar {{ 'gold' if r.pct < 0.8 }}"><i style="width:{{ (r.pct * 100)|round }}%"></i></div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if history %}
+  <section>
+    <div class="sec-h"><h2>Oxirgi darslar</h2></div>
+    <div class="card list">
+      {% for a in history %}
+      <div class="li">
+        <div class="li-b"><b>{{ a.lesson.title or a.lesson.program.name }}</b><small>{{ a.lesson.date.day }} {{ months[a.lesson.date.month - 1] }}, {{ a.lesson.start.strftime('%H:%M') }} · {{ a.lesson.program.name }}</small></div>
+        <span class="att {{ a.status }}">{{ att_names.get(a.status, a.status) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

@@ -6,9 +6,10 @@ from core.finance import parse_money
 
 
 def register(app):
-    from views import auth, dastur, hisobot, islomiy, kalendar, kassa, main, qarz, qidiruv, sozlama, telegram
+    from views import (auth, dastur, hisobot, ilova, islomiy, kalendar, kassa, main, oquv, qarz, qidiruv, sozlama,
+                       telegram)
 
-    for mod in (auth, main, kassa, dastur, kalendar, qarz, islomiy, hisobot, sozlama, qidiruv, telegram):
+    for mod in (auth, main, kassa, dastur, kalendar, qarz, islomiy, hisobot, sozlama, qidiruv, telegram, oquv, ilova):
         app.register_blueprint(mod.bp)
 
 

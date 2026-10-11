@@ -32,6 +32,9 @@ DEFAULT_SETTINGS = {
     "tg_auto_expiry": "1", "tg_expiry_days": "3",
     "tg_auto_pay": "0", "tg_pay_day": "5",
     "tg_tpl_dars": "", "tg_tpl_qarz": "", "tg_tpl_obuna": "",
+    # O'quvchi ilovasi (views/ilova.py): video — Bunny Stream, namoz vaqtlari hisobi
+    "bunny_library": "", "bunny_key": "", "bunny_token_key": "",
+    "prayer_method": "MWL", "prayer_asr": "hanafi", "prayer_offsets": "0,0,0,0,0,0", "app_city": "Toshkent",
 }
 
 NISOB_GRAMS = {"oltin": 85, "kumush": 595}

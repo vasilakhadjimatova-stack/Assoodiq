@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}O'quv dasturi · {{ p.name }}{% endblock %}
+{% block content %}
+<a class="crumb" href="{{ url_for('oquv.index') }}">{{ ui.icon('left', 'sm') }} O'quv dasturi</a>
+<div class="head">
+  <div>
+    <div class="head-t">{{ p.name }}</div>
+    <div class="head-s">{{ modules|length }} bo'lim · {{ modules|map(attribute='lectures')|map('length')|sum }} mavzu · {{ total_minutes // 60 }} soat {{ total_minutes % 60 }} daq · <b>{{ students }}</b> faol o'quvchi</div>
+  </div>
+  <div class="head-a">
+    <a class="btn ghost" href="{{ url_for('dastur.program', pid=p.id) }}">{{ ui.icon('users', 'sm') }} Dastur sahifasi</a>
+    <button class="btn solid" data-open="mod-modal">{{ ui.icon('plus', 'sm') }} Yangi bo'lim</button>
+  </div>
+</div>
+{% if not bunny_on %}
+<div class="oq-note">{{ ui.icon('info', 'sm') }}<span>Video yuklash uchun Bunny Stream ulanmagan{% if can('sozlama') %} — <a class="link" href="{{ url_for('sozlama.index', bolim='ilova') }}">Sozlamalar → O'quvchi ilovasi</a>{% endif %}. Mavzularni hozir tuzib, videoni keyin yuklash mumkin.</span></div>
+{% endif %}
+
+<div class="oq-mods" data-oquv>
+  {% for m in modules %}
+  <section class="card oq-mod" id="m{{ m.id }}">
+    <div class="oq-mod-h">
+      <span class="oq-n">{{ loop.index }}</span>
+      <form method="post" action="{{ url_for('oquv.module_save', mid=m.id) }}" class="oq-title"><input name="title" value="{{ m.title }}" aria-label="Bo'lim nomi" required><button class="btn ghost sm" title="Saqlash">{{ ui.icon('check', 'sm') }}</button></form>
+      <div class="oq-act">
+        <form method="post" action="{{ url_for('oquv.module_move', mid=m.id) }}" class="inline"><input type="hidden" name="dir" value="up"><button class="icon-btn" title="Yuqoriga" {{ 'disabled' if loop.first }}>{{ ui.icon('chev-up', 'sm') }}</button></form>
+        <form method="post" action="{{ url_for('oquv.module_move', mid=m.id) }}" class="inline"><input type="hidden" name="dir" value="down"><button class="icon-btn" title="Pastga" {{ 'disabled' if loop.last }}>{{ ui.icon('chev-down', 'sm') }}</button></form>
+        <form method="post" action="{{ url_for('oquv.module_delete', mid=m.id) }}" class="inline" onsubmit="return confirm(this.dataset.msg)" data-msg="«{{ m.title }}» bo'limi va undagi {{ m.lectures|length }} ta mavzu (videolari bilan) o'chirilsinmi?"><button class="icon-btn" title="O'chirish">{{ ui.icon('trash', 'sm') }}</button></form>
+      </div>
+    </div>
+    <div class="oq-lecs">
+      {% for x in m.lectures %}
+      <div class="oq-lec" id="l{{ x.id }}" data-lec="{{ x.id }}" data-status-url="{{ url_for('oquv.video_status', lid=x.id) }}" data-video-url="{{ url_for('oquv.video_start', lid=x.id) }}">
+        <span class="oq-li {{ x.kind }}">{{ ui.icon('play' if x.kind == 'video' else 'file', 'sm') }}</span>
+        <div class="oq-lb">
+          <b>{{ x.title }}</b>
+          <span>
+            {% if x.kind == 'video' %}<em class="pill {{ {'tayyor': 'ok', 'xato': 'bad', 'yuklanmoqda': 'info', 'ishlanmoqda': 'warn'}.get(x.video_status, '') }}" data-vstatus>{{ vstatus.get(x.video_status, '') }}</em>{% else %}<em class="pill">Qo'llanma</em>{% endif %}
+            <span data-mins>{% if x.duration %}{{ x.minutes or 1 }} daq{% endif %}</span>
+            {% if not x.published %}<em class="pill warn">Yashirin</em>{% endif %}
+            {% if x.free %}<em class="pill gold">Ochiq dars</em>{% endif %}
+            {% if students %}<span title="Tugatgan o'quvchilar">{{ ui.icon('check', 'sm') }} {{ done.get(x.id, 0) }}/{{ students }}</span>{% endif %}
+          </span>
+          <div class="oq-up" data-up hidden><div class="bar thin"><i data-up-bar style="width:0"></i></div><small data-up-txt>Yuklanmoqda…</small></div>
+        </div>
+        <div class="oq-act">
+          {% if x.kind == 'video' and bunny_on %}
+          <label class="btn tonal sm oq-file" title="Video faylni tanlang">{{ ui.icon('upload', 'sm') }}<span>{{ 'Almashtirish' if x.video_id else 'Video yuklash' }}</span><input type="file" accept="video/*" data-file></label>
+          {% endif %}
+          <a class="icon-btn" href="{{ url_for('oquv.preview', lid=x.id) }}" target="_blank" title="Ko'rish">{{ ui.icon('eye', 'sm') }}</a>
+          <button type="button" class="icon-btn" title="Tahrirlash" data-lec-edit
+                  data-action="{{ url_for('oquv.lecture_save', lid=x.id) }}" data-title="{{ x.title }}" data-kind="{{ x.kind }}"
+                  data-body="{{ x.body }}" data-minutes="{{ (x.duration / 60)|round(1) if x.duration else '' }}" data-has-video="{{ 1 if x.video_id else 0 }}"
+                  data-published="{{ 1 if x.published else 0 }}" data-free="{{ 1 if x.free else 0 }}">{{ ui.icon('pencil', 'sm') }}</button>
+          <form method="post" action="{{ url_for('oquv.lecture_move', lid=x.id) }}" class="inline"><input type="hidden" name="dir" value="up"><button class="icon-btn" title="Yuqoriga" {{ 'disabled' if loop.first }}>{{ ui.icon('chev-up', 'sm') }}</button></form>
+          <form method="post" action="{{ url_for('oquv.lecture_move', lid=x.id) }}" class="inline"><input type="hidden" name="dir" value="down"><button class="icon-btn" title="Pastga" {{ 'disabled' if loop.last }}>{{ ui.icon('chev-down', 'sm') }}</button></form>
+          <form method="post" action="{{ url_for('oquv.lecture_delete', lid=x.id) }}" class="inline" onsubmit="return confirm(this.dataset.msg)" data-msg="«{{ x.title }}» mavzusi{{ ' va videosi' if x.video_id }} o'chirilsinmi?"><button class="icon-btn" title="O'chirish">{{ ui.icon('trash', 'sm') }}</button></form>
+        </div>
+      </div>
+      {% endfor %}
+      <button type="button" class="oq-add" data-lec-new data-module="{{ m.id }}" data-action="{{ url_for('oquv.lecture_save', pid=p.id) }}">{{ ui.icon('plus', 'sm') }} Mavzu qo'shish</button>
+    </div>
+  </section>
+  {% else %}
+  <div class="card empty">{{ ui.icon('book') }}<b>O'quv dasturi hali bo'sh</b>Avval bo'lim (modul) yarating, so'ng unga video darslar va qo'llanmalar qo'shing.
+    <div style="margin-top:14px"><button class="btn solid" data-open="mod-modal">{{ ui.icon('plus', 'sm') }} Birinchi bo'lim</button></div></div>
+  {% endfor %}
+</div>
+
+<dialog class="modal" id="mod-modal">
+  <form method="post" action="{{ url_for('oquv.module_save', pid=p.id) }}">
+    <div class="modal-h"><h3>Yangi bo'lim</h3><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b"><div class="field"><label>Bo'lim nomi</label><input type="text" name="title" required placeholder="Masalan: 1-modul. Halol savdo asoslari" autofocus></div></div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">Qo'shish</button></div>
+  </form>
+</dialog>
+
+<dialog class="modal" id="lec-modal">
+  <form method="post" data-lec-form>
+    <input type="hidden" name="module_id">
+    <div class="modal-h"><h3 data-lec-h>Yangi mavzu</h3><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b" style="display:flex;flex-direction:column;gap:14px">
+      <div class="field"><label>Mavzu nomi</label><input type="text" name="title" required maxlength="160"></div>
+      <div class="rf-then">
+        <label><input type="radio" name="kind" value="video" checked><b>{{ ui.icon('play', 'sm') }} Video dars</b><span>Videoni keyin ro'yxatdan yuklaysiz</span></label>
+        <label><input type="radio" name="kind" value="matn"><b>{{ ui.icon('file', 'sm') }} Qo'llanma</b><span>Matn, topshiriq yoki havolalar</span></label>
+      </div>
+      <div class="field"><label>Tavsif / qo'llanma matni</label><textarea name="body" rows="7" placeholder="Darsdan keyin o'quvchi o'qiydigan matn. Xatboshilar orasida bo'sh qator qoldiring."></textarea></div>
+      <div class="field" data-minutes-f><label>Davomiylik (daqiqa)</label><input type="text" name="minutes" inputmode="decimal" placeholder="Masalan: 15"><span class="hint">Video yuklansa — o'zi aniqlanadi</span></div>
+      <label class="check"><input type="checkbox" name="published" checked> O'quvchilarga ko'rinsin</label>
+      <label class="check"><input type="checkbox" name="free"> Ochiq dars — obunasi tugaganlar ham ko'ra oladi</label>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">Saqlash</button></div>
+  </form>
+</dialog>
+{% endblock %}
+{% block scripts %}
+{% if bunny_on %}<script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>{% endif %}
+<script src="{{ url_for('static', filename='js/oquv.js') }}?v=1"></script>
+{% endblock %}

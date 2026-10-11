@@ -1,0 +1,38 @@
+{% extends "app/base.html" %}
+{% block title %}Zakot kalkulyatori · {{ org_name }}{% endblock %}
+{% block body %}
+<header class="hx slim">
+  <div class="hx-bar"><a class="hx-back" href="{{ url_for('ilova.ibodat') }}" aria-label="Orqaga">{{ ui.icon('left') }}</a><h1>Zakot kalkulyatori</h1></div>
+  <div class="hx-sub">Mol nisobga yetib, ustidan bir hijriy yil (havl) o'tsa — 2,5% zakot beriladi.</div>
+</header>
+<main class="ap-main" data-zakat data-gold="{{ gold }}" data-silver="{{ silver }}" data-ng="{{ grams.oltin }}" data-ns="{{ grams.kumush }}" data-rate="{{ rate }}">
+  <section class="card card-p zk-grid">
+    <div class="sec-h" style="margin:0"><h2>Mol-mulkingiz</h2><span class="muted" style="font-size:12px;font-weight:700">so'mda</span></div>
+    <div class="zk-row"><label for="z1">Naqd pul<small>uyda, hamyonda</small></label><input class="inp num" id="z1" data-add inputmode="numeric" placeholder="0"></div>
+    <div class="zk-row"><label for="z2">Kartadagi va bankdagi<small>omonat, hisob raqam</small></label><input class="inp num" id="z2" data-add inputmode="numeric" placeholder="0"></div>
+    <div class="zk-row"><label for="z3">Valyuta<small>so'mga aylantirib yozing</small></label><input class="inp num" id="z3" data-add inputmode="numeric" placeholder="0"></div>
+    <div class="zk-row"><label for="z4">Oltin<small>gramm (zargarlik buyumlari ham)</small></label><input class="inp num" id="z4" data-gold-g inputmode="decimal" placeholder="0 g"></div>
+    <div class="zk-row"><label for="z5">Kumush<small>gramm</small></label><input class="inp num" id="z5" data-silver-g inputmode="decimal" placeholder="0 g"></div>
+    <div class="zk-row"><label for="z6">Savdo mollari<small>sotish uchun zaxira, bozor narxida</small></label><input class="inp num" id="z6" data-add inputmode="numeric" placeholder="0"></div>
+    <div class="zk-row"><label for="z7">Qaytishi aniq qarzlar<small>boshqalardagi haqqingiz</small></label><input class="inp num" id="z7" data-add inputmode="numeric" placeholder="0"></div>
+    <div class="zk-row"><label for="z8">Sizning qarzlaringiz<small>muddati kelgan to'lovlar</small></label><input class="inp num" id="z8" data-sub inputmode="numeric" placeholder="0"></div>
+  </section>
+
+  <section class="card card-p zk-grid">
+    <div class="sec-h" style="margin:0"><h2>Narxlar</h2></div>
+    <div class="zk-row"><label for="z9">1 g oltin narxi</label><input class="inp num" id="z9" data-gold-price inputmode="numeric" value="{{ gold|num }}"></div>
+    <div class="zk-row"><label for="z10">1 g kumush narxi</label><input class="inp num" id="z10" data-silver-price inputmode="numeric" value="{{ silver|num }}"></div>
+    <div class="seg" data-basis>
+      <button type="button" class="on" data-b="oltin">Nisob: oltin ({{ grams.oltin }} g)</button>
+      <button type="button" data-b="kumush">Kumush ({{ grams.kumush }} g)</button>
+    </div>
+  </section>
+
+  <div class="zk-res" data-res>
+    <small data-res-l>Beriladigan zakot</small>
+    <b data-due>0 so'm</b>
+    <div class="zk-l"><span>Jami zakotli mol: <b data-base style="display:inline;font-size:inherit">0</b></span><span>Nisob: <b data-nisob style="display:inline;font-size:inherit">0</b></span></div>
+  </div>
+  <p class="muted" style="font-size:12.5px;font-weight:600;line-height:1.55;margin:0 4px">Hisob Hanafiy mazhabi qoidasi bo'yicha: uy-joy, mashina, kiyim va shaxsiy buyumlarga zakot yo'q. Aniq holatingiz uchun imom yoki ustozingiz bilan maslahatlashing.</p>
+</main>
+{% endblock %}

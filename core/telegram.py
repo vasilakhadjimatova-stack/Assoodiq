@@ -93,6 +93,17 @@ def bot_username():
     return F.get_setting("tg_bot") or ""
 
 
+def app_url():
+    """O'quvchi ilovasi (Telegram Mini App) manzili — faqat https bo'lsa."""
+    base = (F.get_setting("tg_webhook") or "").rstrip("/")
+    return base + "/app/" if base.startswith("https://") else ""
+
+
+def app_button(text="📱 Ilovani ochish"):
+    url = app_url()
+    return {"inline_keyboard": [[{"text": text, "web_app": {"url": url}}]]} if url else None
+
+
 def deep_link(member_id):
     bot = bot_username()
     return f"https://t.me/{bot}?start={member_code(member_id)}" if bot else ""
@@ -315,6 +326,8 @@ def handle_update(upd):
             send(chat_id, f"Assalomu alaykum, <b>{html.escape(m.full_name)}</b>! 🌿\n\n{html.escape(org)} botiga ulandingiz. "
                           "Endi dars, obuna va to'lov eslatmalari shu yerga keladi.\n\n"
                           "📅 Jadval — yaqin darslaringiz\n💳 To'lov — to'lov qoldig'i", MENU)
+            if app_button():
+                send(chat_id, "📱 Kurslar, video darslar, namoz vaqtlari va qibla — ilovada:", app_button())
         elif members:
             send(chat_id, "Siz allaqachon ulangansiz ✅", MENU)
         else:
@@ -349,6 +362,9 @@ def handle_update(upd):
         send(chat_id, schedule_text(members), MENU)
     elif low in ("/tolov", "/qarz", "💳 to'lov", "to'lov"):
         send(chat_id, dues_text(members), MENU)
+    elif low in ("/ilova", "/app", "📱 ilova", "ilova"):
+        kb = app_button()
+        send(chat_id, "📱 Ilovani oching:" if kb else "Ilova hali sozlanmagan.", kb or MENU)
     elif low == "/stop":
         for lk in TelegramLink.query.filter_by(chat_id=str(chat_id)).all():
             lk.active = False

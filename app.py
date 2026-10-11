@@ -12,9 +12,9 @@ from core.models import User
 
 # Rol → kirish mumkin bo'lgan bo'limlar (blueprint nomlari)
 ROLE_SECTIONS = {
-    "rahbar": {"main", "kassa", "dastur", "kalendar", "telegram", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
-    "buxgalter": {"main", "kassa", "dastur", "kalendar", "telegram", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
-    "menejer": {"kassa", "dastur", "kalendar", "telegram", "qidiruv"},
+    "rahbar": {"main", "kassa", "dastur", "kalendar", "oquv", "telegram", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
+    "buxgalter": {"main", "kassa", "dastur", "kalendar", "oquv", "telegram", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
+    "menejer": {"kassa", "dastur", "kalendar", "oquv", "telegram", "qidiruv"},
 }
 
 
@@ -71,7 +71,7 @@ def create_app(config_object=Config):
     from core.finance import nice_scale
     app.jinja_env.globals["nice_scale"] = nice_scale
     from core.attendance import member_code, qr_svg
-    app.jinja_env.globals.update(qr_svg=qr_svg, member_code=member_code)
+    app.jinja_env.globals.update(qr_svg=qr_svg, member_code=member_code, zip=zip)
     app.jinja_env.filters.update(
         num=fmt_num, money=fmt_money, short=fmt_short, d=fmt_date,
         hijri=lambda d: hijri.format_hijri(d) if d else "",
@@ -93,10 +93,15 @@ def create_app(config_object=Config):
 
     @app.after_request
     def security_headers(resp):
-        resp.headers.setdefault("X-Frame-Options", "DENY")
+        if request.blueprint == "ilova":
+            # Telegram Mini App veb-versiyada iframe ichida ochiladi
+            resp.headers.setdefault("Content-Security-Policy",
+                                    "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org")
+        else:
+            resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("Referrer-Policy", "same-origin")
-        resp.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")  # kamera — davomat skaneri
+        resp.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=(self)")  # kamera — skaner, joylashuv — namoz/qibla
         if request.endpoint and not request.endpoint.startswith("static"):
             resp.headers.setdefault("Cache-Control", "no-store")  # moliyaviy sahifalar keshda qolmasin
         return resp
@@ -111,6 +116,8 @@ def create_app(config_object=Config):
                 g.user = u
         if request.endpoint in (None, "static", "telegram.hook") or (request.endpoint or "").startswith("auth."):
             return None
+        if request.blueprint == "ilova":
+            return None  # o'quvchi ilovasi — o'z kirishi bor (views/ilova.py)
         if g.user is None:
             return redirect(url_for("auth.login", next=request.path))
         section = request.blueprint

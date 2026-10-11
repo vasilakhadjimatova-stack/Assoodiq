@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ lec.title }}{% endblock %}
+{% block content %}
+<a class="crumb" href="{{ url_for('oquv.program', pid=lec.module.program_id) }}#l{{ lec.id }}">{{ ui.icon('left', 'sm') }} {{ lec.module.program.name }}</a>
+<div class="head"><div><div class="head-t">{{ lec.title }}</div><div class="head-s">{{ lec.module.title }} · {{ 'Video dars' if lec.kind == 'video' else "Qo'llanma" }}{% if lec.duration %} · {{ lec.minutes or 1 }} daq{% endif %}</div></div></div>
+<div style="max-width:860px;display:flex;flex-direction:column;gap:16px">
+  {% if lec.kind == 'video' %}
+  <div class="card" style="overflow:hidden">
+    {% if embed %}<div style="position:relative;aspect-ratio:16/9"><iframe src="{{ embed }}" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="accelerometer; gyroscope; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
+    {% else %}<div class="empty">{{ ui.icon('play') }}<b>Video hali yuklanmagan</b></div>{% endif %}
+  </div>
+  {% endif %}
+  {% if paras %}<div class="card"><div class="card-b" style="line-height:1.65">{% for x in paras %}<p style="white-space:pre-line;margin:0 0 12px">{{ x }}</p>{% endfor %}</div></div>{% endif %}
+</div>
+{% endblock %}

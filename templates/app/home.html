@@ -1,0 +1,68 @@
+{% extends "app/base.html" %}
+{% import "app/_macros.html" as am with context %}
+{% block body %}
+<header class="hx">
+  <div class="hx-top">
+    <div class="hx-brand">{% include "partials/mark.svg" %}{{ org_name }}</div>
+    <a class="hx-av" href="{{ url_for('ilova.profile') }}" aria-label="Profil">{{ first_name[:1] }}</a>
+  </div>
+  <div class="hx-hi">
+    <div class="ar">السلام عليكم</div>
+    <h1>Assalomu alaykum, {{ first_name }}!</h1>
+    <div class="hx-date"><span>{{ wd[today.weekday()] }}, {{ today.day }} {{ months[today.month - 1] }}</span><b>{{ today|hijri }}</b></div>
+  </div>
+  {{ am.prayer_widget(pr) }}
+</header>
+
+<main class="ap-main">
+  <nav class="qa" aria-label="Tez amallar">
+    <a href="{{ url_for('ilova.ibodat') }}#qibla"><i>{{ ui.icon('compass') }}</i>Qibla</a>
+    <a href="{{ url_for('ilova.zakat') }}"><i>{{ ui.icon('coins') }}</i>Zakot</a>
+    <a href="{{ url_for('ilova.profile') }}#qr"><i>{{ ui.icon('qr') }}</i>QR karta</a>
+    <a href="{{ url_for('ilova.schedule') }}"><i>{{ ui.icon('calendar') }}</i>Jadval</a>
+  </nav>
+
+  {% if cont %}
+  <section>
+    <div class="sec-h"><h2>Davom ettiring</h2></div>
+    <a class="card cont" href="{{ url_for('ilova.lecture', lid=cont.id) }}" style="--c:{{ color_for(cont.module.program_id) }}">
+      <div class="cont-th"><span>{{ ui.icon('play') }}</span></div>
+      <div class="cont-b">
+        <small>{{ cont.module.program.name }}</small>
+        <b>{{ cont.title }}</b>
+        {% set pct = ((cont_prog.position / cont.duration) if cont_prog and cont.duration else 0) %}
+        <div class="bar"><i style="width:{{ ([pct, 1]|min * 100)|round }}%"></i></div>
+      </div>
+    </a>
+  </section>
+  {% endif %}
+
+  {% if due > 0 %}
+  <a class="note bad" href="{{ url_for('ilova.profile') }}">{{ ui.icon('alert') }}<span>To'lov qoldig'i: <b>{{ due|num }} so'm</b>. Batafsil — profilda.</span></a>
+  {% endif %}
+
+  <section>
+    <div class="sec-h"><h2>Yaqin darslar</h2><a href="{{ url_for('ilova.schedule') }}">Hammasi</a></div>
+    {% if upcoming %}
+    <div class="ls">{% for les in upcoming %}{{ am.lesson_row(les, today) }}{% endfor %}</div>
+    {% else %}
+    <div class="card empty">{{ ui.icon('calendar') }}<b>Yaqin kunlarda dars yo'q</b>Jadval e'lon qilinganda shu yerda chiqadi.</div>
+    {% endif %}
+  </section>
+
+  <section>
+    <div class="sec-h"><h2>Kurslarim</h2><a href="{{ url_for('ilova.courses') }}">Hammasi</a></div>
+    {% if courses %}
+    <div class="hs">{% for c in courses %}{{ am.course_card(c) }}{% endfor %}</div>
+    {% else %}
+    <div class="card empty">{{ ui.icon('cap') }}<b>Hali kursga yozilmagansiz</b>Administrator yozgandan keyin shu yerda ko'rinadi.</div>
+    {% endif %}
+  </section>
+
+  <div class="card inst" data-install hidden>
+    <i>{{ ui.icon('install') }}</i>
+    <div><b>Ilovani o'rnating</b>Bosh ekrandan bir bosishda ochiladi</div>
+    <button class="btn solid sm" data-install-btn>O'rnatish</button>
+  </div>
+</main>
+{% endblock %}
