@@ -899,3 +899,114 @@ dialog.modal[open] { animation: pop .22s cubic-bezier(.2, .8, .2, 1); }
   .hero-sum b { font-size: 13px; }
   .dash .stats > .stat { flex-basis: 80%; }
 }
+
+/* ══ Kassa: Sheets'dagidek daftar, tez yozish va import ═══════════════════ */
+.desk-only { }
+.toolbar .k-cat { width: auto; min-width: 190px; max-width: 240px; height: 38px; font-size: 13px; }
+.kv-toggle { margin-left: auto; }
+.kv-toggle button { padding: 6px 12px; border-radius: 8px; border: 0; background: none; font: 650 13px var(--font); color: var(--txt2); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; white-space: nowrap; }
+.kv-toggle button.on { background: var(--surface); color: var(--txt); box-shadow: 0 1px 2px rgba(14, 26, 21, .08), 0 0 0 1px var(--line); }
+.kv-toggle button.on .ic { color: var(--brand-txt); }
+html:not([data-kview=list]) .kv-list { display: none; }
+html[data-kview=list] .kv-table { display: none; }
+
+.ledger { overflow: hidden; }
+.ledger-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; }
+.ledger-h h3 { margin: 0; font-size: 15.5px; font-weight: 800; letter-spacing: -.2px; }
+.ledger-h .sub { display: block; margin-top: 2px; font-size: 12.5px; color: var(--txt3); font-weight: 600; }
+.ledger-tip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--txt3); }
+
+/* Jadval: zich, chiziqli, raqamlar ustun bo'yicha tekis */
+.table.sheet { font-size: 13px; font-variant-numeric: tabular-nums; }
+.table.sheet th { position: sticky; top: 0; z-index: 2; padding: 9px 12px; background: var(--surface2); border-top: 1px solid var(--line); font-size: 10.5px; }
+.table.sheet td { padding: 8px 12px; border-right: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.table.sheet td:last-child, .table.sheet th:last-child { border-right: 0; }
+.table.sheet .c-n { width: 44px; text-align: right; color: var(--txt3); font-size: 11.5px; font-weight: 700; background: color-mix(in srgb, var(--surface2) 60%, transparent); }
+.table.sheet .nowrap { white-space: nowrap; }
+.table.sheet.fixed { table-layout: fixed; min-width: 1000px; }
+.table.sheet.fixed td { overflow: hidden; text-overflow: ellipsis; }
+.table.sheet .c-who, .table.sheet .c-cat, .table.sheet .c-acc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.table.sheet .c-who { max-width: 210px; }
+.table.sheet .c-who b { font-weight: 700; }
+.table.sheet .c-who .pill { margin-left: 6px; height: 19px; font-size: 10.5px; }
+.table.sheet .c-cat { color: var(--txt2); max-width: 170px; }
+.table.sheet .c-acc { color: var(--txt2); max-width: 170px; }
+.table.sheet .c-note { color: var(--txt3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table.sheet .c-note .pill { height: 19px; font-size: 10.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: inline-block; line-height: 19px; vertical-align: middle; }
+.table.sheet td.inc, .table.sheet td.out, .table.sheet td.bal { white-space: nowrap; font-weight: 700; min-width: 100px; }
+.table.sheet th.c-n, .table.sheet tfoot td.c-n { background: var(--surface2); }
+.table.sheet td.inc { color: var(--ok); background: color-mix(in srgb, var(--ok-bg) 35%, transparent); }
+.table.sheet td.out { color: var(--txt); background: color-mix(in srgb, var(--bad-bg) 22%, transparent); }
+.table.sheet td small { display: block; font-size: 10.5px; font-weight: 600; color: var(--txt3); }
+.table.sheet td.bal { font-weight: 800; }
+.table.sheet .mv { color: var(--info); font-weight: 650; }
+.table.sheet .c-act { width: 44px; padding: 2px 6px; text-align: center; }
+.table.sheet .c-act .icon-btn { width: 30px; height: 30px; }
+.table.sheet tr.can-edit { cursor: default; }
+.table.sheet tbody tr.can-edit:hover td { background: color-mix(in srgb, var(--brand-bg) 40%, transparent); }
+.table.sheet .row-open td { background: var(--gold-bg); color: var(--txt2); font-weight: 700; font-size: 12.5px; }
+.table.sheet .row-open td.bal { color: var(--txt); }
+.table.sheet tfoot td { position: sticky; bottom: 0; padding: 11px 12px; font-size: 13px; background: var(--surface2); white-space: nowrap; }
+.table.sheet tr.just-added td { animation: rowFlash 2.4s ease-out; }
+@keyframes rowFlash { 0%, 30% { background: color-mix(in srgb, var(--au-300) 45%, transparent); } 100% { background: transparent; } }
+.ledger .table-wrap { max-height: max(420px, calc(100vh - 330px)); overflow: auto; border-top: 1px solid var(--line); }
+
+/* Tez yozish qatori */
+.qe { display: grid; grid-template-columns: auto 130px minmax(120px, 1.3fr) minmax(110px, 1fr) minmax(100px, .8fr) minmax(105px, .9fr) minmax(80px, 1fr) auto; gap: 8px; align-items: center;
+  padding: 12px 14px 10px; border-top: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--brand-bg) 55%, var(--surface)), var(--surface)); }
+.qe input, .qe select { height: 38px; font-size: 13px; border-radius: 9px; }
+.qe select { padding-right: 30px; background-position: right 9px center; }
+.qe .qe-amount { font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.qe .qe-save { height: 38px; padding: 0 14px; }
+.qe .qe-save.busy { opacity: .7; pointer-events: none; }
+.qe-kind { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--line); }
+.qe-kind label { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border-radius: 7px; font-size: 12.5px; font-weight: 700; color: var(--txt3); cursor: pointer; }
+.qe-kind input { position: absolute; opacity: 0; pointer-events: none; }
+.qe-kind label:has(input:checked) { background: var(--surface); color: var(--txt); box-shadow: 0 1px 2px rgba(14, 26, 21, .1); }
+.qe-kind label:has(input[value=kirim]:checked) .ic { color: var(--ok); }
+.qe-kind label:has(input[value=chiqim]:checked) .ic { color: var(--bad); }
+.qe-kind label:has(input:focus-visible) { box-shadow: var(--ring); }
+.qe-hint { grid-column: 1 / -1; font-size: 11.5px; color: var(--txt3); font-weight: 600; }
+.qe-hint kbd, .imp kbd { font: 700 10.5px var(--font); color: var(--txt2); background: var(--surface); border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; }
+input.filled-hint { box-shadow: 0 0 0 3px color-mix(in srgb, var(--au-500) 35%, transparent); border-color: var(--au-500); }
+@media (max-width: 1180px) {
+  .qe { grid-template-columns: auto 132px 1fr 1fr 1fr; }
+  .qe .qe-amount { grid-column: span 2; }
+  .qe .qe-note { grid-column: span 2; }
+}
+
+/* Ro'yxat: kun sarlavhasi va kunlik yakun */
+.day-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 14px 0 2px; font-size: 12px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: var(--txt3); }
+.day-sum { display: inline-flex; gap: 10px; text-transform: none; letter-spacing: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.day-sum b { font-weight: 800; color: var(--txt2); }
+.day-sum b.ok-t { color: var(--ok); }
+
+/* Import sahifasi */
+.imp-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.imp-step { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.imp-step i { flex: none; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font: 800 13px var(--font); font-style: normal; color: var(--on-solid); background: var(--grad-em); }
+.imp-step b { display: block; font-size: 13.5px; }
+.imp-step span { display: block; font-size: 12.5px; color: var(--txt3); margin-top: 2px; }
+.imp-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.imp textarea { min-height: 240px; font: 500 12.5px/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre; overflow: auto; tab-size: 18; }
+.imp-cols { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.imp-cols span { font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--line); color: var(--txt2); }
+.imp-sum { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.imp-table td { font-size: 12.5px; padding: 8px 12px; }
+.imp-table tr.st-err td { background: color-mix(in srgb, var(--bad-bg) 45%, transparent); }
+.imp-table tr.st-dup td, .imp-table tr.st-skip td { color: var(--txt3); }
+.imp-table .msg { font-size: 11.5px; font-weight: 650; }
+.imp-table .msg.bad { color: var(--bad); }
+.imp-table .msg.warn { color: var(--warn); }
+.imp-save { position: sticky; bottom: 12px; z-index: 5; display: flex; align-items: center; gap: 12px; justify-content: space-between; margin-top: 14px; padding: 12px 14px 12px 18px; border-radius: 16px; background: color-mix(in srgb, var(--surface) 88%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid var(--line); box-shadow: var(--shadow-lg); }
+.file-in { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px dashed var(--line2); border-radius: 12px; background: var(--surface2); font-size: 12.5px; color: var(--txt2); font-weight: 600; cursor: pointer; }
+.file-in input { width: 100%; font-size: 12px; }
+
+@media (max-width: 1100px) { .imp-grid { grid-template-columns: 1fr; } }
+@media (max-width: 860px) {
+  .desk-only, .kv-toggle, .ledger-tip { display: none !important; }
+  .kv-table { display: none !important; }
+  .kv-list { display: block !important; }
+  .toolbar .k-cat { flex: 1; min-width: 0; max-width: none; }
+  .imp-steps { grid-template-columns: 1fr; }
+}

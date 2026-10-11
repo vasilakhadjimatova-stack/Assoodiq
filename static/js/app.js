@@ -253,6 +253,109 @@
     });
   });
 
+  // ── Kassa: Sheets'ga o'xshash ish uslubi ──
+  // Jadval / ro'yxat ko'rinishi (tanlov eslab qolinadi)
+  function setKview(v) {
+    document.documentElement.dataset.kview = v;
+    document.querySelectorAll('[data-kview]').forEach(function (b) { b.classList.toggle('on', b.dataset.kview === v); });
+    try { localStorage.setItem('kview', v); } catch (e) {}
+  }
+  if (document.querySelector('.kv-toggle')) {
+    setKview(document.documentElement.dataset.kview || 'table');
+    document.querySelectorAll('[data-kview]').forEach(function (b) {
+      b.addEventListener('click', function () { setKview(b.dataset.kview); });
+    });
+  }
+  // Filtr tanlanishi bilan qo'llanadi
+  document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+    el.addEventListener('change', function () { el.form.submit(); });
+  });
+
+  // Avval yozilgan ism tanlansa — tur, kategoriya, hisob va dastur o'zi to'ladi
+  function setField(form, name, value) {
+    if (value === null || value === undefined || value === '') return;
+    form.querySelectorAll('[name="' + name + '"]').forEach(function (el) {
+      if (el.type === 'radio') { if (el.value === String(value)) el.checked = true; }
+      else if (el.tagName === 'SELECT') {
+        var opt = el.querySelector('option[value="' + value + '"]');
+        if (opt && !opt.disabled) el.value = String(value);
+      } else el.value = String(value);
+    });
+  }
+  document.querySelectorAll('form[data-hints]').forEach(function (form) {
+    var hints;
+    try { hints = JSON.parse(form.dataset.hints); } catch (e) { return; }
+    var index = {};
+    Object.keys(hints).forEach(function (k) { index[k.trim().toLowerCase()] = hints[k]; });
+    var who = form.querySelector('[name=counterparty]');
+    if (!who) return;
+    var last = '';
+    function apply() {
+      var key = who.value.trim().toLowerCase();
+      if (key === last) return;
+      last = key;
+      var h = index[key];
+      var editing = (form.querySelector('[name=tx_id]') || {}).value;
+      if (!h || editing) return;
+      var kindEl = form.querySelector('[name=kind][value="' + h.k + '"]');
+      if (kindEl && kindEl.type === 'radio') { kindEl.checked = true; syncTxForm(form); }
+      if (form.dataset.kind === h.k) setField(form, 'category_id', h.c);
+      setField(form, 'account_id', h.a);
+      setField(form, 'program_id', h.p);
+      who.classList.add('filled-hint');
+      setTimeout(function () { who.classList.remove('filled-hint'); }, 900);
+    }
+    who.addEventListener('change', apply);
+    // ro'yxatdan tanlanganda darhol (harf terilayotganda emas — "Ali" → "Alisher" adashmasin)
+    who.addEventListener('input', function (e) { if (!e.inputType || e.inputType === 'insertReplacementText') apply(); });
+  });
+
+  // Tez yozish qatori: oxirgi tanlovlar eslab qolinadi, saqlangach fokus yana shu yerda
+  var qe = document.querySelector('[data-qe]');
+  if (qe) {
+    var QE_KEYS = ['kind', 'date', 'account_id', 'category_id'];
+    qe.addEventListener('submit', function () {
+      var keep = {};
+      QE_KEYS.forEach(function (k) {
+        var el = k === 'kind' ? qe.querySelector('[name=kind]:checked') : qe.querySelector('[name=' + k + ']');
+        if (el) keep[k] = el.value;
+      });
+      try { sessionStorage.setItem('qe', JSON.stringify(keep)); } catch (e) {}
+      var btn = qe.querySelector('.qe-save'); if (btn) btn.classList.add('busy');
+    });
+    var qp = new URLSearchParams(location.search);
+    if (qp.get('tez')) {
+      var saved = {};
+      try { saved = JSON.parse(sessionStorage.getItem('qe') || '{}'); } catch (e) {}
+      if (saved.kind) { setField(qe, 'kind', saved.kind); syncTxForm(qe); }
+      ['date', 'account_id', 'category_id'].forEach(function (k) { setField(qe, k, saved[k]); });
+      var row = document.querySelector('[data-tx="' + qp.get('belgi') + '"]');
+      if (row) { row.classList.add('just-added'); row.scrollIntoView({ block: 'center' }); }
+      var w = qe.querySelector('[name=counterparty]');
+      if (w) w.focus({ preventScroll: true });
+      qp.delete('tez'); qp.delete('belgi');
+      history.replaceState(null, '', location.pathname + (qp.toString() ? '?' + qp : ''));
+    }
+  }
+
+  // Jadvalda qatorni ikki marta bosish — tahrirlash oynasi
+  document.addEventListener('dblclick', function (e) {
+    var tr = e.target.closest('tr.can-edit');
+    if (!tr || e.target.closest('details, a, button')) return;
+    var btn = tr.querySelector('[data-edit]');
+    if (btn) { window.getSelection && window.getSelection().removeAllRanges(); btn.click(); }
+  });
+
+  // "N" — yangi yozuv: jadval ko'rinsa tez yozish qatoriga, aks holda oyna ochiladi
+  document.addEventListener('keydown', function (e) {
+    if ((e.key !== 'n' && e.key !== 'N' && e.key !== 'т' && e.key !== 'Т') || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
+    var who = qe && qe.offsetParent !== null ? qe.querySelector('[name=counterparty]') : null;
+    if (who) { e.preventDefault(); who.scrollIntoView({ block: 'center' }); who.focus(); return; }
+    var opener = document.querySelector('.fab[data-open], [data-open="tx-modal"]');
+    if (opener) { e.preventDefault(); opener.click(); }
+  });
+
   // Xabarlar o'zi yo'qoladi
   setTimeout(function () {
     document.querySelectorAll('.flash').forEach(function (f) {

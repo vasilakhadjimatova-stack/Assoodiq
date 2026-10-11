@@ -11,7 +11,8 @@ ichiga qurilgan.
 | Bo'lim | Vazifasi |
 |---|---|
 | **Bosh sahifa** | Umumiy balans, oy kirim/chiqim/sof foyda (o'tgan oyga nisbatan), 12 oylik grafik, hisoblar, zakot holati, undiriladigan summalar, diqqat talab qiladigan ishlar |
-| **Kassa** | Hamma pul harakati bitta daftarda: kirim, chiqim, hisoblar orasidagi o'tkazma. Oy, tur, hisob va matn bo'yicha filtr. «Saqlash va yana» bilan ketma-ket kiritish |
+| **Kassa** | Hamma pul harakati bitta daftarda: kirim, chiqim, hisoblar orasidagi o'tkazma. **Jadval ko'rinishi** Sheets'dagi kassa daftari kabi: Kirim · Chiqim · Qoldiq ustunlari, oy boshi va oxiri qoldig'i, jami qatori. Jadval ostidagi **tez yozish qatori** (Enter — saqlash, `N` — shu qatorga o'tish), avval yozilgan ism tanlansa kategoriya va hisob o'zi to'ladi, qatorni ikki marta bosish — tahrirlash, «Nusxa olish». Oy, tur, hisob, kategoriya va matn bo'yicha filtr |
+| **Sheets'dan ko'chirish** | Google Sheets / Excel'dan qatorlarni nusxa olib qo'yish yoki .xlsx/.csv yuklash. Ustunlar sarlavha bo'yicha taniladi (Sana, Summa yoki Kirim/Chiqim, Hisob, Kategoriya, Kimdan/kimga, Izoh…), har qator tekshiriladi, bazada bor yozuv ikkinchi marta qo'shilmaydi |
 | **Kurs va klublar** | Har bir potok/klub/tadbir bo'yicha: a'zolar soni, kutilgan va yig'ilgan summa, xarajat, sof foyda, rentabellik, 1 a'zoni jalb qilish narxi |
 | **A'zolar** | O'quvchi va klub a'zolari, kim qancha to'lagan va qancha qarz. Klub obunasini bir tugma bilan uzaytirish, muddati tugayotganlar ro'yxati |
 | **Zakot** | Naqd, undiriladigan haqlar, tovar zaxirasi va qarzlar daftardan avtomatik yig'iladi. Nisob oltin (85 g) yoki kumush (595 g) bo'yicha. Havl sanasi hijriy taqvimda, hisob-kitoblar tarixi saqlanadi |
@@ -82,6 +83,7 @@ core/
   models.py         Ma'lumotlar modeli (Transaction — yagona daftar)
   finance.py        Barcha hisob-kitob: balans, foyda-zarar, dastur iqtisodiyoti, zakot, fondlar
   hijri.py          Hijriy taqvim (jadval usuli) va havl sanasi
+  sheets.py         Google Sheets / Excel'dan import: ustunlarni tanish, summa va sana formatlari, takrorlar
 views/              Bo'limlar: kassa, dastur, qarz, islomiy, hisobot, sozlama, auth
 templates/          Jinja shablonlari; partials/ui.html — umumiy bo'laklar (ikonka, grafik, oynalar)
 static/             CSS (yorug'/qorong'i mavzu tokenlari), JS, logotip va naqsh
@@ -116,8 +118,8 @@ tushirishdan oldin Assoodiq'ning shariat maslahatchisi bilan ko'rib chiqing:
 
 ## Keyingi bosqichlar
 
-- **Google Sheets'dan import.** Jadval tuzilishi ma'lum bo'lgach, eski yozuvlarni bir martada
-  ko'chirish va o'tish davrida sinxron ishlash.
+- **Google Sheets bilan sinxron.** Hozir qo'lda nusxa olib ko'chiriladi; kerak bo'lsa Sheets'ni
+  to'g'ridan-to'g'ri ulab, o'tish davrida avtomatik sinxronlash.
 - **Telegram bot.** Chiqimni tez kiritish, kunlik hisobot, qarzdorlarga va obunasi tugayotganlarga eslatma.
 - **Sheriklik hisobi.** Mushoraka va mudoraba asosida ta'sischilar o'rtasida foydani taqsimlash
   (sheriklar soni va nisbatlari aniqlangach).
@@ -133,4 +135,5 @@ tushirishdan oldin Assoodiq'ning shariat maslahatchisi bilan ko'rib chiqing:
 | ![Kirish](docs/screens/desk-light-login.jpg) | ![Zakot](docs/screens/desk-light-zakot.jpg) |
 | ![Dasturlar](docs/screens/desk-light-dasturlar.jpg) | ![Halollik](docs/screens/desk-light-halollik.jpg) |
 | ![Kirim oynasi](docs/screens/desk-modal-kirim.jpg) | ![Qorong'i mavzu](docs/screens/desk-dark-home.jpg) |
+| ![Kassa daftari](docs/screens/desk-light-kassa.jpg) | ![Sheets'dan ko'chirish](docs/screens/desk-kassa-import.jpg) |
 | ![Mobil](docs/screens/mob-light-home.jpg) | ![Mobil oyna](docs/screens/mob-modal-kirim.jpg) |

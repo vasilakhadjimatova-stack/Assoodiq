@@ -93,24 +93,25 @@ def record(kind, amount, account, **fields):
 
 # ── Balanslar ───────────────────────────────────────────────────────────────
 
-def account_balances():
-    """{account_id: balans (hisobning o'z valyutasida)}"""
+def account_balances(before=None):
+    """{account_id: balans (hisobning o'z valyutasida)}. before — shu sanagacha (o'zi kirmaydi)."""
     signed = case(
         (Transaction.kind.in_(TX_IN), Transaction.amount),
         else_=-Transaction.amount,
     )
-    flows = dict(
-        db.session.query(Transaction.account_id, func.coalesce(func.sum(signed), 0))
-        .group_by(Transaction.account_id).all()
-    )
-    transfers_in = dict(
+    flows_q = db.session.query(Transaction.account_id, func.coalesce(func.sum(signed), 0))
+    transfers_q = (
         db.session.query(
             Transaction.to_account_id,
             func.coalesce(func.sum(func.coalesce(Transaction.to_amount, Transaction.amount)), 0),
         )
         .filter(Transaction.kind == "otkazma", Transaction.to_account_id.isnot(None))
-        .group_by(Transaction.to_account_id).all()
     )
+    if before is not None:
+        flows_q = flows_q.filter(Transaction.date < before)
+        transfers_q = transfers_q.filter(Transaction.date < before)
+    flows = dict(flows_q.group_by(Transaction.account_id).all())
+    transfers_in = dict(transfers_q.group_by(Transaction.to_account_id).all())
     result = {}
     for acc in Account.query.all():
         result[acc.id] = acc.opening_balance + flows.get(acc.id, 0) + transfers_in.get(acc.id, 0)
@@ -131,6 +132,50 @@ def accounts_with_balance(active_only=True):
 
 def total_balance_uzs():
     return sum(r["balance_uzs"] for r in accounts_with_balance(active_only=False))
+
+
+def ledger_rows(rows, account=None, start=None):
+    """Kassa daftari (Sheets'dagidek): har yozuvdan keyingi qoldiq.
+
+    rows — davrdagi barcha yozuvlar (sana bo'yicha o'sib boradi). account berilsa qoldiq
+    shu hisob valyutasida, aks holda barcha hisoblar so'mda (joriy kurs — yuqoridagi
+    umumiy balans bilan bir xil chiqishi uchun). Natija: (boshlang'ich qoldiq, valyuta, {tx.id: qator}).
+    """
+    accounts = {a.id: a for a in Account.query.all()}
+    opening_map = account_balances(before=start)
+    if account is not None:
+        cur = account.currency
+        opening = opening_map.get(account.id, 0)
+    else:
+        cur = "UZS"
+        opening = sum(to_uzs(v, accounts[k].currency) for k, v in opening_map.items() if k in accounts)
+
+    def flows(t):
+        """(kirdi, chiqdi) — ko'rsatiladigan valyutada."""
+        if account is not None:
+            inc = out = 0.0
+            if t.account_id == account.id:
+                if t.kind in TX_IN:
+                    inc += t.amount
+                else:
+                    out += t.amount
+            if t.kind == "otkazma" and t.to_account_id == account.id:
+                inc += t.to_amount if t.to_amount is not None else t.amount
+            return inc, out
+        src = to_uzs(t.amount, t.currency)
+        if t.kind == "otkazma":
+            dst_cur = t.to_account.currency if t.to_account else t.currency
+            dst = to_uzs(t.to_amount if t.to_amount is not None else t.amount, dst_cur)
+            return dst, src
+        return (src, 0.0) if t.kind in TX_IN else (0.0, src)
+
+    out_map, bal = {}, opening
+    for t in rows:
+        inc, out = flows(t)
+        bal += inc - out
+        out_map[t.id] = {"inc": inc, "out": out, "bal": bal,
+                         "move": t.kind == "otkazma" and account is None}
+    return opening, cur, out_map
 
 
 # ── Davr bo'yicha ko'rsatkichlar ────────────────────────────────────────────

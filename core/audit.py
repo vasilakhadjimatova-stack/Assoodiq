@@ -7,6 +7,7 @@ from core.models import AuditLog
 ACTIONS = {
     "tx_delete": "Kassa yozuvi o'chirildi",
     "tx_update": "Kassa yozuvi tahrirlandi",
+    "tx_import": "Sheets/Excel'dan yozuvlar ko'chirildi",
     "data_clear": "Barcha yozuvlar tozalandi",
     "demo_load": "Namuna ma'lumot yuklandi",
     "settings": "Sozlamalar o'zgartirildi",

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Sheets'dan ko'chirish{% endblock %}
+{% block content %}
+<a class="crumb" href="{{ url_for('kassa.ledger') }}">{{ ui.icon('left', 'sm') }} Kassa</a>
+<div class="head">
+  <div>
+    <div class="head-t">Google Sheets'dan ko'chirish</div>
+    <div class="head-s">Jadvaldagi qatorlarni nusxa olib shu yerga qo'ying. Dastur tekshiradi va bir bosishda kassaga qo'shadi.</div>
+  </div>
+  <div class="head-a">
+    <a class="btn ghost" href="{{ url_for('kassa.import_template') }}">{{ ui.icon('download', 'sm') }} Namuna shablon</a>
+  </div>
+</div>
+
+<div class="imp-steps">
+  <div class="imp-step"><i>1</i><div><b>Sheets'da belgilang</b><span>Kerakli qatorlarni <u>sarlavha qatori bilan birga</u> belgilab, <kbd>Ctrl</kbd>+<kbd>C</kbd> bosing.</span></div></div>
+  <div class="imp-step"><i>2</i><div><b>Shu yerga qo'ying</b><span>Pastdagi maydonni bosib <kbd>Ctrl</kbd>+<kbd>V</kbd>. Yoki .xlsx / .csv faylni yuklang.</span></div></div>
+  <div class="imp-step"><i>3</i><div><b>Tekshiring va saqlang</b><span>Yashil qatorlar qo'shiladi. Bazada bor yozuvlar ikkinchi marta qo'shilmaydi.</span></div></div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="imp" id="imp-form">
+  <div class="imp-grid">
+    <div class="card">
+      <div class="card-h"><h3>Jadvaldan nusxa</h3><span class="sub">tab bilan ajratilgan matn</span></div>
+      <div class="card-b">
+        <textarea name="text" spellcheck="false" aria-label="Jadvaldan nusxa" placeholder="Sana&#9;Turi&#9;Summa&#9;Hisob&#9;Kategoriya&#9;Kimdan / kimga&#9;Izoh&#10;01.10.2026&#9;Kirim&#9;1 500 000&#9;Asosiy kassa&#9;Kurs to'lovlari&#9;Alisher Karimov&#9;3-potok&#10;02.10.2026&#9;Chiqim&#9;450 000&#9;Korporativ karta&#9;Reklama&#9;Instagram&#9;Oktabr reklamasi">{{ text }}</textarea>
+        <label class="file-in" style="margin-top:10px">{{ ui.icon('upload', 'sm') }}<span style="white-space:nowrap">yoki fayl:</span><input type="file" name="file" accept=".xlsx,.xlsm,.csv,.tsv,.txt"></label>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Sozlamalar</h3></div>
+      <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+        <div class="field">
+          <label for="imp-acc">Hisob ustuni bo'lmasa</label>
+          <select name="default_account" id="imp-acc">
+            {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if a.id == default_acc_id }}>{{ a.name }}{{ ' ($)' if a.currency == 'USD' }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <span class="fl">Turi ko'rsatilmasa</span>
+          <div class="chips">
+            <label class="chip"><input type="radio" name="default_kind" value="kirim" {{ 'checked' if default_kind == 'kirim' }}>Kirim</label>
+            <label class="chip"><input type="radio" name="default_kind" value="chiqim" {{ 'checked' if default_kind == 'chiqim' }}>Chiqim</label>
+          </div>
+          <span class="hint">Minus ishorali summa doim chiqim hisoblanadi.</span>
+        </div>
+        <div class="field">
+          <span class="fl">Taniladigan ustunlar</span>
+          <div class="imp-cols"><span>Sana</span><span>Turi</span><span>Summa</span><span>Kirim</span><span>Chiqim</span><span>Hisob</span><span>Kategoriya</span><span>Dastur</span><span>Kimdan / kimga</span><span>Izoh</span></div>
+          <span class="hint">Ustunlar tartibi istalgancha. «Qoldiq», «Valyuta» kabi ustunlar e'tiborga olinmaydi. Sarlavhasiz qo'ysangiz, tartib: {{ default_labels|join(' · ') }}.</span>
+        </div>
+        <button class="btn solid block" name="action" value="preview">{{ ui.icon('check', 'sm') }} Tekshirish</button>
+      </div>
+    </div>
+  </div>
+
+  {% if analysis and analysis.rows %}
+  {% set c = analysis.counts %}
+  {% set good = analysis.rows|selectattr('status', 'equalto', 'ok')|list %}
+  <div class="card mt">
+    <div class="card-h">
+      <h3>Natija</h3>
+      <div class="imp-sum">
+        <span class="pill ok">{{ ui.icon('check', 'sm') }} {{ c.ok or 0 }} ta yangi</span>
+        {% if c.dup %}<span class="pill">{{ ui.icon('copy', 'sm') }} {{ c.dup }} ta bazada bor</span>{% endif %}
+        {% if c.err %}<span class="pill bad">{{ ui.icon('alert', 'sm') }} {{ c.err }} ta xato</span>{% endif %}
+        {% if c.skip %}<span class="pill warn">{{ c.skip }} ta o'tkazildi</span>{% endif %}
+        <span class="sub">{{ 'Sarlavha topildi: ' ~ analysis.columns|join(', ') if analysis.header else 'Sarlavha topilmadi — standart tartib olindi' }}</span>
+      </div>
+    </div>
+    {% if analysis.too_many %}<div class="card-b" style="padding-bottom:0"><span class="pill warn">Bir martada 2000 qatorgacha — qolganini keyingi safar qo'shing.</span></div>{% endif %}
+    <div class="card-b" style="padding-top:8px">
+      <div class="table-wrap" style="max-height:520px">
+      <table class="table sheet imp-table">
+        <thead><tr><th class="c-n">Qator</th><th>Holat</th><th>Sana</th><th>Turi</th><th class="r">Summa</th><th>Hisob</th><th>Kategoriya</th><th>Kimdan / kimga</th><th>Izoh</th></tr></thead>
+        <tbody>
+        {% for r in analysis.rows %}
+        <tr class="st-{{ r.status }}">
+          <td class="c-n">{{ r.n }}</td>
+          <td class="nowrap">
+            {% if r.status == 'ok' %}<span class="pill ok">Yangi</span>
+            {% elif r.status == 'dup' %}<span class="pill">Takror</span>
+            {% elif r.status == 'skip' %}<span class="pill warn">O'tkazildi</span>
+            {% else %}<span class="pill bad">Xato</span>{% endif %}
+            {% for m in r.msg %}<div class="msg {{ 'bad' if r.status == 'err' }}">{{ m }}</div>{% endfor %}
+            {% for m in r.warn %}<div class="msg warn">{{ m }}</div>{% endfor %}
+          </td>
+          {% if r.date is defined %}
+          <td class="nowrap">{{ r.date|d }}</td>
+          <td>{{ 'Kirim' if r.kind == 'kirim' else 'Chiqim' }}</td>
+          <td class="r {{ 'inc' if r.kind == 'kirim' else 'out' }}">{{ r.amount|money(r.account.currency) }}</td>
+          <td class="nowrap">{{ r.account.name }}</td>
+          <td>{{ r.category.name if r.category else '—' }}{% if r.program %}<div class="msg">{{ r.program.name }}</div>{% endif %}</td>
+          <td>{{ r.counterparty }}</td>
+          <td class="c-note" title="{{ r.note }}">{{ r.note }}</td>
+          {% else %}
+          <td colspan="7" class="c-note faint" title="{{ r.cells|join(' | ') }}">{{ r.cells|join(' · ') }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+  {% if good %}
+  {% set inc = good|selectattr('kind', 'equalto', 'kirim')|list %}
+  {% set out = good|selectattr('kind', 'equalto', 'chiqim')|list %}
+  <div class="imp-save">
+    <div>
+      <b>{{ good|length }} ta yozuv qo'shishga tayyor</b>
+      <div class="faint" style="font-size:12.5px;font-weight:600">{{ inc|length }} ta kirim, {{ out|length }} ta chiqim{% if c.err %} · xato qatorlarni Sheets'da tuzatib qayta qo'yishingiz mumkin{% endif %}</div>
+    </div>
+    <button class="btn solid" name="action" value="save">{{ ui.icon('check', 'sm') }} Kassaga qo'shish</button>
+  </div>
+  {% endif %}
+  {% endif %}
+</form>
+{% endblock %}

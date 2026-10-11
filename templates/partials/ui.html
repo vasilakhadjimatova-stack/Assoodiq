@@ -44,6 +44,12 @@
   "info": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
   "briefcase": '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
   "eye-closed": '<path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/>',
+  "copy": '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  "sheet": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
+  "table": '<path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18"/>',
+  "list": '<path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/>',
+  "upload": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+  "enter": '<path d="M9 10 4 15l5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
   "gem": '<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>'
 } %}
 
@@ -80,25 +86,32 @@
   </div>
   {% if t.shariat != 'halol' %}<span class="pill {{ 'bad' if t.shariat == 'nohalol' else 'warn' }}">{{ 'Nohalol' if t.shariat == 'nohalol' else 'Shubhali' }}</span>{% endif %}
   <div class="tx-a {{ 'in' if incoming else '' }}">{{ '+' if incoming else ('' if t.kind == 'otkazma' else '−') }}{{ som(t.amount, t.currency) }}</div>
-  {% if show_actions %}
-  <details class="more">
-    <summary class="icon-btn" title="Amallar">{{ icon('more') }}</summary>
-    <div class="menu">
-      {% if t.kind in ('kirim', 'chiqim') %}
-      <button type="button" data-open="tx-modal" data-set-tx-id="{{ t.id }}" data-set-kind="{{ t.kind }}"
-        data-set-amount="{{ t.amount }}" data-set-account-id="{{ t.account_id }}" data-set-date="{{ t.date.isoformat() }}"
+  {% if show_actions %}{{ tx_menu(t, next_url) }}{% endif %}
+</div>
+{%- endmacro %}
+
+{# Yozuv qiymatlari oynaga (tahrirlash yoki nusxa uchun) #}
+{% macro tx_attrs(t) -%}
+data-set-kind="{{ t.kind }}" data-set-amount="{{ t.amount }}" data-set-account-id="{{ t.account_id }}"
         data-set-category-id="{{ t.category_id or '' }}" data-set-program-id="{{ t.program_id or '' }}"
         data-set-counterparty="{{ t.counterparty or '' }}" data-set-note="{{ t.note or '' }}"
-        data-set-aqd="{{ t.aqd or 'xizmat' }}" data-set-shariat="{{ t.shariat }}" data-set-title="Yozuvni tahrirlash">{{ icon('pencil', 'sm') }} Tahrirlash</button>
-      {% endif %}
-      <form method="post" action="{{ url_for('kassa.delete', tx_id=t.id) }}" class="inline" onsubmit="return confirm(this.dataset.msg)" data-msg="Bu yozuvni o'chirasizmi?">
-        <input type="hidden" name="next" value="{{ next_url }}">
-        <button class="danger">{{ icon('trash', 'sm') }} O'chirish</button>
-      </form>
-    </div>
-  </details>
-  {% endif %}
-</div>
+        data-set-aqd="{{ t.aqd or 'xizmat' }}" data-set-shariat="{{ t.shariat }}"
+{%- endmacro %}
+
+{% macro tx_menu(t, next_url="") -%}
+<details class="more">
+  <summary class="icon-btn" title="Amallar">{{ icon('more') }}</summary>
+  <div class="menu">
+    {% if t.kind in ('kirim', 'chiqim') %}
+    <button type="button" data-open="tx-modal" data-edit data-set-tx-id="{{ t.id }}" data-set-date="{{ t.date.isoformat() }}" {{ tx_attrs(t) }} data-set-title="Yozuvni tahrirlash">{{ icon('pencil', 'sm') }} Tahrirlash</button>
+    <button type="button" data-open="tx-modal" {{ tx_attrs(t) }} data-set-title="Nusxa — yangi yozuv">{{ icon('copy', 'sm') }} Nusxa olish</button>
+    {% endif %}
+    <form method="post" action="{{ url_for('kassa.delete', tx_id=t.id) }}" class="inline" onsubmit="return confirm(this.dataset.msg)" data-msg="Bu yozuvni o'chirasizmi?">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <button class="danger">{{ icon('trash', 'sm') }} O'chirish</button>
+    </form>
+  </div>
+</details>
 {%- endmacro %}
 
 {# Kichik trend chizig'i (sparkline): 12 oylik qiymatlar, o'qsiz #}
@@ -156,7 +169,7 @@
 {% macro tx_modal(id, f_accounts, f_categories, f_programs, aqd_types, shariat_types, preset={}, next_url="", title="Yangi yozuv") -%}
 {% set kind = preset.get('kind', 'kirim') %}
 <dialog class="modal" id="{{ id }}">
-  <form method="post" action="{{ url_for('kassa.create') }}" class="tx-form" data-kind="{{ kind }}">
+  <form method="post" action="{{ url_for('kassa.create') }}" class="tx-form" data-kind="{{ kind }}"{% if f_hints %} data-hints='{{ f_hints|tojson }}'{% endif %}>
     <input type="hidden" name="next" value="{{ next_url }}">
     {% if preset.get('enrollment_id') %}<input type="hidden" name="enrollment_id" value="{{ preset.enrollment_id }}">{% endif %}
     <input type="hidden" name="tx_id" value="">
@@ -219,7 +232,8 @@
         </div>
         <div class="field" data-show="kirim chiqim">
           <label><span data-show="kirim">Kimdan</span><span data-show="chiqim">Kimga</span></label>
-          <input type="text" name="counterparty" value="{{ preset.get('counterparty', '') }}" placeholder="Ism yoki tashkilot">
+          <input type="text" name="counterparty" value="{{ preset.get('counterparty', '') }}" placeholder="Ism yoki tashkilot" list="{{ id }}-cp" autocomplete="off">
+          {% if f_hints %}<datalist id="{{ id }}-cp">{% for n in f_hints %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
         </div>
       </div>
       <div data-show="kirim" class="form-grid">

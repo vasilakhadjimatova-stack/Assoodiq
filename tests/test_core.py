@@ -381,3 +381,99 @@ def test_global_search_respects_roles(app):
     login(client, "300300")
     page = client.get("/qidiruv/?q=Karim").get_data(as_text=True)
     assert "Qarzlar" not in page  # menejer qarz daftarini ko'rmaydi
+
+
+# ── Kassa: Sheets uslubi ──
+
+def test_ledger_running_balance_per_account_and_total(app):
+    kassa, bank = acc("Asosiy kassa"), acc("Bank hisobi")
+    month = date.today().replace(day=1)
+    prev = month - timedelta(days=1)
+    F.record("kirim", 1_000_000, kassa, date=prev)  # oldingi oy — boshlang'ich qoldiqqa kiradi
+    a = F.record("kirim", 500_000, kassa, date=month)
+    b = F.record("otkazma", 200_000, kassa, date=month, to_account_id=bank.id, to_amount=200_000)
+    c = F.record("chiqim", 100_000, kassa, date=month)
+    db.session.commit()
+    rows = [a, b, c]
+    opening, cur, flows = F.ledger_rows(rows, account=kassa, start=month)
+    assert (opening, cur) == (1_000_000, "UZS")
+    assert [flows[t.id]["bal"] for t in rows] == [1_500_000, 1_300_000, 1_200_000]
+    # barcha hisoblar: o'tkazma umumiy qoldiqni o'zgartirmaydi va jamiga kirmaydi
+    opening, cur, flows = F.ledger_rows(rows, start=month)
+    assert [flows[t.id]["bal"] for t in rows] == [1_500_000, 1_500_000, 1_400_000]
+    assert flows[b.id]["move"] and not flows[a.id]["move"]
+    assert flows[c.id]["bal"] == F.total_balance_uzs()
+
+
+def test_kassa_table_filters_and_hints(app):
+    client = app.test_client()
+    login(client, "100100")
+    F.record("kirim", 750_000, acc("Asosiy kassa"), counterparty="Alisher Karimov", category_id=cat("Konsalting").id)
+    F.record("chiqim", 90_000, acc("Asosiy kassa"), counterparty="Instagram", category_id=cat("Reklama (Instagram, Telegram)").id)
+    db.session.commit()
+    page = client.get("/kassa/").get_data(as_text=True)
+    assert "Kassa daftari" in page and "Oy boshidagi qoldiq" in page and 'data-qe' in page
+    assert '<option value="Alisher Karimov">' in page  # avto-to'ldirish ro'yxati
+    page = client.get(f"/kassa/?kat={cat('Konsalting').id}").get_data(as_text=True)
+    assert "Jami: 1 ta yozuv (filtr bo&#39;yicha)" in page or "Jami: 1 ta yozuv (filtr bo'yicha)" in page
+
+
+def test_quick_entry_returns_focus_to_row(app):
+    client = app.test_client()
+    login(client, "100100")
+    r = client.post("/kassa/yangi", data={"kind": "kirim", "amount": "1 200 000", "account_id": acc("Payme").id,
+                                          "category_id": cat("Kurs to'lovlari").id, "counterparty": "Javohir",
+                                          "date": date.today().isoformat(), "quick": "1", "next": "/kassa/?oy=2026-10"})
+    tx = Transaction.query.one()
+    assert tx.amount == 1_200_000 and tx.account.name == "Payme"
+    assert r.headers["Location"].endswith(f"/kassa/?oy=2026-10&tez=1&belgi={tx.id}")
+
+
+def test_sheet_parsers():
+    from core.sheets import detect_header, parse_amount, parse_date, parse_kind
+    assert parse_amount("1 500 000") == parse_amount("1,500,000") == parse_amount("1.500.000") == 1_500_000
+    assert parse_amount("-250 000 so'm") == -250_000 and parse_amount("1500,50") == 1500.5 and parse_amount("abc") is None
+    assert parse_date("05.10.2026") == parse_date("2026-10-05") == parse_date("5/10/26") == date(2026, 10, 5)
+    assert parse_date("10/25/2026") == date(2026, 10, 25) and parse_date("31.02.2026") is None
+    assert parse_kind("Kirim") == "kirim" and parse_kind("Xarajat") == "chiqim" and parse_kind("O'tkazma") == "skip"
+    assert detect_header(["Sana", "Izoh", "Kirim", "Chiqim", "Qoldiq"]) == {0: "date", 1: "note", 2: "income", 3: "expense"}
+    assert detect_header(["05.10.2026", "Kirim", "500000", "Asosiy kassa"]) is None
+
+
+def test_import_from_sheets_preview_save_and_skip_duplicates(app):
+    from core.models import AuditLog
+    client = app.test_client()
+    login(client, "100100")
+    text = ("Sana\tKimdan / kimga\tKategoriya\tKirim\tChiqim\tQoldiq\tIzoh\n"
+            "01.10.2026\tAlisher\tKurs to'lovlari\t1 500 000\t\t1 500 000\t3-potok\n"
+            "02.10.2026\tInstagram\treklama\t\t450 000\t1 050 000\tOktabr\n"
+            "03.10.2026\tNoma'lum\tYangi modda\t\t50 000\t1 000 000\t\n"
+            "xato sana\tKimdir\t\t100\t\t\t\n")
+    form = {"text": text, "default_account": acc("Asosiy kassa").id, "default_kind": "kirim"}
+    page = client.post("/kassa/import", data=dict(form, action="preview")).get_data(as_text=True)
+    assert "3 ta yangi" in page and "1 ta xato" in page and Transaction.query.count() == 0
+    r = client.post("/kassa/import", data=dict(form, action="save"))
+    assert r.status_code == 302 and "oy=2026-10" in r.headers["Location"]
+    rows = Transaction.query.order_by(Transaction.date).all()
+    assert [(t.kind, t.amount, t.counterparty) for t in rows] == [
+        ("kirim", 1_500_000, "Alisher"), ("chiqim", 450_000, "Instagram"), ("chiqim", 50_000, "Noma'lum")]
+    assert rows[1].category.name == "Reklama (Instagram, Telegram)"
+    assert rows[2].category is None  # noma'lum kategoriya — "Boshqa" chiqim moddasi yo'q, kategoriyasiz qoladi
+    assert AuditLog.query.filter_by(action="tx_import").count() == 1
+    # qayta qo'yilsa — takror deb belgilanadi, ikki marta yozilmaydi
+    page = client.post("/kassa/import", data=dict(form, action="save")).get_data(as_text=True)
+    assert Transaction.query.count() == 3 and "3 ta bazada bor" in page
+
+
+def test_import_xlsx_roundtrip_and_manager_blocked(app):
+    from io import BytesIO
+    client = app.test_client()
+    login(client, "100100")
+    tpl = client.get("/kassa/import/namuna.xlsx")
+    assert tpl.status_code == 200
+    r = client.post("/kassa/import", data={"action": "save", "default_account": acc("Asosiy kassa").id,
+                                          "file": (BytesIO(tpl.data), "shablon.xlsx")},
+                    content_type="multipart/form-data")
+    assert r.status_code == 302 and Transaction.query.count() == 2
+    login(client, "300300")
+    assert client.get("/kassa/import").status_code == 302

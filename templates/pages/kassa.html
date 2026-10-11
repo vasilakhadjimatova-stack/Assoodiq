@@ -2,14 +2,19 @@
 {% block title %}Kassa{% endblock %}
 {% block content %}
 {% set here = request.full_path.rstrip('?') %}
+{% set can_edit = g.user.role != 'menejer' %}
+{% set keep = {'oy': month.strftime('%Y-%m'), 'tur': kind or None, 'hisob': acc_id, 'kat': cat_id, 'q': q or None} %}
 <div class="head">
   <div>
     <div class="head-t">Kassa</div>
     <div class="head-s k-meta">{{ month_name }}: kirim <b class="ok-t">{{ totals.income|num }}</b> · chiqim <b>{{ totals.expense|num }}</b> · sof <b>{{ totals.profit|num }}</b> so'm</div>
   </div>
   <div class="head-a">
-    {% if g.user.role != 'menejer' %}<a class="btn ghost" href="{{ url_for('kassa.export', **request.args) }}" title="Ko'rsatilgan yozuvlarni Excel'ga">{{ ui.icon('download', 'sm') }} Excel</a>{% endif %}
-    {% if g.user.role != 'menejer' %}<button class="btn outline" data-open="tx-modal" data-set-kind="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</button>{% endif %}
+    {% if can_edit %}
+    <a class="btn ghost desk-only" href="{{ url_for('kassa.import_rows') }}" title="Google Sheets yoki Excel'dan yozuvlarni ko'chirish">{{ ui.icon('sheet', 'sm') }} Sheets'dan ko'chirish</a>
+    <a class="btn ghost" href="{{ url_for('kassa.export', **request.args) }}" title="Ko'rsatilgan yozuvlarni Excel'ga">{{ ui.icon('download', 'sm') }} Excel</a>
+    <button class="btn outline" data-open="tx-modal" data-set-kind="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</button>
+    {% endif %}
     <button class="btn solid" data-open="tx-modal" data-set-kind="kirim">{{ ui.icon('plus', 'sm') }} Kirim</button>
   </div>
 </div>
@@ -21,7 +26,7 @@
 
 <div class="stats acc-stats">
   {% for r in f_accounts %}
-  <a class="stat" href="{{ url_for('kassa.ledger', hisob=(None if acc_id == r.account.id else r.account.id), oy=month.strftime('%Y-%m'), tur=kind or None) }}" style="{{ 'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-bg)' if acc_id == r.account.id }}">
+  <a class="stat" href="{{ url_for('kassa.ledger', **dict(keep, hisob=(None if acc_id == r.account.id else r.account.id))) }}" style="{{ 'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-bg)' if acc_id == r.account.id }}" title="{{ 'Barcha hisoblarga qaytish' if acc_id == r.account.id else 'Faqat shu hisob daftari' }}">
     <div class="stat-l">{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }} {{ r.account.name }}</div>
     <div class="stat-v" style="font-size:18px">{{ ui.som(r.balance, r.account.currency) }}</div>
     <div class="stat-s">{{ r.account.kind_name }}{% if r.account.currency == 'USD' %} · ≈ {{ r.balance_uzs|short }} so'm{% endif %}</div>
@@ -31,28 +36,125 @@
 
 <form class="toolbar" method="get">
   <div class="month-nav">
-    <a href="{{ url_for('kassa.ledger', oy=prev_month.strftime('%Y-%m'), tur=kind or None, hisob=acc_id) }}" title="Oldingi oy">{{ ui.icon('left', 'sm') }}</a>
+    <a href="{{ url_for('kassa.ledger', **dict(keep, oy=prev_month.strftime('%Y-%m'))) }}" title="Oldingi oy">{{ ui.icon('left', 'sm') }}</a>
     <span>{{ month_name }}</span>
-    <a href="{{ url_for('kassa.ledger', oy=next_month.strftime('%Y-%m'), tur=kind or None, hisob=acc_id) }}" title="Keyingi oy">{{ ui.icon('right', 'sm') }}</a>
+    <a href="{{ url_for('kassa.ledger', **dict(keep, oy=next_month.strftime('%Y-%m'))) }}" title="Keyingi oy">{{ ui.icon('right', 'sm') }}</a>
   </div>
   <div class="seg">
     {% for k, v in kinds.items() %}
-    <a href="{{ url_for('kassa.ledger', tur=k or None, oy=month.strftime('%Y-%m'), hisob=acc_id, q=q or None) }}" class="{{ 'on' if kind == k }}">{{ v }} <span class="n">{{ counts[k] }}</span></a>
+    <a href="{{ url_for('kassa.ledger', **dict(keep, tur=k or None)) }}" class="{{ 'on' if kind == k }}">{{ v }} <span class="n">{{ counts[k] }}</span></a>
     {% endfor %}
   </div>
   <input type="hidden" name="oy" value="{{ month.strftime('%Y-%m') }}">
   {% if kind %}<input type="hidden" name="tur" value="{{ kind }}">{% endif %}
   {% if acc_id %}<input type="hidden" name="hisob" value="{{ acc_id }}">{% endif %}
+  <select name="kat" class="k-cat" data-autosubmit aria-label="Kategoriya bo'yicha">
+    <option value="">Barcha kategoriyalar</option>
+    {% for kk, label in (('kirim', 'Kirim'), ('chiqim', 'Chiqim')) %}
+    <optgroup label="{{ label }}">
+      {% for c in f_categories if c.kind == kk %}<option value="{{ c.id }}" {{ 'selected' if cat_id == c.id }}>{{ c.name }}</option>{% endfor %}
+    </optgroup>
+    {% endfor %}
+  </select>
   <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Kim yoki izoh bo'yicha qidirish"></label>
+  {% if filtered %}<a class="btn ghost sm" href="{{ url_for('kassa.ledger', oy=month.strftime('%Y-%m'), hisob=acc_id) }}">{{ ui.icon('x', 'sm') }} Filtrni tozalash</a>{% endif %}
+  <div class="seg kv-toggle" role="group" aria-label="Ko'rinish">
+    <button type="button" data-kview="table" title="Jadval — Sheets'dagidek">{{ ui.icon('table', 'sm') }} Jadval</button>
+    <button type="button" data-kview="list" title="Ro'yxat — kunlar bo'yicha">{{ ui.icon('list', 'sm') }} Ro'yxat</button>
+  </div>
 </form>
 
-<div class="card">
+{# ── Jadval: Sheets'dagi kassa daftari kabi — eskidan yangiga, qoldiq ustuni bilan ── #}
+<div class="card ledger kv-table">
+  <div class="ledger-h">
+    <div>
+      <h3>Kassa daftari · {{ month_name }}</h3>
+      <span class="sub">{% if account %}{{ account.name }} — qoldiq {{ 'dollarda' if ledger_cur == 'USD' else "so'mda" }}{% else %}Barcha hisoblar — qoldiq so'mda{% endif %}{% if filtered %} · filtr qo'llangan{% endif %}</span>
+    </div>
+    {% if can_edit %}<span class="ledger-tip">{{ ui.icon('info', 'sm') }} Qatorni ikki marta bosing — tahrirlash</span>{% endif %}
+  </div>
+  <div class="table-wrap">
+    <table class="table sheet fixed">
+      <colgroup><col style="width:44px"><col style="width:106px"><col style="width:16%"><col style="width:13%"><col style="width:10%"><col><col style="width:112px"><col style="width:112px"><col style="width:120px"><col style="width:46px"></colgroup>
+      <thead><tr>
+        <th class="c-n">№</th><th>Sana</th><th>Kimdan / kimga</th><th>Kategoriya</th><th>Hisob</th><th>Izoh</th>
+        <th class="r">Kirim</th><th class="r">Chiqim</th><th class="r">Qoldiq</th><th class="c-act"></th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-open">
+          <td class="c-n"></td><td>{{ month|d }}</td>
+          <td colspan="6">Oy boshidagi qoldiq</td>
+          <td class="r bal">{{ opening|money(ledger_cur) }}</td><td></td>
+        </tr>
+        {% for r in table %}
+        {% set t = r.t %}
+        <tr data-tx="{{ t.id }}" class="k-{{ t.kind }}{{ ' can-edit' if can_edit and t.kind in ('kirim', 'chiqim') }}">
+          <td class="c-n">{{ loop.index }}</td>
+          <td class="nowrap">{{ t.date|d }}</td>
+          <td class="c-who">
+            {% if t.kind == 'otkazma' %}<span class="faint">O'tkazma</span>{% else %}<b>{{ t.counterparty or '—' }}</b>{% endif %}
+            {% if t.shariat != 'halol' %}<span class="pill {{ 'bad' if t.shariat == 'nohalol' else 'warn' }}">{{ 'Nohalol' if t.shariat == 'nohalol' else 'Shubhali' }}</span>{% endif %}
+          </td>
+          <td class="c-cat">{% if t.category %}{{ t.category.name }}{% else %}<span class="faint">{{ t.kind_name }}</span>{% endif %}</td>
+          <td class="nowrap c-acc">{% if t.kind == 'otkazma' %}{{ t.account.name }} → {{ t.to_account.name }}{% else %}{{ t.account.name }}{% endif %}</td>
+          <td class="c-note" title="{{ ([t.program.name] if t.program else [])|join }}{{ ' · ' if t.program and t.note }}{{ t.note or '' }}">
+            {%- if t.program %}<span class="pill brand">{{ t.program.name|truncate(18, True, '…') }}</span> {% endif %}{{ t.note or '' -}}
+          </td>
+          {% set foreign = t.currency != ledger_cur %}
+          <td class="r inc">{% if r.inc and not r.move %}{{ r.inc|money(ledger_cur) }}{% if foreign %}<small>{{ t.amount|money(t.currency) }}</small>{% endif %}{% endif %}</td>
+          <td class="r out">{% if r.move %}<span class="mv" title="O'tkazma jamiga kirmaydi">⇄ {{ r.out|money(ledger_cur) }}</span>{% elif r.out %}{{ r.out|money(ledger_cur) }}{% if foreign %}<small>{{ t.amount|money(t.currency) }}</small>{% endif %}{% endif %}</td>
+          <td class="r bal {{ 'bad-t' if r.bal < 0 }}">{{ r.bal|money(ledger_cur) }}</td>
+          <td class="c-act">{% if can_edit %}{{ ui.tx_menu(t, here) }}{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10"><div class="empty">{{ ui.icon('wallet') }}<b>Bu davrda yozuv yo'q</b>Pastdagi qatorga yozing yoki Sheets'dan ko'chiring.</div></td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr>
+        <td class="c-n"></td>
+        <td colspan="5">Jami: {{ table|length }} ta yozuv{% if filtered %} (filtr bo'yicha){% endif %}</td>
+        <td class="r ok-t">{{ sums.inc|money(ledger_cur) }}</td>
+        <td class="r">{{ sums.out|money(ledger_cur) }}</td>
+        <td class="r" title="Oy oxiridagi qoldiq">{{ closing|money(ledger_cur) }}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>
+  </div>
+
+  {# Tez yozish qatori: Sheets'dagi bo'sh qatorga yozgandek — Enter bosilsa saqlanadi #}
+  <form class="qe tx-form" method="post" action="{{ url_for('kassa.create') }}" data-kind="kirim" data-qe autocomplete="off"{% if f_hints %} data-hints='{{ f_hints|tojson }}'{% endif %}>
+    <input type="hidden" name="next" value="{{ here }}">
+    <input type="hidden" name="quick" value="1">
+    <input type="hidden" name="program_id" value="">
+    <div class="qe-kind" role="radiogroup" aria-label="Turi">
+      <label><input type="radio" name="kind" value="kirim" checked>{{ ui.icon('in', 'sm') }}<span>Kirim</span></label>
+      {% if can_edit %}<label><input type="radio" name="kind" value="chiqim">{{ ui.icon('out', 'sm') }}<span>Chiqim</span></label>{% endif %}
+    </div>
+    <input type="date" name="date" value="{{ qe_date.isoformat() }}" aria-label="Sana" class="qe-date">
+    <input type="text" name="counterparty" list="qe-cp" placeholder="Kimdan / kimga" aria-label="Kimdan / kimga" class="qe-who">
+    {% if f_hints %}<datalist id="qe-cp">{% for n in f_hints %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
+    <select name="category_id" aria-label="Kategoriya" class="qe-cat">
+      {% for c in f_categories %}<option value="{{ c.id }}" data-kind="{{ c.kind }}">{{ c.name }}</option>{% endfor %}
+    </select>
+    <select name="account_id" aria-label="Hisob" class="qe-acc">
+      {% for r in f_accounts %}<option value="{{ r.account.id }}" {{ 'selected' if (account and account.id == r.account.id) or (not account and loop.first) }}>{{ r.account.name }}</option>{% endfor %}
+    </select>
+    <input name="amount" inputmode="decimal" data-money required placeholder="Summa" aria-label="Summa" class="qe-amount">
+    <input type="text" name="note" placeholder="Izoh" aria-label="Izoh" class="qe-note">
+    <button class="btn solid qe-save" title="Saqlash (Enter)">{{ ui.icon('enter', 'sm') }} Qo'shish</button>
+    <div class="qe-hint"><kbd>Enter</kbd> saqlaydi · <kbd>N</kbd> shu qatorga o'tadi · avval yozilgan ismni tanlasangiz kategoriya va hisob o'zi to'ladi</div>
+  </form>
+</div>
+
+{# ── Ro'yxat: kunlar bo'yicha guruhlangan (telefonda doim shu) ── #}
+<div class="card kv-list">
   <div class="card-b" style="padding-top:6px;padding-bottom:6px">
     {% for t in rows %}
       {% if loop.first or t.date != loop.previtem.date %}
-        <div class="faint" style="font-size:12px;font-weight:800;letter-spacing:.4px;padding:14px 0 2px;text-transform:uppercase">{{ t.date|d('long') }}</div>
+        {% set dt = day_totals.get(t.date) %}
+        <div class="day-h"><span>{{ t.date|d('long') }}</span>{% if dt %}<span class="day-sum">{% if dt[0] %}<b class="ok-t">+{{ dt[0]|short }}</b>{% endif %}{% if dt[1] %}<b>−{{ dt[1]|short }}</b>{% endif %}</span>{% endif %}</div>
       {% endif %}
-      {{ ui.tx_row(t, show_actions=(g.user.role != 'menejer'), next_url=here) }}
+      {{ ui.tx_row(t, show_actions=can_edit, next_url=here) }}
     {% else %}
       <div class="empty">{{ ui.icon('wallet') }}<b>Bu davrda yozuv yo'q</b>Yangi kirim yoki chiqim qo'shing yoki boshqa oyni tanlang.</div>
     {% endfor %}
