@@ -331,25 +331,73 @@ def enrollment_status(eid):
 
 # ── A'zolar ─────────────────────────────────────────────────────────────────
 
-@bp.route("/azolar")
-def members():
-    seg = request.args.get("holat", "")
-    q_text = (request.args.get("q") or "").strip()
+HOLAT = (("", "Hammasi"), ("faol", "Faol"), ("qarzdor", "Qarzdorlar"), ("tugayapti", "Obunasi tugayapti"),
+         ("tugagan", "Obunasi tugagan"), ("yangi", "Yangi (30 kun)"), ("nofaol", "Nofaol"))
+SORTS = (("ism", "Ism bo'yicha"), ("qarz", "Qarzi ko'p"), ("tolov_yangi", "Oxirgi to'lov — yangi"),
+         ("tolov_eski", "Oxirgi to'lov — eski"), ("tolagan", "Ko'p to'lagan"), ("yangi", "Yangi qo'shilgan"))
+HOLAT_TEST = {
+    "faol": lambda r: r["active"],
+    "qarzdor": lambda r: r["due"] > 0,
+    "tugayapti": lambda r: r["expiring"],
+    "tugagan": lambda r: r["expired"],
+    "yangi": lambda r: r["new"],
+    "nofaol": lambda r: not r["active"],
+}
+
+
+def member_filters(args):
+    """URL parametrlari → tozalangan filtrlar."""
+    f = {k: (args.get(k) or "").strip() for k in ("q", "holat", "dastur", "tur", "shahar", "tg", "ilova", "tartib")}
+    f["holat"] = f["holat"] if f["holat"] in HOLAT_TEST else ""
+    f["dastur"] = form_int(f["dastur"])
+    f["tur"] = f["tur"] if f["tur"] in PROGRAM_KINDS else ""
+    f["tg"] = f["tg"] if f["tg"] in ("1", "0") else ""
+    f["ilova"] = f["ilova"] if f["ilova"] in ("1", "0") else ""
+    f["tartib"] = f["tartib"] if f["tartib"] in dict(SORTS) else "ism"
+    return f
+
+
+def member_rows(f):
+    """Filtr qo'llangan a'zolar qatorlari va holat bo'yicha sonlar (boshqa filtrlar hisobga olingan)."""
+    from core.attendance import parse_code
+    from core.models import StudentAccess, TelegramLink
+    today = date.today()
     q = Member.query
-    if q_text:
-        like = f"%{q_text}%"
-        q = q.filter(or_(Member.full_name.ilike(like), Member.phone.ilike(like), Member.business.ilike(like)))
+    if f["q"]:
+        like = f"%{f['q']}%"
+        conds = [Member.full_name.ilike(like), Member.phone.ilike(like), Member.business.ilike(like),
+                 Member.city.ilike(like), Member.note.ilike(like)]
+        digits = re.sub(r"\D", "", f["q"])
+        if len(digits) >= 4:  # telefon raqami probel/qavslar bilan saqlangan bo'lsa ham topiladi
+            conds.append(func.replace(func.replace(func.replace(Member.phone, " ", ""), "-", ""), "+", "").like(f"%{digits}%"))
+        code_id = parse_code(f["q"])
+        if code_id:
+            conds.append(Member.id == code_id)
+        q = q.filter(or_(*conds))
+    if f["shahar"]:
+        q = q.filter(Member.city == f["shahar"])
     paid_map = F.enrollment_paid_map()
-    expiring_ids = {e.member_id for e in F.expiring_memberships(7)}
+    expiring_ids = {e.member_id for e in F.expiring_memberships(7) if e.valid_until >= today}
     last_pay = dict(
         db.session.query(Enrollment.member_id, func.max(Transaction.date))
         .join(Transaction, Transaction.enrollment_id == Enrollment.id)
         .filter(Transaction.kind == "kirim", Transaction.amount > 0).group_by(Enrollment.member_id).all()
     )
+    tg_ids = {mid for (mid,) in db.session.query(TelegramLink.member_id).filter(TelegramLink.active.is_(True))}
+    app_ids = {mid for (mid,) in db.session.query(StudentAccess.member_id).filter(StudentAccess.last_seen.isnot(None))}
     rows = []
-    for m in q.order_by(Member.full_name).all():
+    for m in q.all():
         enrs = [F.enrollment_row(e, paid_map) for e in m.enrollments.all()]
         active = [r for r in enrs if r["enrollment"].status != "chiqqan"]
+        faol = [r["enrollment"] for r in enrs if r["enrollment"].status == "faol"]
+        if f["dastur"] and not any(r["enrollment"].program_id == f["dastur"] for r in active):
+            continue
+        if f["tur"] and not any(r["enrollment"].program.kind == f["tur"] for r in active):
+            continue
+        if f["tg"] and (m.id in tg_ids) != (f["tg"] == "1"):
+            continue
+        if f["ilova"] and (m.id in app_ids) != (f["ilova"] == "1"):
+            continue
         paid = sum(r["paid"] for r in enrs)
         due = sum(r["due"] for r in active)
         rows.append({
@@ -358,24 +406,116 @@ def members():
             "paid": paid,
             "due": due,
             "progress": paid / (paid + due) if paid + due else 1,
-            "active": any(r["enrollment"].status == "faol" for r in enrs),
-            "club": any(r["enrollment"].program.kind == "klub" and r["enrollment"].status == "faol" for r in enrs),
+            "active": bool(faol),
+            "club": any(e.program.kind == "klub" for e in faol),
             "expiring": m.id in expiring_ids,
+            "expired": any(e.valid_until and e.valid_until < today for e in faol),
+            "new": bool(m.created_at and m.created_at.date() >= today - timedelta(days=30)),
             "last_pay": last_pay.get(m.id),
+            "tg": m.id in tg_ids,
+            "app": m.id in app_ids,
         })
-    counts = {
-        "": len(rows),
-        "qarzdor": sum(1 for r in rows if r["due"] > 0),
-        "klub": sum(1 for r in rows if r["club"]),
-        "tugayapti": sum(1 for r in rows if r["expiring"]),
-    }
-    filt = {"qarzdor": lambda r: r["due"] > 0, "klub": lambda r: r["club"],
-            "tugayapti": lambda r: r["expiring"]}.get(seg)
-    if filt:
-        rows = [r for r in rows if filt(r)]
-    summary = {"active": sum(1 for r in rows if r["active"]), "paid": sum(r["paid"] for r in rows)}
-    return render_template("pages/members.html", rows=rows, seg=seg, counts=counts, q=q_text,
-                           total_due=sum(r["due"] for r in rows), summary=summary)
+    counts = {k: (sum(1 for r in rows if HOLAT_TEST[k](r)) if k else len(rows)) for k, _ in HOLAT}
+    if f["holat"]:
+        rows = [r for r in rows if HOLAT_TEST[f["holat"]](r)]
+    key = {
+        "ism": lambda r: r["member"].full_name.lower(),
+        "qarz": lambda r: -r["due"],
+        "tolov_yangi": lambda r: -(r["last_pay"] or date.min).toordinal(),
+        "tolov_eski": lambda r: (r["last_pay"] or date.min).toordinal(),
+        "tolagan": lambda r: -r["paid"],
+        "yangi": lambda r: -(r["member"].created_at or datetime.min).timestamp(),
+    }[f["tartib"]]
+    rows.sort(key=lambda r: (key(r), r["member"].full_name.lower()))
+    return rows, counts
+
+
+def member_filter_options():
+    cities = [c for (c,) in db.session.query(Member.city).filter(Member.city != "").distinct().order_by(Member.city)]
+    programs = (Program.query.filter(Program.enrollments.any())
+                .order_by(Program.status != "faol", Program.kind, Program.name).all())
+    return {"cities": cities, "programs": programs}
+
+
+@bp.route("/azolar")
+def members():
+    f = member_filters(request.args)
+    rows, counts = member_rows(f)
+    opts = member_filter_options()
+    pnames = {p.id: p.name for p in opts["programs"]}
+    chips = []  # faol filtrlar: (yozuv, olib tashlash uchun parametr)
+    if f["q"]:
+        chips.append((f"«{f['q']}»", "q"))
+    if f["holat"]:
+        chips.append((dict(HOLAT)[f["holat"]], "holat"))
+    if f["dastur"]:
+        chips.append((pnames.get(f["dastur"], "Dastur"), "dastur"))
+    if f["tur"]:
+        chips.append((PROGRAM_KINDS[f["tur"]], "tur"))
+    if f["shahar"]:
+        chips.append((f["shahar"], "shahar"))
+    if f["tg"]:
+        chips.append(("Telegram ulangan" if f["tg"] == "1" else "Telegram ulanmagan", "tg"))
+    if f["ilova"]:
+        chips.append(("Ilovadan foydalanadi" if f["ilova"] == "1" else "Ilovaga kirmagan", "ilova"))
+
+    def url_with(**changes):
+        args = {k: v for k, v in request.args.items() if v}
+        for k, v in changes.items():
+            if v in (None, ""):
+                args.pop(k, None)
+            else:
+                args[k] = v
+        return url_for("dastur.members", **args)
+
+    summary = {"active": sum(1 for r in rows if r["active"]), "paid": sum(r["paid"] for r in rows),
+               "debtors": sum(1 for r in rows if r["due"] > 0)}
+    extra = sum(1 for k in ("tur", "tg", "ilova") if f[k])
+    return render_template("pages/members.html", rows=rows, f=f, seg=f["holat"], q=f["q"], counts=counts,
+                           holat=HOLAT, sorts=SORTS, kinds=PROGRAM_KINDS, chips=chips, url_with=url_with,
+                           extra=extra, total_due=sum(r["due"] for r in rows), summary=summary, **opts)
+
+
+@bp.route("/azolar/excel")
+def members_export():
+    from io import BytesIO
+
+    from flask import send_file
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    if g.user.role == "menejer":
+        flash("Eksport uchun ruxsat yo'q.", "bad")
+        return redirect(url_for("dastur.members", **request.args))
+    from core.attendance import member_code
+    rows, _ = member_rows(member_filters(request.args))
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "A'zolar"
+    ws.append(["Ism", "Telefon", "Biznesi", "Shahar", "Dasturlar", "To'lagan, so'm", "Qoldiq, so'm",
+               "Oxirgi to'lov", "Telegram", "Ilova", "A'zo kodi", "Qo'shilgan"])
+    for c in ws[1]:
+        c.font, c.fill = Font(bold=True), PatternFill("solid", fgColor="E0F1E9")
+    for r in rows:
+        m = r["member"]
+        ws.append([m.full_name, m.phone, m.business, m.city, ", ".join(p.name for p in r["programs"]),
+                   round(r["paid"]), round(r["due"]), r["last_pay"], "ha" if r["tg"] else "", "ha" if r["app"] else "",
+                   member_code(m.id), m.created_at.date() if m.created_at else None])
+    last = ws.max_row
+    ws.append(["Jami", f"{len(rows)} kishi", "", "", "", f"=SUM(F2:F{last})" if last >= 2 else 0,
+               f"=SUM(G2:G{last})" if last >= 2 else 0])
+    for c in ws[ws.max_row]:
+        c.font = Font(bold=True)
+    for row in ws.iter_rows(min_row=2):
+        row[5].number_format = row[6].number_format = "# ##0"
+        row[7].number_format = row[11].number_format = "DD.MM.YYYY"
+    for i, w in enumerate((26, 18, 26, 14, 40, 15, 15, 14, 10, 8, 12, 12), start=1):
+        ws.column_dimensions[ws.cell(1, i).column_letter].width = w
+    ws.freeze_panes = "A2"
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name=f"assoodiq-azolar-{date.today():%Y-%m-%d}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @bp.route("/azolar/saqlash", methods=["POST"])

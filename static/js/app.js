@@ -500,6 +500,40 @@
     sync();
   });
 
+  // A'zolar filtri: tanlansa darhol qo'llanadi, qidiruv — yozish bilanoq
+  var mf = document.querySelector('[data-mf]');
+  if (mf) {
+    // manzil toza bo'lsin: bo'sh va standart qiymatlar yuborilmaydi
+    function go() {
+      var ps = new URLSearchParams();
+      new FormData(mf).forEach(function (v, k) { v = String(v).trim(); if (v && !(k === 'tartib' && v === 'ism')) ps.set(k, v); });
+      var qs = ps.toString();
+      location.href = location.pathname + (qs ? '?' + qs : '');
+    }
+    mf.addEventListener('submit', function (e) { e.preventDefault(); go(); });
+    mf.addEventListener('change', function (e) { if (e.target.matches('[data-auto]')) go(); });
+    var moreBtn = mf.querySelector('[data-mf-more]'), panel = mf.querySelector('[data-mf-panel]');
+    moreBtn.addEventListener('click', function () {
+      panel.hidden = !panel.hidden; moreBtn.setAttribute('aria-expanded', String(!panel.hidden));
+    });
+    var qi = mf.querySelector('[data-mf-q]'), cards = Array.prototype.slice.call(document.querySelectorAll('[data-mq]'));
+    var cnt = mf.querySelector('[data-mf-count]'), none = document.querySelector('[data-mf-none]'), timer = null;
+    var initial = qi.value.trim();
+    qi.addEventListener('input', function () {
+      var words = qi.value.trim().toLowerCase().split(/\s+/).map(function (w) { return w.replace(/[()+-]/g, ''); }).filter(Boolean);
+      var shown = 0;
+      cards.forEach(function (c) {
+        var hay = c.dataset.mq, ok = words.every(function (w) { return hay.indexOf(w) >= 0; });
+        c.hidden = !ok; if (ok) shown++;
+      });
+      cnt.textContent = shown;
+      none.hidden = shown > 0 || !cards.length;
+      clearTimeout(timer);
+      // bo'shatilsa (avval qidiruv bo'lgan bo'lsa) — butun ro'yxat qaytadi
+      if (!qi.value.trim() && initial) timer = setTimeout(go, 400);
+    });
+  }
+
   // Xabarlar o'zi yo'qoladi
   // (ogohlantirishlar uzoqroq turadi; bosilsa darhol yopiladi)
   document.querySelectorAll('.flash').forEach(function (f) {

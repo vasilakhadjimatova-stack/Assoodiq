@@ -1177,3 +1177,56 @@ def test_prayer_api_manifest_and_service_worker(app):
     assert sw.mimetype == "application/javascript" and b"caches" in sw.data
     r = client.get("/app/kirish")
     assert "frame-ancestors" in r.headers["Content-Security-Policy"] and "X-Frame-Options" not in r.headers
+
+
+def test_members_filters_sort_and_export(app):
+    from io import BytesIO
+    from openpyxl import load_workbook
+    from core.attendance import member_code
+    from core.models import TelegramLink
+    client = app.test_client()
+    login(client, "100100")
+    kurs = Program(name="Kurs F", kind="kurs", price=1_000_000)
+    klub = Program(name="Klub F", kind="klub", price=500_000)
+    a = Member(full_name="Ali Valiyev", phone="+998 90 111 22 33", city="Toshkent")
+    b = Member(full_name="Bobur Sodiqov", phone="+998 91 444 55 66", city="Samarqand")
+    c = Member(full_name="Sardor Karimov", phone="", city="Toshkent")
+    db.session.add_all([kurs, klub, a, b, c])
+    db.session.commit()
+    ea = Enrollment(member_id=a.id, program_id=kurs.id, price=1_000_000, joined_at=date(2026, 1, 1))
+    eb = Enrollment(member_id=b.id, program_id=klub.id, price=500_000, joined_at=date(2026, 1, 1),
+                    valid_until=date.today() - timedelta(days=2))
+    ec = Enrollment(member_id=c.id, program_id=klub.id, price=500_000, joined_at=date(2026, 1, 1),
+                    valid_until=date.today() + timedelta(days=3))
+    db.session.add_all([ea, eb, ec, TelegramLink(member_id=b.id, chat_id="5")])
+    db.session.commit()
+    F.record("kirim", 1_000_000, acc("Asosiy kassa"), enrollment_id=ea.id, program_id=kurs.id)
+    F.record("kirim", 200_000, acc("Asosiy kassa"), enrollment_id=ec.id, program_id=klub.id)
+    db.session.commit()
+
+    def names(**params):
+        html = client.get("/azolar", query_string=params).get_data(as_text=True)
+        return [n for n in ("Ali Valiyev", "Bobur Sodiqov", "Sardor Karimov") if n in html]
+
+    assert names() == ["Ali Valiyev", "Bobur Sodiqov", "Sardor Karimov"]
+    assert names(holat="qarzdor") == ["Bobur Sodiqov", "Sardor Karimov"]
+    assert names(holat="tugagan") == ["Bobur Sodiqov"]
+    assert names(holat="tugayapti") == ["Sardor Karimov"]
+    assert names(dastur=klub.id) == ["Bobur Sodiqov", "Sardor Karimov"]
+    assert names(tur="kurs") == ["Ali Valiyev"]
+    assert names(shahar="Toshkent", tg="0") == ["Ali Valiyev", "Sardor Karimov"]
+    assert names(tg="1") == ["Bobur Sodiqov"]
+    assert names(q="914445566") == ["Bobur Sodiqov"]          # telefon — probelsiz raqam bilan
+    assert names(q=member_code(c.id)) == ["Sardor Karimov"]   # QR karta kodi bilan
+    assert names(q="samarqand") == ["Bobur Sodiqov"]
+    html = client.get("/azolar", query_string={"tartib": "qarz"}).get_data(as_text=True)
+    assert html.index("Bobur Sodiqov") < html.index("Sardor Karimov") < html.index("Ali Valiyev")
+    html = client.get("/azolar", query_string={"dastur": klub.id, "holat": "qarzdor"}).get_data(as_text=True)
+    assert "Klub F" in html and "Hammasini tozalash" in html
+    # Excel — filtr bilan
+    r = client.get("/azolar/excel", query_string={"dastur": klub.id})
+    ws = load_workbook(BytesIO(r.data)).active
+    assert [ws.cell(i, 1).value for i in (2, 3)] == ["Bobur Sodiqov", "Sardor Karimov"] and ws.cell(4, 1).value == "Jami"
+    manager = app.test_client()
+    login(manager, "300300")
+    assert manager.get("/azolar/excel").status_code == 302
