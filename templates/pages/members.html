@@ -21,14 +21,14 @@
 
 <div class="card">
   <div class="table-wrap">
-  <table class="table cards">
+  <table class="table cards tiles">
     <thead><tr><th>A'zo</th><th>Dasturlar</th><th class="r">To'lagan</th><th class="r">Qoldiq</th><th></th></tr></thead>
     <tbody>
     {% for r in rows %}
     {% set m = r.member %}
     <tr>
       <td><a href="{{ url_for('dastur.member', mid=m.id) }}"><div class="t-main">{{ m.full_name }}</div><div class="t-sub">{{ m.business or '—' }}{% if m.phone %} · {{ m.phone }}{% endif %}</div></a></td>
-      <td><span class="lbl">Dasturlar</span><span>{% for p in r.programs[:2] %}<span class="pill {{ 'gold' if p.kind == 'klub' else '' }}" style="margin:1px">{{ p.name|truncate(28, True, '…') }}</span>{% endfor %}{% if r.programs|length > 2 %} <span class="faint">+{{ r.programs|length - 2 }}</span>{% endif %}</span></td>
+      <td class="wide"><span class="lbl">Dasturlar</span><span>{% for p in r.programs[:2] %}<span class="pill {{ 'gold' if p.kind == 'klub' else '' }}" style="margin:1px">{{ p.name|truncate(28, True, '…') }}</span>{% endfor %}{% if r.programs|length > 2 %} <span class="faint">+{{ r.programs|length - 2 }}</span>{% endif %}</span></td>
       <td class="r"><span class="lbl">To'lagan</span>{{ r.paid|num }}</td>
       <td class="r"><span class="lbl">Qoldiq</span>{% if r.due > 0 %}<b class="bad-t">{{ r.due|num }}</b>{% else %}<span class="faint">—</span>{% endif %}</td>
       <td class="r">{% if r.expiring %}<span class="pill warn">Obuna tugayapti</span>{% endif %}</td>

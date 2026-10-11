@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Bosh sahifa{% endblock %}
 {% block content %}
-<div class="head">
+<div class="head dash-head">
   <div>
     <div class="head-t">Assalomu alaykum, {{ g.user.name.split(' ')[0] }}</div>
     <div class="head-s">{{ month_name }} oyi bo'yicha moliyaviy holat va so'nggi 12 oy trendi</div>
@@ -13,11 +13,25 @@
   </div>
 </div>
 
-<div class="stats">
+<div class="dash">
+<div class="stats o-stats">
   <div class="stat hero">
     <div class="stat-l">{{ ui.icon('wallet', 'sm') }} Umumiy balans</div>
     <div class="stat-v">{{ ui.som(total) }}</div>
     <div class="stat-s">{{ accounts|length }} ta hisobda, dollar kursi bo'yicha so'mda</div>
+    {# Telefon: shu oy xulosasi va tez amallar balans kartasining o'zida #}
+    <div class="hero-m">
+      <div class="hero-sum">
+        <div><span>Kirim · {{ month_name }}</span><b>+{{ cur.income|short }}</b></div>
+        <div><span>Chiqim</span><b>−{{ cur.expense|short }}</b></div>
+        <div><span>Sof foyda</span><b>{{ cur.profit|short }}</b></div>
+      </div>
+      <div class="hero-act">
+        <button type="button" data-open="tx-modal" data-set-kind="kirim">{{ ui.icon('in', 'sm') }}Kirim</button>
+        <button type="button" data-open="tx-modal" data-set-kind="chiqim">{{ ui.icon('out', 'sm') }}Chiqim</button>
+        <button type="button" data-open="tx-modal" data-set-kind="otkazma">{{ ui.icon('swap', 'sm') }}O'tkazma</button>
+      </div>
+    </div>
   </div>
   <div class="stat has-spark">
     {{ ui.spark(series|map(attribute='income'), 'in', 'var(--chart-in)', '12 oylik kirim trendi') }}
@@ -39,8 +53,17 @@
   </div>
 </div>
 
+{# Telefon: e'tibor talab qiladigan narsalar — balansdan keyin darhol #}
+<div class="m-alerts o-alerts" aria-label="Diqqat talab">
+  {% if debts.overdue %}<a class="m-alert bad" href="{{ url_for('qarz.debts', holat='otgan') }}">{{ ui.icon('clock', 'sm') }}<span><b>{{ debts.overdue }}</b> ta qarz muddati o'tgan</span></a>{% endif %}
+  {% if member_due > 0 %}<a class="m-alert" href="{{ url_for('dastur.members', holat='qarzdor') }}">{{ ui.icon('users', 'sm') }}<span>Qarzdorlar <b>{{ member_due|short }}</b></span></a>{% endif %}
+  {% if expiring %}<a class="m-alert info" href="{{ url_for('dastur.members', holat='tugayapti') }}">{{ ui.icon('renew', 'sm') }}<span><b>{{ expiring|length }}</b> ta obuna tugayapti</span></a>{% endif %}
+  {% if purif.remaining > 0 %}<a class="m-alert warn" href="{{ url_for('islomiy.purity') }}">{{ ui.icon('shield', 'sm') }}<span>Tozalash <b>{{ purif.remaining|short }}</b></span></a>{% endif %}
+  {% if hawl %}<a class="m-alert gold" href="{{ url_for('islomiy.zakat') }}">{{ ui.icon('coins', 'sm') }}<span>Zakot <b>{{ hawl.days }}</b> kunda</span></a>{% endif %}
+</div>
+
 <div class="grid g-main">
-  <div class="card">
+  <div class="card o-chart">
     <div class="card-h">
       <h3>Kirim va chiqim</h3><span class="sub">so'nggi 12 oy</span>
       <div class="act legend"><span><i style="background:var(--chart-in)"></i>Kirim</span><span><i style="background:var(--chart-out)"></i>Chiqim</span></div>
@@ -56,7 +79,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card o-acc">
     <div class="card-h"><h3>Hisoblar</h3><div class="act"><a class="link" href="{{ url_for('kassa.ledger') }}">Kassa {{ ui.icon('right', 'sm') }}</a></div></div>
     <div class="card-b">
       {% for r in accounts %}
@@ -73,7 +96,7 @@
 </div>
 
 <div class="grid g-3 mt">
-  <div class="card">
+  <div class="card o-zakot">
     <div class="card-h"><h3>Zakot</h3><span class="sub">2,5%</span><div class="act"><a class="link" href="{{ url_for('islomiy.zakat') }}">Hisoblash {{ ui.icon('right', 'sm') }}</a></div></div>
     <div class="card-b" style="display:flex;gap:18px;align-items:center">
       {% set ratio = (zakat.base / nisob) if nisob else 0 %}
@@ -95,7 +118,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card o-due">
     <div class="card-h"><h3>Undirilishi kerak</h3><div class="act"><a class="link" href="{{ url_for('dastur.members', holat='qarzdor') }}">Qarzdorlar {{ ui.icon('right', 'sm') }}</a></div></div>
     <div class="card-b">
       <div class="zrow"><div><label>O'quvchilar to'lovi</label><small>kurs va klub bo'yicha qoldiq</small></div><b>{{ ui.som(member_due) }}</b></div>
@@ -104,7 +127,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card o-attn">
     <div class="card-h"><h3>Diqqat talab</h3></div>
     <div class="card-b">
       {% if purif.remaining > 0 %}
@@ -122,7 +145,7 @@
 </div>
 
 <div class="grid g-main mt">
-  <div class="card">
+  <div class="card o-prog">
     <div class="card-h"><h3>Dasturlar bo'yicha natija</h3><div class="act"><a class="link" href="{{ url_for('hisobot.pnl') }}">Hisobot {{ ui.icon('right', 'sm') }}</a></div></div>
     <div class="card-b" style="padding-top:6px">
       <div class="table-wrap">
@@ -146,7 +169,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card o-exp">
     <div class="card-h"><h3>Bu oy xarajatlari</h3><span class="sub">guruhlar bo'yicha</span></div>
     <div class="card-b">
       {% for e in expenses %}
@@ -161,12 +184,14 @@
   </div>
 </div>
 
-<div class="card mt">
+<div class="card mt o-recent">
   <div class="card-h"><h3>So'nggi yozuvlar</h3><div class="act"><a class="link" href="{{ url_for('kassa.ledger') }}">Hammasi {{ ui.icon('right', 'sm') }}</a></div></div>
   <div class="card-b" style="padding-top:4px">
     {% for t in recent %}{{ ui.tx_row(t) }}{% else %}<div class="empty"><b>Yozuv yo'q</b>Birinchi kirim yoki chiqimni qo'shing.</div>{% endfor %}
   </div>
 </div>
+
+</div>{# .dash #}
 
 {{ ui.tx_modal('tx-modal', accounts, f_categories, f_programs, aqd_types, shariat_types, next_url=request.path) }}
 {% endblock %}

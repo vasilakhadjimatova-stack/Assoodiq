@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=12">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=14">
   <script>
     document.documentElement.classList.add('js');
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
@@ -71,6 +71,8 @@
       <div class="topbar">
         <button class="icon-btn" type="button" data-nav-open>{{ ui.icon('menu') }}</button>
         <a class="topbar-logo" href="/" aria-label="Assoodiq">{% include "partials/mark.svg" %}{% include "partials/wordmark.svg" %}</a>
+        <a class="icon-btn topbar-search" href="{{ url_for('qidiruv.search') }}" aria-label="Qidirish">{{ ui.icon('search') }}</a>
+        <span class="avatar topbar-av" aria-hidden="true">{{ g.user.name[:1] }}</span>
       </div>
       {% if demo_mode %}
       <div class="demo-bar" role="status">{{ ui.icon('info', 'sm') }}<span><b>Test rejimi:</b> namuna ma'lumotlar bilan ishlayapsiz. Haqiqiy ishni boshlashdan oldin ularni tozalang.</span>{% if g.user.role == 'rahbar' %}<a class="link" href="{{ url_for('sozlama.index', bolim='malumotlar') }}">Tozalash {{ ui.icon('right', 'sm') }}</a>{% endif %}</div>
@@ -95,7 +97,7 @@
   {% for cat, msg in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}" role="{{ 'alert' if cat == 'bad' else 'status' }}">{{ ui.icon('alert' if cat == 'bad' else 'check', 'sm') }}<span>{{ msg }}</span></div>{% endfor %}
 </div>
 {% endblock %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=12"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=14"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
