@@ -811,3 +811,161 @@ def test_dashboard_today_lessons_states(app):
     login(client, "100100")
     page = client.get("/").get_data(as_text=True)
     assert "Bugungi darslar" in page and "Davomat" in page
+
+
+# ── Telegram ──
+
+@pytest.fixture
+def tg(app, monkeypatch):
+    """Telegram API o'rniga yozib boruvchi soxta funksiya."""
+    from core import telegram as T
+    calls = []
+
+    def fake_api(method, payload=None, tok=None, timeout=10):
+        calls.append((method, payload or {}))
+        if method == "getMe":
+            return True, {"username": "assoodiq_test_bot"}
+        if method == "sendMessage" and str(payload.get("chat_id")) == "999":
+            return False, "Forbidden: bot was blocked by the user"
+        return True, {"message_id": len(calls)}
+
+    monkeypatch.setattr(T, "api", fake_api)
+    F.set_setting("tg_token", "123:ABC")
+    F.set_setting("tg_bot", "assoodiq_test_bot")
+    db.session.commit()
+    return calls
+
+
+def _upd(chat_id, text=None, **msg):
+    m = {"chat": {"id": chat_id, "type": "private"}, "from": {"id": chat_id, "username": "ali"}, **msg}
+    if text is not None:
+        m["text"] = text
+    return {"update_id": 1, "message": m}
+
+
+def _sent(calls):
+    return [p for meth, p in calls if meth == "sendMessage"]
+
+
+def test_telegram_webhook_secret_and_linking(app, tg):
+    from core import telegram as T
+    from core.attendance import member_code
+    from core.models import TelegramLink
+    client = app.test_client()
+    a = Member(full_name="Ali Valiyev", phone="+998 90 123 45 67")
+    b = Member(full_name="Bobur Sodiqov", phone="90 765 43 21")
+    db.session.add_all([a, b])
+    db.session.commit()
+    secret = T.webhook_secret()
+    hdr = {"X-Telegram-Bot-Api-Secret-Token": secret}
+    # kalitsiz yoki noto'g'ri kalit — 404
+    assert client.post(f"/telegram/hook/{secret}", json=_upd(1, "/start")).status_code == 404
+    assert client.post("/telegram/hook/wrong", json=_upd(1, "/start"), headers=hdr).status_code == 404
+    # /start AQ… — shaxsiy havola orqali ulanish
+    r = client.post(f"/telegram/hook/{secret}", json=_upd(111, f"/start {member_code(a.id)}"), headers=hdr)
+    assert r.status_code == 200
+    link = TelegramLink.query.filter_by(member_id=a.id).one()
+    assert link.chat_id == "111" and link.active and link.username == "ali"
+    assert "Ali Valiyev" in _sent(tg)[-1]["text"]
+    # telefon raqami orqali ulanish (oxirgi 9 raqam bo'yicha)
+    client.post(f"/telegram/hook/{secret}", json=_upd(222, contact={"phone_number": "998907654321", "user_id": 222}), headers=hdr)
+    assert TelegramLink.query.filter_by(member_id=b.id).one().chat_id == "222"
+    client.post(f"/telegram/hook/{secret}", json=_upd(333, contact={"phone_number": "998900000000", "user_id": 333}), headers=hdr)
+    assert "topilmadi" in _sent(tg)[-1]["text"]
+    # bot tugmalari: jadval va to'lov
+    p = Program(name="Kurs T", kind="kurs", price=500_000)
+    db.session.add(p)
+    db.session.commit()
+    db.session.add(Enrollment(member_id=a.id, program_id=p.id, price=500_000, joined_at=date(2026, 1, 1)))
+    db.session.commit()
+    client.post(f"/telegram/hook/{secret}", json=_upd(111, "💳 To'lov"), headers=hdr)
+    assert "500 000" in _sent(tg)[-1]["text"] or "500 000" in _sent(tg)[-1]["text"]
+    client.post(f"/telegram/hook/{secret}", json=_upd(111, "📅 Jadval"), headers=hdr)
+    assert "dars" in _sent(tg)[-1]["text"].lower()
+    # /stop — eslatmalar to'xtaydi
+    client.post(f"/telegram/hook/{secret}", json=_upd(111, "/stop"), headers=hdr)
+    assert not TelegramLink.query.filter_by(member_id=a.id).one().active
+
+
+def test_telegram_auto_reminders_sent_once(app, tg):
+    from datetime import datetime, time
+    from core import telegram as T
+    from core.models import Lesson, Notification, TelegramLink
+    p = Program(name="Kurs R", kind="kurs", price=300_000)
+    a, b, c = Member(full_name="Ali Valiyev"), Member(full_name="Bobur"), Member(full_name="Blok Bek")
+    db.session.add_all([p, a, b, c])
+    db.session.commit()
+    for m in (a, b, c):
+        db.session.add(Enrollment(member_id=m.id, program_id=p.id, price=300_000, joined_at=date(2026, 1, 1)))
+    db.session.add_all([TelegramLink(member_id=a.id, chat_id="111"), TelegramLink(member_id=c.id, chat_id="999")])
+    d = date.today() + timedelta(days=1)
+    les = Lesson(program_id=p.id, title="3-dars", date=d, start=time(10, 0), end=time(12, 0), location="Zal A")
+    db.session.add(les)
+    db.session.commit()
+    now = datetime.combine(d, time(8, 0))  # 2 soat oldin (standart: 3 soat)
+    T.run_due(now)
+    texts = [x["text"] for x in _sent(tg) if x["chat_id"] == "111"]
+    assert len(texts) == 1 and "3-dars" in texts[0] and "10:00" in texts[0]
+    # Blok Bek botni bloklagan — havola o'chadi, xato yoziladi
+    assert not TelegramLink.query.filter_by(member_id=c.id).one().active
+    assert Notification.query.filter_by(status="failed").count() == 1
+    # qayta ishga tushsa — takror yuborilmaydi
+    n = len(_sent(tg))
+    T.run_due(now)
+    assert len(_sent(tg)) == n
+    # oylik to'lov eslatmasi (yoqilgan bo'lsa, belgilangan kuni)
+    F.set_setting("tg_auto_pay", "1")
+    F.set_setting("tg_pay_day", str(d.day))
+    db.session.commit()
+    T.run_due(datetime.combine(d, time(11, 0)))
+    pay = [x["text"] for x in _sent(tg)[n:]]
+    assert len(pay) == 1 and "300" in pay[0]
+    T.run_due(datetime.combine(d, time(11, 5)))
+    assert len(_sent(tg)) == n + 1
+
+
+def test_telegram_settings_broadcast_and_lesson_reminder(app, tg):
+    from datetime import time
+    from core.models import Lesson, Notification, TelegramLink
+    client = app.test_client()
+    login(client, "100100")
+    page = client.get("/sozlamalar/?bolim=telegram").get_data(as_text=True)
+    assert "@assoodiq_test_bot" in page and "Botni saytga ulash" in page
+    # yangi token getMe orqali tekshiriladi
+    client.post("/telegram/sozla", data={"token": "456:XYZ", "tg_auto_lessons": "on", "tg_lead_hours": "2",
+                                         "tg_expiry_days": "5", "tg_pay_day": "40"})
+    assert F.get_setting("tg_token") == "456:XYZ" and F.get_setting("tg_lead_hours") == "2"
+    assert F.get_setting("tg_pay_day") == "28" and F.get_setting("tg_auto_expiry") == "0"
+    assert ("getMe", {}) in tg
+    client.post("/telegram/webhook", data={"base": "http://assoodiq.up.railway.app"})
+    hook = next(p for meth, p in tg if meth == "setWebhook")
+    assert hook["url"].startswith("https://assoodiq.up.railway.app/telegram/hook/") and hook["secret_token"]
+    # dastur a'zolariga xabar: ulanganlarga boradi, qolganlar sanaladi
+    p = Program(name="Klub X", kind="klub", price=100_000)
+    a, b = Member(full_name="Ali Valiyev"), Member(full_name="Bobur")
+    db.session.add_all([p, a, b])
+    db.session.commit()
+    for m in (a, b):
+        db.session.add(Enrollment(member_id=m.id, program_id=p.id, price=100_000, joined_at=date(2026, 1, 1)))
+    db.session.add(TelegramLink(member_id=a.id, chat_id="111"))
+    db.session.commit()
+    r = client.post("/telegram/yuborish", data={"scope": "dastur", "program_id": p.id,
+                                                "text": "Salom, {ism}! <script> {dastur}"}, follow_redirects=True)
+    assert r.status_code == 200
+    msg = _sent(tg)[-1]
+    assert msg["chat_id"] == "111" and msg["text"] == "Salom, Ali! &lt;script&gt; Klub X"
+    assert Notification.query.filter_by(member_id=b.id).count() == 0
+    # qarzdorlarga — shablon bilan
+    client.post("/telegram/yuborish", data={"scope": "qarzdorlar", "program_id": p.id})
+    assert "100" in _sent(tg)[-1]["text"]
+    # darsdan eslatma tugmasi va o'quvchi kartasi
+    les = Lesson(program_id=p.id, title="Uchrashuv", date=date.today() + timedelta(days=2), start=time(18), end=time(19))
+    db.session.add(les)
+    db.session.commit()
+    client.post(f"/telegram/dars/{les.id}")
+    assert "Uchrashuv" in _sent(tg)[-1]["text"]
+    client.post(f"/telegram/dars/{les.id}")  # takror bosilsa — ikkinchi marta yuborilmaydi
+    assert sum("Uchrashuv" in x["text"] for x in _sent(tg)) == 1
+    page = client.get(f"/azolar/{b.id}").get_data(as_text=True)
+    assert "t.me/assoodiq_test_bot?start=" in page
+    assert "Ulangan" in client.get(f"/azolar/{a.id}").get_data(as_text=True)

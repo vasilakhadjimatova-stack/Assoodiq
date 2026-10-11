@@ -35,6 +35,7 @@
     <div><b>{{ ui.icon('calendar', 'sm') }} Dars jadvali</b>
       <span>{% if lesson_stat.total %}{{ lesson_stat.done }} / {{ lesson_stat.total }} ta dars o'tdi{% else %}hali reja tuzilmagan{% endif %}{% if lesson_stat.att is not none %} · o'rtacha davomat <b class="{{ 'ok-t' if lesson_stat.att >= 0.8 else 'warn-t' }}">{{ (lesson_stat.att * 100)|round|int }}%</b>{% endif %}</span></div>
     <div class="p-lessons-a">
+      <button class="btn ghost sm" data-open="tg-prog" title="Telegram orqali xabar">{{ ui.icon('send', 'sm') }} Xabar yuborish</button>
       <a class="btn ghost sm" href="{{ url_for('dastur.cards', dastur=p.id) }}" target="_blank" title="A'zolarning QR kartalarini chop etish">{{ ui.icon('sheet', 'sm') }} QR kartalar</a>
       <a class="btn ghost sm" href="{{ url_for('kalendar.index', v='hafta', d=(next_lessons[0].date.isoformat() if next_lessons else none)) }}">Kalendarda ochish</a>
       <a class="btn tonal sm" href="{{ url_for('kalendar.index', yangi=p.id, d=(p.start_date.isoformat() if p.start_date and p.start_date > today else none)) }}">{{ ui.icon('plus', 'sm') }} Darslar rejasini tuzish</a>
@@ -140,4 +141,24 @@
 {{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, preset={'kind': 'chiqim', 'program_id': p.id, 'lock_kind': True}, next_url=here, title='Dastur xarajati') }}
 {% include "partials/program_form.html" %}
 {% if g.user.role != 'menejer' %}{% with next_url=here %}{% include "partials/transfer_modal.html" %}{% include "partials/refund_modal.html" %}{% endwith %}{% endif %}
+<dialog class="modal" id="tg-prog">
+  <form method="post" action="{{ url_for('telegram.broadcast') }}">
+    <input type="hidden" name="program_id" value="{{ p.id }}"><input type="hidden" name="next" value="{{ here }}">
+    <div class="modal-h"><div><h3>{{ ui.icon('send', 'sm') }} Telegram orqali xabar</h3><div class="faint" style="font-size:13px;font-weight:650">{{ p.name }}</div></div><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b">
+      {% if not tg.enabled %}
+      <div class="tr-paid rf-info">{{ ui.icon('info', 'sm') }}<span>Telegram bot ulanmagan — {% if can('sozlama') %}<a class="link" href="{{ url_for('sozlama.index', bolim='telegram') }}">Sozlamalar → Telegram</a>{% else %}rahbarga murojaat qiling{% endif %}.</span></div>
+      {% else %}
+      <div class="tr-paid">{{ ui.icon('users', 'sm') }}<span><b>{{ tg.linked }}</b> / {{ tg.members }} faol a'zo Telegram'ga ulangan. Ulanmaganlarga xabar bormaydi — o'quvchi kartasidagi «Telegram» tugmasi orqali ulang.</span></div>
+      <div class="rf-then">
+        <label><input type="radio" name="scope" value="dastur" checked data-tg-scope><b>Barcha a'zolarga</b><span>O'zingiz yozgan xabar</span></label>
+        <label><input type="radio" name="scope" value="qarzdorlar" data-tg-scope><b>Qarzdorlarga ({{ tg.debtors }})</b><span>To'lov eslatmasi shabloni bilan, qoldig'i yozilgan holda</span></label>
+      </div>
+      <div class="field" data-tg-text><label>Xabar</label><textarea name="text" rows="5" placeholder="Assalomu alaykum, {ism}! Bugungi dars 30 daqiqa kech boshlanadi."></textarea>
+        <span class="hint">{ism} — o'quvchining ismi, {dastur} — dastur nomi bilan almashadi</span></div>
+      {% endif %}
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button>{% if tg.enabled %}<button class="btn solid">{{ ui.icon('send', 'sm') }} Yuborish</button>{% endif %}</div>
+  </form>
+</dialog>
 {% endblock %}

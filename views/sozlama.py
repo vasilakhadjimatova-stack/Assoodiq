@@ -35,7 +35,29 @@ def index():
         logs=(AuditLog.query.order_by(AuditLog.created_at.desc()).limit(200).all()
               if request.args.get("bolim") == "tarix" else []),
         actions=audit.ACTIONS,
+        tg=_telegram_context() if request.args.get("bolim") == "telegram" else None,
     )
+
+
+def _telegram_context():
+    import os
+    from datetime import datetime, timezone
+    from core import telegram as T
+    from core.models import Member, Notification, TelegramLink
+    tok = T.token()
+    return {
+        "env": bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
+        "token_mask": (tok[:6] + "…" + tok[-4:]) if tok else "",
+        "bot": F.get_setting("tg_bot"), "webhook": F.get_setting("tg_webhook"),
+        "opts": {k: F.get_setting(k) for k in ("tg_auto_lessons", "tg_lead_hours", "tg_auto_expiry",
+                                               "tg_expiry_days", "tg_auto_pay", "tg_pay_day")},
+        "tpl": {k: T.template(k) for k in T.DEFAULT_TEMPLATES}, "ph": T.PLACEHOLDERS,
+        "linked": TelegramLink.query.filter_by(active=True).count(), "members": Member.query.count(),
+        "sent_today": Notification.query.filter(Notification.status == "sent",
+                                                Notification.created_at >= datetime.now(timezone.utc).replace(tzinfo=None) - __import__("datetime").timedelta(hours=24)).count(),
+        "log": Notification.query.order_by(Notification.created_at.desc()).limit(25).all(),
+        "site": request.url_root.rstrip("/"),
+    }
 
 
 @bp.route("/umumiy", methods=["POST"])

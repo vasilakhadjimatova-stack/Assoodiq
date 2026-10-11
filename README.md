@@ -15,6 +15,7 @@ ichiga qurilgan.
 | **Sheets'dan ko'chirish** | Google Sheets / Excel'dan qatorlarni nusxa olib qo'yish yoki .xlsx/.csv yuklash. Ustunlar sarlavha bo'yicha taniladi (Sana, Summa yoki Kirim/Chiqim, Hisob, Kategoriya, Kimdan/kimga, Izoh…), har qator tekshiriladi, bazada bor yozuv ikkinchi marta qo'shilmaydi |
 | **Dars jadvali** | «Darslar markazi»: zumrad bannerda keyingi darsgacha jonli sanoq, davr bo'yicha halqa (nechta dars o'tdi, necha soat), hijriy sanalar. Ko'rinishlar: **Hafta** — kunlar kartalarida dars chiptalari (chiptani boshqa kunga sudrab ko'chirish), **Soatlar** — vaqt to'ri (sudrash va cho'zish), **Oy**, **Yo'l xaritasi** — har kurs boshidan oxirigacha: o'tgan / keyingi / bekor darslar va «Bugun» belgisi. Takrorlanuvchi darslar, «N-dars» raqami, zal yoki o'qituvchi to'qnashuvi haqida ogohlantirish, seriyani tahrirlash/o'chirish. Klaviatura: C, T, ←/→, H/S/O/Y |
 | **Davomat va QR skaner** | Har darsda davomat: keldi / kechikdi / kelmadi / sababli, «qolganlar keldi» bir bosishda. Har a'zoga QR kodli karta (A4 da 8 tadan chop etiladi, kod `AQ` + raqam + nazorat raqami). QR skaner USB/Bluetooth orqali klaviatura kabi ulanadi: davomat sahifasi ochiq tursa, karta tutilishi bilan «keldi» (10 daqiqadan kech — «kechikdi») belgilanadi, ovozli signal bilan; telefon kamerasi bilan skaner ham bor. O'quvchi kartasida va dastur sahifasida davomat foizi |
+| **Telegram eslatmalar** | O'quvchilarga bot orqali avtomatik eslatma: darsdan N soat oldin (vaqti, joyi, ustozi bilan), obuna tugashidan N kun oldin va har oyning belgilangan kunida qarzdorlarga to'lov eslatmasi. Har biri bir marta yuboriladi (takror yo'q). Qo'lda: bitta o'quvchiga, butun dasturga yoki faqat qarzdorlarga xabar, darsdan «Eslatma yuborish». O'quvchi kartadagi shaxsiy havola/QR yoki telefon raqami orqali ulanadi; botda «📅 Jadval» va «💳 To'lov» tugmalari, /stop. Barcha xabarlar jurnali Sozlamalarda |
 | **Kurs va klublar** | Har bir potok/klub/tadbir bo'yicha: a'zolar soni, kutilgan va yig'ilgan summa, xarajat, sof foyda, rentabellik, 1 a'zoni jalb qilish narxi |
 | **A'zolar** | O'quvchi va klub a'zolari, kim qancha to'lagan va qancha qarz. Klub obunasini bir tugma bilan uzaytirish, muddati tugayotganlar ro'yxati |
 | **Zakot** | Naqd, undiriladigan haqlar, tovar zaxirasi va qarzlar daftardan avtomatik yig'iladi. Nisob oltin (85 g) yoki kumush (595 g) bo'yicha. Havl sanasi hijriy taqvimda, hisob-kitoblar tarixi saqlanadi |
@@ -65,6 +66,11 @@ kategoriyalar va bitta **rahbar**ni o'zi yaratadi, `seed.py`ni ishga tushirish s
 3. **Settings → Networking → Generate Domain**.
 4. Rahbar kodi bilan kiring. Sozlamalar → Xodimlar'da buxgalter va menejerlarni qo'shing,
    har biriga tizim kod beradi.
+5. *(ixtiyoriy)* **Telegram.** [@BotFather](https://t.me/BotFather) da `/newbot` bilan bot
+   yarating. Sozlamalar → Telegram'da tokenni kiritib, «Botni saytga ulash»ni bosing. Token
+   o'rniga `TELEGRAM_BOT_TOKEN` o'zgaruvchisini ham berish mumkin. Eslatmalarni har daqiqada
+   ilova ichidagi fon oqimi tekshiradi (bitta gunicorn worker yetarli; `TELEGRAM_SCHEDULER=0` —
+   o'chiradi).
 
 **Test rejimi.** Sozlamalar → Ma'lumotlar bo'limida rahbar bo'sh bazaga 12 oylik namuna
 ma'lumot yuklaydi (8 dastur, 46 a'zo, kirim-chiqim, qarz, zakot). Test rejimida har sahifada
@@ -87,6 +93,7 @@ core/
   hijri.py          Hijriy taqvim (jadval usuli) va havl sanasi
   attendance.py     Davomat: a'zo QR kodi, dars ro'yxati, belgilash va statistika
   calendar.py       Dars jadvali: haftalik takrorlash, kun ichida joylashtirish, to'qnashuvlar
+  telegram.py       Telegram bot: yuborish, shablonlar, avtomatik eslatmalar, webhook buyruqlari
   sheets.py         Google Sheets / Excel'dan import: ustunlarni tanish, summa va sana formatlari, takrorlar
 views/              Bo'limlar: kassa, dastur, qarz, islomiy, hisobot, sozlama, auth
 templates/          Jinja shablonlari; partials/ui.html — umumiy bo'laklar (ikonka, grafik, oynalar)
@@ -106,6 +113,7 @@ o'zgarmaydi.
 - Sessiya cookie: `HttpOnly`, `SameSite=Lax`, HTTPS'da `Secure`; kalit bazada saqlanadi
 - Boshqa saytdan yuborilgan o'zgartiruvchi so'rovlar (CSRF) `Origin` tekshiruvi bilan rad etiladi
 - `X-Frame-Options`, `Referrer-Policy`, moliyaviy sahifalarda `Cache-Control: no-store`
+- Telegram webhook maxfiy manzil va `X-Telegram-Bot-Api-Secret-Token` sarlavhasi bilan tekshiriladi
 - Rollar server tomonda tekshiriladi (menejer chiqim/tahrir/eksport/dastur narxini o'zgartira olmaydi)
 
 ## Shariat bo'yicha qabul qilingan qoidalar (tasdiqlash kerak)
@@ -124,7 +132,8 @@ tushirishdan oldin Assoodiq'ning shariat maslahatchisi bilan ko'rib chiqing:
 
 - **Google Sheets bilan sinxron.** Hozir qo'lda nusxa olib ko'chiriladi; kerak bo'lsa Sheets'ni
   to'g'ridan-to'g'ri ulab, o'tish davrida avtomatik sinxronlash.
-- **Telegram bot.** Chiqimni tez kiritish, kunlik hisobot, qarzdorlarga va obunasi tugayotganlarga eslatma.
+- **Telegram bot (xodimlar uchun).** O'quvchilarga eslatmalar tayyor; keyingisi — rahbarga
+  kunlik hisobot va chiqimni bot orqali tez kiritish.
 - **Sheriklik hisobi.** Mushoraka va mudoraba asosida ta'sischilar o'rtasida foydani taqsimlash
   (sheriklar soni va nisbatlari aniqlangach).
 - **To'lov tizimlari.** Payme/Click to'lovlarini avtomatik qabul qilish.

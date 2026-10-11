@@ -31,6 +31,7 @@
     <button class="mp-btn gold" data-open="pay-modal" data-set-enrollment-id="{{ e.id }}" data-set-amount="{{ first_due.due|round(2) }}" data-set-member="{{ e.program.name }}" data-set-category-id="{{ pay_categories[e.id].id if pay_categories[e.id] }}">{{ ui.icon('plus', 'sm') }} To'lov qabul qilish</button>
     {% endif %}
     {% if can_edit and open_programs %}<button class="mp-btn" data-open="m-enroll-modal">{{ ui.icon('cap', 'sm') }} Dasturga yozish</button>{% endif %}
+    <button class="mp-btn {{ 'tg-on' if tg.link and tg.link.active }}" data-open="tg-modal" title="Telegram">{{ ui.icon('send', 'sm') }} Telegram{% if tg.link and tg.link.active %} ✓{% endif %}</button>
     <a class="mp-btn" href="{{ url_for('dastur.cards', a=m.id) }}" target="_blank" title="QR a'zo kartasini chop etish">{{ ui.icon('sheet', 'sm') }} QR karta</a>
     <button class="mp-btn icon" data-open="member-modal" title="Tahrirlash" aria-label="Tahrirlash">{{ ui.icon('pencil', 'sm') }}</button>
   </div>
@@ -72,6 +73,7 @@
         <a href="#" data-k="pay">To'lovlar <span class="n">{{ timeline|selectattr('kind', 'equalto', 'pay')|list|length }}</span></a>
         <a href="#" data-k="program">Dasturlar <span class="n">{{ timeline|selectattr('kind', 'equalto', 'program')|list|length }}</span></a>
         {% if timeline|selectattr('kind', 'equalto', 'debt')|list %}<a href="#" data-k="debt">Qarzlar</a>{% endif %}
+        {% if timeline|selectattr('kind', 'equalto', 'tg')|list %}<a href="#" data-k="tg">Telegram</a>{% endif %}
       </div>
     </div>
     <div class="card-b">
@@ -178,5 +180,30 @@
 {{ ui.pay_modal(f_accounts, None, aqd_types, here) }}
 {{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, next_url=here) }}
 {% if can_edit %}{% with next_url=here %}{% include "partials/transfer_modal.html" %}{% include "partials/refund_modal.html" %}{% endwith %}{% endif %}
+<dialog class="modal" id="tg-modal">
+  <div class="modal-h"><div><h3>{{ ui.icon('send', 'sm') }} Telegram</h3><div class="faint" style="font-size:13px;font-weight:650">{{ m.full_name }}</div></div><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+  {% if not tg.enabled %}
+  <div class="modal-b"><div class="tr-paid rf-info">{{ ui.icon('info', 'sm') }}<span>Telegram bot hali ulanmagan. {% if can('sozlama') %}<a class="link" href="{{ url_for('sozlama.index', bolim='telegram') }}">Sozlamalar → Telegram</a> bo'limida 2 daqiqada ulanadi.{% else %}Rahbarga murojaat qiling.{% endif %}</span></div></div>
+  {% elif tg.link and tg.link.active %}
+  <form method="post" action="{{ url_for('telegram.broadcast') }}">
+    <input type="hidden" name="scope" value="azo"><input type="hidden" name="member_id" value="{{ m.id }}"><input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+    <div class="modal-b">
+      <div class="tg-linked">{{ ui.icon('check', 'sm') }} Ulangan{% if tg.link.username %} · @{{ tg.link.username }}{% endif %} · {{ tg.link.linked_at|localdt }}</div>
+      <div class="field"><label>Xabar</label><textarea name="text" rows="5" required placeholder="Assalomu alaykum, {ism}! …">{% if total_due > 0 %}Assalomu alaykum, {ism}! To'lov qoldig'ingiz: {{ total_due|num }} so'm. Iltimos, imkon qadar to'lovni amalga oshiring.{% endif %}</textarea>
+        <span class="hint">{ism} — o'quvchining ismi bilan almashadi</span></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">{{ ui.icon('send', 'sm') }} Yuborish</button></div>
+  </form>
+  {% else %}
+  <div class="modal-b tg-join">
+    <p>O'quvchi Telegram'ga hali ulanmagan. Unga shu havolani yuboring yoki QR kodni telefon kamerasi bilan skaner qildiring — «Start» bosishi bilan ulanadi.</p>
+    {% if tg.deep %}
+    <div class="tg-qr">{{ qr_svg(tg.deep) }}</div>
+    <div class="tg-copy"><input type="text" value="{{ tg.deep }}" readonly data-copy-src><button type="button" class="btn tonal sm" data-copy>{{ ui.icon('copy', 'sm') }} Nusxa</button></div>
+    {% endif %}
+    <span class="hint">Yoki o'quvchi botga <b>@{{ tg.bot }}</b> yozib, telefon raqamini yuborsin{% if m.phone %} (bazadagi raqam: {{ m.phone }}){% else %} — avval kartaga telefon raqamini kiriting{% endif %}.</span>
+  </div>
+  {% endif %}
+</dialog>
 {% include "partials/member_form.html" %}
 {% endblock %}

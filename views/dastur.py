@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
@@ -117,8 +118,14 @@ def program(pid):
     marks = (db.session.query(Attendance.status).join(Lesson, Attendance.lesson_id == Lesson.id)
              .filter(Lesson.program_id == p.id).all())
     lesson_stat["att"] = (sum(1 for (st,) in marks if st in PRESENT) / len(marks)) if marks else None
+    from core import telegram as T
+    from core.models import TelegramLink
+    mids = [r["enrollment"].member_id for r in rows if r["enrollment"].status == "faol"]
+    tg = {"enabled": T.enabled(), "members": len(set(mids)),
+          "linked": TelegramLink.query.filter(TelegramLink.member_id.in_(mids), TelegramLink.active.is_(True)).count() if mids else 0,
+          "debtors": sum(1 for r in rows if r["due"] > 0 and r["enrollment"].status != "chiqqan")}
     return render_template("pages/program.html", p=p, stat=stat, rows=rows, seg=seg,
-                           next_lessons=next_lessons, lesson_stat=lesson_stat, color=color_for(p.id),
+                           next_lessons=next_lessons, lesson_stat=lesson_stat, color=color_for(p.id), tg=tg,
                            expenses=expenses, members=members, kinds=PROGRAM_KINDS,
                            statuses=PROGRAM_STATUS, billings=BILLING,
                            pay_category=_payment_category(p), transfer_targets=transfer_targets(),
@@ -410,8 +417,10 @@ def member(mid):
                      if p.id not in enrolled]
     from core.attendance import member_rate
     att_rates = {r["enrollment"].id: member_rate(m.id, r["enrollment"].program_id) for r in enrs}
+    from core import telegram as T
+    tg = {"enabled": T.enabled(), "link": m.telegram, "deep": T.deep_link(m.id), "bot": T.bot_username()}
     return render_template("pages/member.html", m=m, enrs=enrs, payments=payments, timeline=timeline,
-                           att_rates=att_rates,
+                           att_rates=att_rates, tg=tg,
                            since=member_since(m, enrs),
                            pay_count=pay_count, open_programs=open_programs, transfer_targets=transfer_targets(),
                            total_paid=sum(r["paid"] for r in enrs),
@@ -474,11 +483,17 @@ def member_timeline(m, enrs, payments):
                           "sub": ("yopilgan" if d.closed else (f"muddati {d.due_date:%d.%m.%Y}" if d.due_date else "ochiq"))
                                  + (f" · {d.note}" if d.note else ""),
                           "debt": d})
+    from core.models import Notification
+    kinds = {"dars": "Dars eslatmasi", "qarz": "To'lov eslatmasi", "obuna": "Obuna eslatmasi", "xabar": "Xabar"}
+    for n in Notification.query.filter_by(member_id=m.id).order_by(Notification.created_at.desc()).limit(30).all():
+        items.append({"date": n.created_at.date(), "kind": "tg", "icon": "send", "tone": "info" if n.status == "sent" else "warn",
+                      "title": f"Telegram: {kinds.get(n.kind, 'xabar')}" + ("" if n.status == "sent" else " — yetkazilmadi"),
+                      "sub": re.sub(r"<[^>]+>", "", n.text or "")[:120]})
     since = member_since(m, enrs)
     if since:
         items.append({"date": since, "kind": "program", "icon": "user-plus", "tone": "",
                       "title": "Bazaga qo'shildi", "sub": m.business or ""})
-    order = {"pay": 0, "debt": 1, "program": 2}
+    order = {"pay": 0, "debt": 1, "program": 2, "tg": 3}
     items.sort(key=lambda x: (x["date"], -order[x["kind"]]), reverse=True)
     return items
 

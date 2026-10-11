@@ -10,7 +10,7 @@ from core import finance as F
 from core import hijri
 from core.extensions import db
 from core.models import (
-    Account, Attendance, Category, Debt, Enrollment, Lesson, Member, MemberEvent, Program, Setting, Transaction, User, ZakatSnapshot,
+    Account, Attendance, Category, Debt, Enrollment, Lesson, Member, MemberEvent, Notification, Program, Setting, TelegramLink, Transaction, User, ZakatSnapshot,
 )
 
 # Namuna uchun boshlang'ich qoldiqlar
@@ -351,6 +351,8 @@ def clear_data():
     """Barcha moliyaviy yozuvlarni o'chiradi. Xodimlar, hisoblar, kategoriyalar va
     sozlamalar (kurs, nisob narxi) saqlanib qoladi; hisoblar qoldig'i nolga tushadi."""
     Transaction.query.delete()
+    Notification.query.delete()
+    TelegramLink.query.delete()
     Attendance.query.delete()
     Lesson.query.delete()
     MemberEvent.query.delete()

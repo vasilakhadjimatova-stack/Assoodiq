@@ -12,9 +12,9 @@ from core.models import User
 
 # Rol → kirish mumkin bo'lgan bo'limlar (blueprint nomlari)
 ROLE_SECTIONS = {
-    "rahbar": {"main", "kassa", "dastur", "kalendar", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
-    "buxgalter": {"main", "kassa", "dastur", "kalendar", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
-    "menejer": {"kassa", "dastur", "kalendar", "qidiruv"},
+    "rahbar": {"main", "kassa", "dastur", "kalendar", "telegram", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
+    "buxgalter": {"main", "kassa", "dastur", "kalendar", "telegram", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
+    "menejer": {"kassa", "dastur", "kalendar", "telegram", "qidiruv"},
 }
 
 
@@ -96,7 +96,7 @@ def create_app(config_object=Config):
         resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("Referrer-Policy", "same-origin")
-        resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        resp.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")  # kamera — davomat skaneri
         if request.endpoint and not request.endpoint.startswith("static"):
             resp.headers.setdefault("Cache-Control", "no-store")  # moliyaviy sahifalar keshda qolmasin
         return resp
@@ -109,7 +109,7 @@ def create_app(config_object=Config):
             u = db.session.get(User, uid)
             if u and u.active:
                 g.user = u
-        if request.endpoint in (None, "static") or (request.endpoint or "").startswith("auth."):
+        if request.endpoint in (None, "static", "telegram.hook") or (request.endpoint or "").startswith("auth."):
             return None
         if g.user is None:
             return redirect(url_for("auth.login", next=request.path))
@@ -134,6 +134,8 @@ def create_app(config_object=Config):
             base_setup()
             if not app.config.get("SECRET_KEY"):
                 app.config["SECRET_KEY"] = secret_key()
+            from core.telegram import start_scheduler
+            start_scheduler(app)  # Telegram eslatmalari (token bo'lmasa hech narsa qilmaydi)
 
     return app
 

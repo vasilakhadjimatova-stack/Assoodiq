@@ -26,6 +26,12 @@ DEFAULT_SETTINGS = {
     "hawl_start": "",            # havl boshlangan sana (YYYY-MM-DD)
     "inventory_value": "0",      # zaxiradagi tovar (kitob, mahsulot) bozor qiymati
     "sadaqa_percent": "2.5",     # sof foydadan sadaqaga ajratiladigan ulush
+    # Telegram eslatmalari (core/telegram.py)
+    "tg_token": "", "tg_bot": "", "tg_webhook": "",
+    "tg_auto_lessons": "1", "tg_lead_hours": "3",
+    "tg_auto_expiry": "1", "tg_expiry_days": "3",
+    "tg_auto_pay": "0", "tg_pay_day": "5",
+    "tg_tpl_dars": "", "tg_tpl_qarz": "", "tg_tpl_obuna": "",
 }
 
 NISOB_GRAMS = {"oltin": 85, "kumush": 595}

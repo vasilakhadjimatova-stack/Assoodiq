@@ -462,6 +462,29 @@
     });
   });
 
+  // Nusxa tugmasi: yonidagi maydon qiymatini buferga oladi
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-copy]');
+    if (!b) return;
+    var src = b.parentElement.querySelector('[data-copy-src]');
+    if (!src) return;
+    function ok() { b.classList.add('done'); setTimeout(function () { b.classList.remove('done'); }, 1500); }
+    function legacy() { src.select(); try { document.execCommand('copy'); ok(); } catch (_) {} }
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(src.value).then(ok, legacy);
+    else legacy();
+  });
+
+  // Telegram: qarzdorlarga — tayyor shablon, matn maydoni kerak emas
+  document.querySelectorAll('[data-tg-text]').forEach(function (box) {
+    var form = box.closest('form');
+    function sync() {
+      var r = form.querySelector('[data-tg-scope]:checked');
+      box.hidden = !!r && r.value === 'qarzdorlar';
+    }
+    form.querySelectorAll('[data-tg-scope]').forEach(function (r) { r.addEventListener('change', sync); });
+    sync();
+  });
+
   // Xabarlar o'zi yo'qoladi
   // (ogohlantirishlar uzoqroq turadi; bosilsa darhol yopiladi)
   document.querySelectorAll('.flash').forEach(function (f) {

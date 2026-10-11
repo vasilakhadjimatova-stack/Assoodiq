@@ -252,6 +252,37 @@ class Attendance(db.Model):
         return ATTENDANCE.get(self.status, self.status)
 
 
+class TelegramLink(db.Model):
+    """A'zoning Telegram chati (bot orqali ulangan). Bitta chatga bir nechta a'zo ulanishi mumkin."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=False, unique=True)
+    chat_id = db.Column(db.String(32), nullable=False, index=True)
+    username = db.Column(db.String(64), default="")
+    first_name = db.Column(db.String(120), default="")
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    linked_at = db.Column(db.DateTime, default=_now)
+
+    member = db.relationship("Member", backref=db.backref("telegram", uselist=False))
+
+
+class Notification(db.Model):
+    """Yuborilgan Telegram xabarlari jurnali. dedup — avtomatik eslatma ikki marta ketmasligi uchun."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), index=True)
+    chat_id = db.Column(db.String(32), default="")
+    kind = db.Column(db.String(16), nullable=False, default="xabar")  # dars | obuna | qarz | xabar
+    text = db.Column(db.Text, default="")
+    status = db.Column(db.String(10), nullable=False, default="pending")  # pending | sent | failed
+    error = db.Column(db.String(255), default="")
+    dedup = db.Column(db.String(80), unique=True)
+    created_at = db.Column(db.DateTime, default=_now, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+
+    member = db.relationship("Member")
+
+
 class MemberEvent(db.Model):
     """A'zo tarixidagi voqealar (to'lov va yozilish o'z jadvalidan olinadi):
     obuna uzaytirildi, dasturdagi holati o'zgardi, dasturga yozildi."""

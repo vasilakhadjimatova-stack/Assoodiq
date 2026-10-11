@@ -3,7 +3,7 @@
 {% block content %}
 <div class="head"><div><div class="head-t">Sozlamalar</div><div class="head-s">Kurslar, nisob, hisoblar, kategoriyalar va xodimlar</div></div></div>
 <div class="tabs">
-  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar'), ('malumotlar', "Ma'lumotlar"), ('tarix', "O'zgarishlar tarixi")) %}
+  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar'), ('telegram', 'Telegram'), ('malumotlar', "Ma'lumotlar"), ('tarix', "O'zgarishlar tarixi")) %}
   <a href="{{ url_for('sozlama.index', bolim=k) }}" class="{{ 'on' if tab == k }}">{{ v }}</a>
   {% endfor %}
 </div>
@@ -115,6 +115,103 @@
     </div>
   </form>
   {% endif %}
+</div>
+{% elif tab == 'telegram' %}
+{% set KIND = {'dars': 'Dars', 'qarz': "To'lov", 'obuna': 'Obuna', 'xabar': 'Xabar'} %}
+<div class="tg">
+  <div class="tg-steps">
+    <div class="tg-step {{ 'done' if tg.bot }}">
+      <i>1</i>
+      <div>
+        <b>Bot yaratish va tokenni kiritish</b>
+        <p>Telegram'da <a class="link" href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> ga <code>/newbot</code> yozing, botga nom bering (masalan, «Assoodiq»). U bergan tokenni shu yerga qo'ying.</p>
+        {% if tg.bot %}<span class="pill ok">{{ ui.icon('check', 'sm') }} @{{ tg.bot }} ulangan</span>{% endif %}
+      </div>
+    </div>
+    <div class="tg-step {{ 'done' if tg.webhook }}">
+      <i>2</i>
+      <div>
+        <b>Botni saytga ulash</b>
+        <p>Bitta tugma: Telegram o'quvchilar yozgan xabarlarni shu saytga yuboradigan bo'ladi.</p>
+        {% if tg.webhook %}<span class="pill ok">{{ ui.icon('check', 'sm') }} {{ tg.webhook }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="tg-step {{ 'done' if tg.linked }}">
+      <i>3</i>
+      <div>
+        <b>O'quvchilarni ulash</b>
+        <p>O'quvchi kartasidagi «Telegram» tugmasi — shaxsiy havola va QR. Yoki o'quvchi botga <code>/start</code> yozib, telefon raqamini yuboradi.</p>
+        <span class="pill {{ 'ok' if tg.linked else '' }}">{{ tg.linked }} / {{ tg.members }} a'zo ulangan</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g-2">
+    <form class="card" method="post" action="{{ url_for('telegram.configure') }}">
+      <div class="card-h"><h3>Bot va eslatmalar</h3></div>
+      <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+        {% if tg.env %}
+        <div class="hint">Token server muhitida (<code>TELEGRAM_BOT_TOKEN</code>) berilgan: {{ tg.token_mask }}</div>
+        {% else %}
+        <div class="field"><label>Bot tokeni</label>
+          <input type="password" name="token" placeholder="{{ tg.token_mask or '123456789:AA…' }}" autocomplete="off">
+          <span class="hint">{% if tg.token_mask %}Saqlangan: {{ tg.token_mask }} — o'zgartirish uchun yangisini kiriting{% else %}@BotFather bergan token{% endif %}</span></div>
+        {% endif %}
+        <div class="tg-opt">
+          <label class="tg-sw"><input type="checkbox" name="tg_auto_lessons" {{ 'checked' if tg.opts.tg_auto_lessons == '1' }}><span></span></label>
+          <div><b>Dars eslatmasi</b><span>darsdan <input class="tg-num" name="tg_lead_hours" value="{{ tg.opts.tg_lead_hours }}" inputmode="decimal"> soat oldin</span></div>
+        </div>
+        <div class="tg-opt">
+          <label class="tg-sw"><input type="checkbox" name="tg_auto_expiry" {{ 'checked' if tg.opts.tg_auto_expiry == '1' }}><span></span></label>
+          <div><b>Obuna tugayapti</b><span>tugashidan <input class="tg-num" name="tg_expiry_days" value="{{ tg.opts.tg_expiry_days }}" inputmode="decimal"> kun oldin</span></div>
+        </div>
+        <div class="tg-opt">
+          <label class="tg-sw"><input type="checkbox" name="tg_auto_pay" {{ 'checked' if tg.opts.tg_auto_pay == '1' }}><span></span></label>
+          <div><b>To'lov eslatmasi qarzdorlarga</b><span>har oyning <input class="tg-num" name="tg_pay_day" value="{{ tg.opts.tg_pay_day }}" inputmode="decimal">-sanasida, soat 10:00 dan keyin</span></div>
+        </div>
+        <details class="more-opts">
+          <summary>{{ ui.icon('pencil', 'sm') }}<span>Xabar matnlari (shablonlar)</span></summary>
+          <div class="more-opts-b">
+            {% for k, label in (('dars', 'Dars eslatmasi'), ('qarz', "To'lov eslatmasi"), ('obuna', 'Obuna tugayapti')) %}
+            <div class="field"><label>{{ label }}</label>
+              <textarea name="tg_tpl_{{ k }}" rows="4">{{ tg.tpl[k] }}</textarea>
+              <span class="hint">O'rniga qo'yiladi: {{ tg.ph[k] }} · <b>qalin</b> uchun &lt;b&gt;…&lt;/b&gt;</span></div>
+            {% endfor %}
+          </div>
+        </details>
+        <div style="display:flex;gap:8px"><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
+      </div>
+    </form>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="card-h"><h3>Saytga ulash</h3></div>
+        <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+          <form method="post" action="{{ url_for('telegram.connect_webhook') }}" style="display:flex;flex-direction:column;gap:10px">
+            <div class="field"><label>Sayt manzili</label><input type="text" name="base" value="{{ tg.webhook or tg.site }}"><span class="hint">Railway'dagi manzil (https://…). Telegram faqat https bilan ishlaydi.</span></div>
+            <button class="btn tonal" {{ 'disabled' if not tg.token_mask }}>{{ ui.icon('renew', 'sm') }} Botni saytga ulash</button>
+          </form>
+          {% if tg.token_mask and not tg.env %}
+          <form method="post" action="{{ url_for('telegram.disconnect') }}" onsubmit="return confirm(this.dataset.msg)" data-msg="Botni uzasizmi? Eslatmalar to'xtaydi."><button class="btn ghost sm">Botni uzish</button></form>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Oxirgi xabarlar</h3><span class="sub">24 soatda {{ tg.sent_today }} ta yuborildi</span></div>
+        <div class="card-b" style="padding-top:4px">
+          {% for n in tg.log %}
+          <div class="tg-log st-{{ n.status }}">
+            <span class="pill {{ 'ok' if n.status == 'sent' else ('bad' if n.status == 'failed' else '') }}">{{ KIND.get(n.kind, n.kind) }}</span>
+            <div><b>{{ n.member.full_name if n.member else '—' }}</b><span>{{ n.error if n.status == 'failed' else (n.text|striptags|truncate(80)) }}</span></div>
+            <small>{{ n.created_at|localdt }}</small>
+          </div>
+          {% else %}
+          <div class="empty" style="padding:20px"><b>Hali xabar yuborilmagan</b></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% elif tab == 'malumotlar' %}
 <div class="stats" style="max-width:900px">

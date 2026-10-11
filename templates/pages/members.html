@@ -70,6 +70,7 @@
     <div class="mc-foot">
       {% if m.phone %}<span>{{ ui.icon('phone', 'sm') }}{{ m.phone }}</span>{% endif %}
       <span>{{ ui.icon('clock', 'sm') }}{% if r.last_pay %}oxirgi to'lov {{ r.last_pay|d }}{% else %}to'lov yo'q{% endif %}</span>
+      {% if m.telegram and m.telegram.active %}<span class="mc-tg" title="Telegram'ga ulangan">{{ ui.icon('send', 'sm') }}</span>{% endif %}
       <span class="mc-go" aria-hidden="true">{{ ui.icon('right', 'sm') }}</span>
     </div>
   </a>

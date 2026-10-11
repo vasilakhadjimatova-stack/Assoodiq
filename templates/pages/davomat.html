@@ -20,6 +20,7 @@
         {% if les.teacher %}<span>{{ ui.icon('users', 'sm') }}{{ les.teacher }}</span>{% endif %}
       </div>
       <div class="dv-pn">
+        {% if les.status == 'rejada' and les.date >= today %}<form method="post" action="{{ url_for('telegram.lesson_reminder', lid=les.id) }}" class="inline"><input type="hidden" name="next" value="{{ here }}"><button class="dv-remind" title="Dars haqida Telegram eslatmasi">{{ ui.icon('send', 'sm') }} Eslatma yuborish</button></form>{% endif %}
         {% if prev_l %}<a href="{{ url_for('kalendar.attendance', lid=prev_l.id) }}">{{ ui.icon('left', 'sm') }} {{ prev_l.date.day }} {{ months[prev_l.date.month - 1][:3] }}</a>{% endif %}
         {% if next_l %}<a href="{{ url_for('kalendar.attendance', lid=next_l.id) }}">{{ next_l.date.day }} {{ months[next_l.date.month - 1][:3] }} {{ ui.icon('right', 'sm') }}</a>{% endif %}
       </div>
