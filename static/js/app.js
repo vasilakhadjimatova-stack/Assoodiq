@@ -11,6 +11,7 @@
       if (dlg) {
         resetDialog(dlg);
         applyPreset(dlg, opener.dataset);
+        openExtras(dlg);
         var txf = dlg.querySelector('.tx-form');
         if (txf) {
           var editing = !!(txf.querySelector('[name=tx_id]') || {}).value;
@@ -42,6 +43,14 @@
     var tx = dlg.querySelector('[name=tx_id]');
     if (tx) tx.value = '';
     dlg.querySelectorAll('[data-text][data-default]').forEach(function (el) { el.textContent = el.dataset.default; });
+  }
+
+  // "Qo'shimcha" bo'limi: dastur tanlangan yoki holat halol emas bo'lsa ochiq turadi
+  function openExtras(root) {
+    root.querySelectorAll('details.more-opts').forEach(function (d) {
+      var p = d.querySelector('[name=program_id]'), sh = d.querySelector('[name=shariat]:checked');
+      d.open = !!(p && p.value) || !!(sh && sh.value !== 'halol');
+    });
   }
 
   // Tugmadagi data-* qiymatlarini oynadagi maydonlarga qo'yish (masalan to'lov summasi)
@@ -302,6 +311,7 @@
       if (form.dataset.kind === h.k) setField(form, 'category_id', h.c);
       setField(form, 'account_id', h.a);
       setField(form, 'program_id', h.p);
+      if (h.p) openExtras(form);
       who.classList.add('filled-hint');
       setTimeout(function () { who.classList.remove('filled-hint'); }, 900);
     }

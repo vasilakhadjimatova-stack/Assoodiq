@@ -902,15 +902,15 @@ dialog.modal[open] { animation: pop .22s cubic-bezier(.2, .8, .2, 1); }
 
 /* ══ Kassa: Sheets'dagidek daftar, tez yozish va import ═══════════════════ */
 .desk-only { }
-.toolbar .k-cat { width: auto; min-width: 190px; max-width: 240px; height: 38px; font-size: 13px; }
+.toolbar .k-cat { width: 180px; height: 38px; font-size: 13px; }
 .kv-toggle { margin-left: auto; }
-.kv-toggle button { padding: 6px 12px; border-radius: 8px; border: 0; background: none; font: 650 13px var(--font); color: var(--txt2); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; white-space: nowrap; }
+.kv-toggle button { padding: 6px 9px; border-radius: 8px; border: 0; background: none; font: 650 13px var(--font); color: var(--txt2); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; white-space: nowrap; }
 .kv-toggle button.on { background: var(--surface); color: var(--txt); box-shadow: 0 1px 2px rgba(14, 26, 21, .08), 0 0 0 1px var(--line); }
 .kv-toggle button.on .ic { color: var(--brand-txt); }
 html:not([data-kview=list]) .kv-list { display: none; }
 html[data-kview=list] .kv-table { display: none; }
 
-.ledger { overflow: hidden; }
+.ledger { overflow: clip; border-radius: var(--r); }
 .ledger-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; }
 .ledger-h h3 { margin: 0; font-size: 15.5px; font-weight: 800; letter-spacing: -.2px; }
 .ledger-h .sub { display: block; margin-top: 2px; font-size: 12.5px; color: var(--txt3); font-weight: 600; }
@@ -918,12 +918,12 @@ html[data-kview=list] .kv-table { display: none; }
 
 /* Jadval: zich, chiziqli, raqamlar ustun bo'yicha tekis */
 .table.sheet { font-size: 13px; font-variant-numeric: tabular-nums; }
-.table.sheet th { position: sticky; top: 0; z-index: 2; padding: 9px 12px; background: var(--surface2); border-top: 1px solid var(--line); font-size: 10.5px; }
+.table.sheet th { position: sticky; top: 64px; z-index: 3; padding: 9px 12px; background: var(--surface2); border-top: 1px solid var(--line); font-size: 10.5px; }
 .table.sheet td { padding: 8px 12px; border-right: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
 .table.sheet td:last-child, .table.sheet th:last-child { border-right: 0; }
 .table.sheet .c-n { width: 44px; text-align: right; color: var(--txt3); font-size: 11.5px; font-weight: 700; background: color-mix(in srgb, var(--surface2) 60%, transparent); }
 .table.sheet .nowrap { white-space: nowrap; }
-.table.sheet.fixed { table-layout: fixed; min-width: 1000px; }
+.table.sheet.fixed { table-layout: fixed; min-width: 860px; }
 .table.sheet.fixed td { overflow: hidden; text-overflow: ellipsis; }
 .table.sheet .c-who, .table.sheet .c-cat, .table.sheet .c-acc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .table.sheet .c-who { max-width: 210px; }
@@ -946,13 +946,18 @@ html[data-kview=list] .kv-table { display: none; }
 .table.sheet tbody tr.can-edit:hover td { background: color-mix(in srgb, var(--brand-bg) 40%, transparent); }
 .table.sheet .row-open td { background: var(--gold-bg); color: var(--txt2); font-weight: 700; font-size: 12.5px; }
 .table.sheet .row-open td.bal { color: var(--txt); }
-.table.sheet tfoot td { position: sticky; bottom: 0; padding: 11px 12px; font-size: 13px; background: var(--surface2); white-space: nowrap; }
+.table.sheet tfoot td { padding: 11px 12px; font-size: 13px; background: var(--surface2); white-space: nowrap; }
 .table.sheet tr.just-added td { animation: rowFlash 2.4s ease-out; }
 @keyframes rowFlash { 0%, 30% { background: color-mix(in srgb, var(--au-300) 45%, transparent); } 100% { background: transparent; } }
-.ledger .table-wrap { max-height: max(420px, calc(100vh - 330px)); overflow: auto; border-top: 1px solid var(--line); }
+/* Jadval sahifa bilan birga aylanadi (ichki aylantirish yo'q); sarlavha yuqorida qotadi */
+.ledger .table-wrap { overflow-x: auto; }
+@media (min-width: 1200px) { .ledger .table-wrap { overflow: visible; } }
+.table.sheet thead th:first-child { border-top-left-radius: var(--r); }
+.table.sheet thead th:last-child { border-top-right-radius: var(--r); }
+.table.sheet .c-note .pg-n { color: var(--brand-txt); font-weight: 650; }
 
 /* Tez yozish qatori */
-.qe { display: grid; grid-template-columns: auto 130px minmax(120px, 1.3fr) minmax(110px, 1fr) minmax(100px, .8fr) minmax(105px, .9fr) minmax(80px, 1fr) auto; gap: 8px; align-items: center;
+.qe { position: sticky; bottom: 0; z-index: 4; box-shadow: 0 -10px 24px -14px rgba(14, 26, 21, .28); display: grid; grid-template-columns: auto 130px minmax(120px, 1.3fr) minmax(110px, 1fr) minmax(100px, .8fr) minmax(105px, .9fr) minmax(80px, 1fr) auto; gap: 8px; align-items: center;
   padding: 12px 14px 10px; border-top: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--brand-bg) 55%, var(--surface)), var(--surface)); }
 .qe input, .qe select { height: 38px; font-size: 13px; border-radius: 9px; }
 .qe select { padding-right: 30px; background-position: right 9px center; }
@@ -1009,4 +1014,35 @@ input.filled-hint { box-shadow: 0 0 0 3px color-mix(in srgb, var(--au-500) 35%, 
   .kv-list { display: block !important; }
   .toolbar .k-cat { flex: 1; min-width: 0; max-width: none; }
   .imp-steps { grid-template-columns: 1fr; }
+}
+
+/* Hisoblar: ixcham lenta (bosilsa faqat shu hisob daftari) */
+.acc-strip { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+.acc-strip::-webkit-scrollbar { display: none; }
+.acc-chip { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(14, 26, 21, .05); color: var(--txt); transition: border-color .15s, box-shadow .15s; }
+.acc-chip:hover { border-color: color-mix(in srgb, var(--brand) 35%, var(--line)); }
+.acc-chip.on { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-bg); }
+.ac-i { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--surface2); color: var(--txt2); }
+.acc-chip.on .ac-i { background: var(--grad-em); color: #fff; }
+.ac-t { display: flex; flex-direction: column; line-height: 1.2; }
+.ac-t > span { font-size: 11.5px; font-weight: 650; color: var(--txt3); white-space: nowrap; }
+.ac-t b { font-size: 14px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ac-t small { font-size: 11px; font-weight: 650; color: var(--txt3); }
+
+/* Kassa asboblar paneli bir qatorda */
+.toolbar .search { min-width: 150px; }
+.toolbar .seg a { padding: 6px 10px; }
+
+/* Oyna: qo'shimcha maydonlar yig'ilgan */
+details.more-opts { border: 1px solid var(--line); border-radius: 12px; background: var(--surface2); }
+details.more-opts summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700; color: var(--txt2); }
+details.more-opts summary::-webkit-details-marker { display: none; }
+details.more-opts summary::after { content: ""; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--txt3); border-bottom: 2px solid var(--txt3); transform: rotate(45deg); transition: transform .15s; }
+details.more-opts[open] summary::after { transform: rotate(-135deg); }
+details.more-opts[open] summary { border-bottom: 1px solid var(--line); }
+.more-opts-b { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; background: var(--surface); border-radius: 0 0 12px 12px; }
+@media (max-width: 860px) {
+  .acc-strip { margin: 0 -16px 14px; padding: 2px 16px 4px; }
+  .toolbar .k-cat { flex: 1 1 40%; }
+  .toolbar .search { flex: 1 1 55%; min-width: 0; max-width: none; }
 }

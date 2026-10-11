@@ -412,7 +412,7 @@ def test_kassa_table_filters_and_hints(app):
     F.record("chiqim", 90_000, acc("Asosiy kassa"), counterparty="Instagram", category_id=cat("Reklama (Instagram, Telegram)").id)
     db.session.commit()
     page = client.get("/kassa/").get_data(as_text=True)
-    assert "Kassa daftari" in page and "Oy boshidagi qoldiq" in page and 'data-qe' in page
+    assert "Oy boshidagi qoldiq" in page and 'data-qe' in page
     assert '<option value="Alisher Karimov">' in page  # avto-to'ldirish ro'yxati
     page = client.get(f"/kassa/?kat={cat('Konsalting').id}").get_data(as_text=True)
     assert "Jami: 1 ta yozuv (filtr bo&#39;yicha)" in page or "Jami: 1 ta yozuv (filtr bo'yicha)" in page

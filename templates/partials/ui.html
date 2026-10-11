@@ -70,7 +70,7 @@
 {% endif %}
 {%- endmacro %}
 
-{% macro tx_row(t, show_actions=False, next_url="") -%}
+{% macro tx_row(t, show_actions=False, next_url="", show_date=True) -%}
 {% set incoming = t.kind in ("kirim", "qarz_kirim") %}
 <div class="tx">
   <div class="tx-i {{ 'in' if incoming else ('mv' if t.kind == 'otkazma' else 'out') }}">
@@ -78,11 +78,13 @@
   </div>
   <div class="tx-m">
     <b>{% if t.kind == 'otkazma' %}{{ t.account.name }} → {{ t.to_account.name }}{% else %}{{ t.counterparty or (t.category.name if t.category else t.kind_name) }}{% endif %}</b>
-    <span>{{ t.date|d }}
-      {%- if t.category and t.kind != 'otkazma' %} · {{ t.category.name }}{% endif %}
-      {%- if t.program %} · {{ t.program.name }}{% endif %}
-      {%- if t.kind in ('qarz_kirim', 'qarz_chiqim') %} · {{ t.kind_name }}{% endif %}
-      {%- if t.note %} · {{ t.note }}{% endif %}</span>
+    {%- set parts = [] %}
+    {%- if show_date %}{% set _ = parts.append(t.date|d) %}{% endif %}
+    {%- if t.category and t.kind != 'otkazma' %}{% set _ = parts.append(t.category.name) %}{% endif %}
+    {%- if t.program %}{% set _ = parts.append(t.program.name) %}{% endif %}
+    {%- if t.kind in ('qarz_kirim', 'qarz_chiqim') %}{% set _ = parts.append(t.kind_name) %}{% endif %}
+    {%- if t.note %}{% set _ = parts.append(t.note) %}{% endif %}
+    <span>{{ parts|join(' · ') }}</span>
   </div>
   {% if t.shariat != 'halol' %}<span class="pill {{ 'bad' if t.shariat == 'nohalol' else 'warn' }}">{{ 'Nohalol' if t.shariat == 'nohalol' else 'Shubhali' }}</span>{% endif %}
   <div class="tx-a {{ 'in' if incoming else '' }}">{{ '+' if incoming else ('' if t.kind == 'otkazma' else '−') }}{{ som(t.amount, t.currency) }}</div>
@@ -190,6 +192,21 @@ data-set-kind="{{ t.kind }}" data-set-amount="{{ t.amount }}" data-set-account-i
         <label>Summa</label>
         <input class="amount-in" name="amount" inputmode="decimal" data-money required placeholder="0" value="{{ preset.get('amount', '')|num if preset.get('amount') else '' }}" autocomplete="off">
       </div>
+      <div class="form-grid" data-show="kirim chiqim">
+        <div class="field">
+          <label><span data-show="kirim">Kimdan</span><span data-show="chiqim">Kimga</span></label>
+          <input type="text" name="counterparty" value="{{ preset.get('counterparty', '') }}" placeholder="Ism yoki tashkilot" list="{{ id }}-cp" autocomplete="off">
+          {% if f_hints %}<datalist id="{{ id }}-cp">{% for n in f_hints %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
+        </div>
+        <div class="field">
+          <label>Kategoriya</label>
+          <select name="category_id">
+            {% for c in f_categories %}
+            <option value="{{ c.id }}" data-kind="{{ c.kind }}" {{ 'selected' if preset.get('category_id') == c.id }}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
       <div class="field">
         <span class="fl"><span data-show="kirim chiqim">Hisob</span><span data-show="otkazma">Qaysi hisobdan</span></span>
         <div class="chips">
@@ -209,53 +226,45 @@ data-set-kind="{{ t.kind }}" data-set-amount="{{ t.amount }}" data-set-account-i
         <input name="to_amount" inputmode="decimal" data-money placeholder="Tushgan summa (ixtiyoriy)">
       </div>
       <div class="form-grid">
-        <div class="field" data-show="kirim chiqim">
-          <label>Kategoriya</label>
-          <select name="category_id">
-            {% for c in f_categories %}
-            <option value="{{ c.id }}" data-kind="{{ c.kind }}" {{ 'selected' if preset.get('category_id') == c.id }}>{{ c.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
         <div class="field">
           <label>Sana</label>
           <input type="date" name="date" value="{{ preset.get('date', today.isoformat()) }}">
         </div>
-        <div class="field" data-show="kirim chiqim">
-          <label>Dastur (ixtiyoriy)</label>
-          <select name="program_id">
-            <option value="">— Umumiy —</option>
-            {% for p in f_programs %}
-            <option value="{{ p.id }}" {{ 'selected' if preset.get('program_id') == p.id }}>{{ p.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="field" data-show="kirim chiqim">
-          <label><span data-show="kirim">Kimdan</span><span data-show="chiqim">Kimga</span></label>
-          <input type="text" name="counterparty" value="{{ preset.get('counterparty', '') }}" placeholder="Ism yoki tashkilot" list="{{ id }}-cp" autocomplete="off">
-          {% if f_hints %}<datalist id="{{ id }}-cp">{% for n in f_hints %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
+        <div class="field">
+          <label>Izoh</label>
+          <input type="text" name="note" placeholder="Masalan: 3-potok, Instagram reklama">
         </div>
       </div>
-      <div data-show="kirim" class="form-grid">
-        <div class="field">
-          <label>Aqd turi</label>
-          <select name="aqd">
-            {% for k, v in aqd_types.items() %}<option value="{{ k }}" {{ 'selected' if k == preset.get('aqd', 'xizmat') }}>{{ v }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="field">
-          <span class="fl">Shar'iy holat</span>
-          <div class="chips">
-            {% for k, v in shariat_types.items() %}
-            <label class="chip"><input type="radio" name="shariat" value="{{ k }}" {{ 'checked' if k == 'halol' }}>{{ v }}</label>
-            {% endfor %}
+      <details class="more-opts" data-show="kirim chiqim" {{ 'open' if preset.get('program_id') }}>
+        <summary>{{ icon('sliders', 'sm') }}<span>Qo'shimcha: dastur<span data-show="kirim">, aqd va shar'iy holat</span></span></summary>
+        <div class="more-opts-b">
+          <div class="field">
+            <label>Dastur (ixtiyoriy)</label>
+            <select name="program_id">
+              <option value="">— Umumiy —</option>
+              {% for p in f_programs %}
+              <option value="{{ p.id }}" {{ 'selected' if preset.get('program_id') == p.id }}>{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div data-show="kirim" class="form-grid">
+            <div class="field">
+              <label>Aqd turi</label>
+              <select name="aqd">
+                {% for k, v in aqd_types.items() %}<option value="{{ k }}" {{ 'selected' if k == preset.get('aqd', 'xizmat') }}>{{ v }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <span class="fl">Shar'iy holat</span>
+              <div class="chips">
+                {% for k, v in shariat_types.items() %}
+                <label class="chip"><input type="radio" name="shariat" value="{{ k }}" {{ 'checked' if k == 'halol' }}>{{ v }}</label>
+                {% endfor %}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="field">
-        <label>Izoh</label>
-        <input type="text" name="note" placeholder="Masalan: 3-potok, Instagram reklama">
-      </div>
+      </details>
     </div>
     <div class="modal-f">
       <button type="submit" name="again" value="1" class="btn outline again">Saqlash va yana</button>
