@@ -784,3 +784,30 @@ def test_attendance_scan_mark_and_stats(app):
     # dars o'chirilsa davomati ham o'chadi
     client.post(f"/kalendar/{les.id}/ochirish")
     assert Attendance.query.count() == 0
+
+
+def test_dashboard_today_lessons_states(app):
+    from datetime import datetime, time
+    from core.attendance import mark, today_lessons
+    from core.models import Lesson
+    p = Program(name="Kurs B", kind="kurs", price=1)
+    m = Member(full_name="Sanjar")
+    db.session.add_all([p, m])
+    db.session.commit()
+    db.session.add(Enrollment(member_id=m.id, program_id=p.id, price=1, joined_at=date(2026, 1, 1)))
+    d = date.today()
+    mk = lambda h0, h1, **kw: Lesson(program_id=p.id, title=f"{h0}-dars", date=d, start=time(h0), end=time(h1), **kw)
+    done, nomark, live, soon, cancel = mk(8, 9), mk(9, 10), mk(11, 13), mk(15, 17), mk(18, 19, status="bekor")
+    db.session.add_all([done, nomark, live, soon, cancel])
+    db.session.commit()
+    mark(done, m.id, "keldi")
+    db.session.commit()
+    lt = today_lessons(now=datetime.combine(d, time(12, 0)))
+    states = {x["lesson"].title: (x["state"], x["label"]) for x in lt["lessons"]}
+    assert states["8-dars"] == ("done", "1 / 1 keldi") and states["9-dars"][0] == "nomark"
+    assert states["11-dars"][0] == "live" and states["15-dars"] == ("soon", "3 soat 0 daq dan keyin")
+    assert states["18-dars"][0] == "bekor" and (lt["total"], lt["done"], lt["nomark"]) == (4, 2, 1)
+    client = app.test_client()
+    login(client, "100100")
+    page = client.get("/").get_data(as_text=True)
+    assert "Bugungi darslar" in page and "Davomat" in page

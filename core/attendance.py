@@ -141,3 +141,39 @@ def member_rate(member_id, program_id):
 
 def find_member(member_id):
     return db.session.get(Member, member_id) if member_id else None
+
+
+def today_lessons(now=None):
+    """Bosh sahifa uchun: bugungi darslar holati bilan, bugun dars bo'lmasa — keyingisi."""
+    from core.calendar import color_for
+    now = now or datetime.now()
+    today = now.date()
+    items = []
+    lessons = Lesson.query.filter(Lesson.date == today).order_by(Lesson.start).all()
+    counts = lesson_counts([x.id for x in lessons])
+    for les in lessons:
+        start, end = datetime.combine(today, les.start), datetime.combine(today, les.end)
+        came, marked = counts.get(les.id, (0, 0))
+        expected = len([r for r in roster(les) if r["enrollment"]])
+        if les.status == "bekor":
+            state, label = "bekor", "Bekor qilindi"
+        elif start <= now < end:
+            state, label = "live", "Hozir davom etmoqda"
+        elif now < start:
+            m = int((start - now).total_seconds() // 60)
+            state = "soon"
+            label = (f"{m // 60} soat {m % 60} daq dan keyin" if m >= 60 else f"{m} daqiqadan keyin") if m else "boshlanmoqda"
+        else:
+            state = "done" if marked else "nomark"
+            label = f"{came} / {expected} keldi" if marked else "Davomat olinmagan"
+        items.append({"lesson": les, "state": state, "label": label, "came": came, "expected": expected,
+                      "color": color_for(les.program_id), "pct": came / expected if expected else 0})
+    nxt = None
+    if not items:
+        nxt = (Lesson.query.filter(Lesson.date > today, Lesson.status == "rejada")
+               .order_by(Lesson.date, Lesson.start).first())
+    live = [x for x in items if x["state"] != "bekor"]
+    return {"lessons": items, "next": nxt, "total": len(live),
+            "done": sum(1 for x in live if x["state"] in ("done", "nomark")),
+            "came": sum(x["came"] for x in live), "nomark": sum(1 for x in live if x["state"] == "nomark")}
+

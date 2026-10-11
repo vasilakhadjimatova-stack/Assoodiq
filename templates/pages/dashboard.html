@@ -62,6 +62,52 @@
   {% if hawl %}<a class="m-alert gold" href="{{ url_for('islomiy.zakat') }}">{{ ui.icon('coins', 'sm') }}<span>Zakot <b>{{ hawl.days }}</b> kunda</span></a>{% endif %}
 </div>
 
+{# ── Bugungi darslar ── #}
+{% set WDN = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba", "Yakshanba"] %}
+<section class="card td o-today">
+  <div class="td-h">
+    <div class="td-t">
+      <span class="td-ic">{{ ui.icon('calendar') }}</span>
+      <div><h3>Bugungi darslar</h3><span>{{ WDN[today.weekday()] }}, {{ today|d('long') }} · <span class="gold-t">{{ today|hijri }}</span></span></div>
+    </div>
+    {% if lt.total %}
+    <div class="td-sum">
+      <span><b>{{ lt.total }}</b> ta dars</span>
+      <span><b>{{ lt.done }}</b> tasi o'tdi</span>
+      {% if lt.came %}<span><b>{{ lt.came }}</b> kishi keldi</span>{% endif %}
+      {% if lt.nomark %}<span class="warn-t">{{ ui.icon('alert', 'sm') }} {{ lt.nomark }} tasida davomat olinmagan</span>{% endif %}
+    </div>
+    {% endif %}
+    <a class="link td-all" href="{{ url_for('kalendar.index') }}">Dars jadvali {{ ui.icon('right', 'sm') }}</a>
+  </div>
+  {% if lt.lessons %}
+  <div class="td-list">
+    {% for it in lt.lessons %}
+    {% set les = it.lesson %}
+    <div class="td-card st-{{ it.state }}" style="--c:{{ it.color }}">
+      <div class="td-time"><b>{{ les.start.strftime('%H:%M') }}</b><span>{{ les.end.strftime('%H:%M') }}</span></div>
+      <div class="td-m">
+        <b class="td-title">{{ les.title }}</b>
+        <a class="td-p" href="{{ url_for('dastur.program', pid=les.program_id) }}">{{ les.program.name }}</a>
+        {% if les.location or les.teacher %}<span class="td-loc">{{ ui.icon('briefcase', 'sm') }}{{ les.location }}{% if les.location and les.teacher %} · {% endif %}{{ les.teacher }}</span>{% endif %}
+      </div>
+      <div class="td-f">
+        <span class="td-state">{% if it.state == 'live' %}<i class="td-live"></i>{% elif it.state == 'nomark' %}{{ ui.icon('alert', 'sm') }}{% elif it.state == 'done' %}{{ ui.icon('users', 'sm') }}{% elif it.state == 'soon' %}{{ ui.icon('clock', 'sm') }}{% endif %}{{ it.label }}</span>
+        {% if it.state != 'bekor' %}<a class="btn sm {{ 'solid' if it.state in ('live', 'nomark') else 'tonal' }}" href="{{ url_for('kalendar.attendance', lid=les.id) }}">{{ ui.icon('check', 'sm') }} Davomat</a>{% endif %}
+      </div>
+      {% if it.state == 'done' and it.expected %}<div class="td-bar"><i style="width:{{ (it.pct * 100)|round }}%"></i></div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="td-empty">
+    {{ ui.icon('calendar') }}
+    <span>Bugun dars yo'q.{% if lt.next %} Keyingisi: <b>{{ lt.next.title }}</b> — {{ WDN[lt.next.date.weekday()] }}, {{ lt.next.date|d('long') }}, {{ lt.next.start.strftime('%H:%M') }} · {{ lt.next.program.name }}{% else %} Dars jadvalida kurslar rejasini tuzing.{% endif %}</span>
+    <a class="btn tonal sm" href="{{ url_for('kalendar.index', d=(lt.next.date.isoformat() if lt.next else none)) }}">Jadvalni ochish</a>
+  </div>
+  {% endif %}
+</section>
+
 <div class="grid g-main">
   <div class="card o-chart">
     <div class="card-h">

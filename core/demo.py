@@ -312,6 +312,8 @@ def demo_lessons(today, admin, p6, mur, club, cons, nxt):
     db.session.add(Lesson(program_id=club.id, title="Mehmon spiker: eksport", date=today, start=time(16, 0),
                           end=time(17, 30), location="Konferens zal", teacher="Mehmon ekspert",
                           created_by=admin.id))
+    db.session.add(Lesson(program_id=cons.id, title="Individual audit: savdo", date=today, start=time(10, 0),
+                          end=time(11, 30), location="Ofis, 2-xona", teacher="Rahbar", created_by=admin.id))
     db.session.flush()
 
     # O'tgan darslar uchun davomat (asosan kelgan, ozgina kechikkan/kelmagan)

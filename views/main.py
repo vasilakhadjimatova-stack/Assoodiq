@@ -2,6 +2,7 @@ from datetime import date
 
 from flask import Blueprint, render_template
 
+from core import attendance as A
 from core import finance as F
 from core import hijri
 from core.models import Program, Transaction
@@ -38,8 +39,9 @@ def dashboard():
     nisob = F.nisob_value()
     zakat = F.zakat_compute(nisob=nisob, **defaults)
 
+    lessons_today = A.today_lessons()
     return render_template(
-        "pages/dashboard.html",
+        "pages/dashboard.html", lt=lessons_today,
         cur=cur, prev=prev,
         d_income=delta(cur["income"], prev["income"]),
         d_expense=delta(cur["expense"], prev["expense"]),
