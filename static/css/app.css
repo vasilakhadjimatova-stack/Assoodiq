@@ -1647,3 +1647,207 @@ dialog.cal-pop { width: min(420px, calc(100vw - 32px)); }
 .p-les .i b { display: block; font-size: 13px; font-weight: 750; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .p-les .i small { display: block; font-size: 11.5px; font-weight: 600; color: var(--txt3); }
 .cal-ad > *, .cal-ad-l { min-width: 0; }
+
+/* ══ Dars jadvali 2.0 — «Darslar markazi» (Assoodiq uslubi) ══════════════ */
+.lc { display: flex; flex-direction: column; gap: 16px; }
+
+/* Banner */
+.lh { position: relative; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr) auto; gap: 22px; align-items: stretch; padding: 22px 24px; border-radius: 24px; color: #EAF5EF; overflow: hidden;
+  background: radial-gradient(90% 140% at 100% 0%, rgba(227, 196, 124, .22) 0, transparent 45%), radial-gradient(70% 120% at 0% 100%, rgba(120, 209, 171, .18) 0, transparent 50%), var(--grad-em);
+  box-shadow: 0 22px 44px -26px rgba(4, 40, 30, .75); animation: rise .4s both; }
+.lh::before { content: ""; position: absolute; inset: 0; background: url("../img/pattern.svg") center/140px repeat; opacity: .12; pointer-events: none; }
+.lh::after { content: ""; position: absolute; left: 24px; right: 24px; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--au-300), transparent); }
+.lh > * { position: relative; z-index: 1; min-width: 0; }
+.lh-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--au-300); }
+.lh-eyebrow .ic { width: 13px; height: 13px; }
+.lh h1 { margin: 6px 0 2px; font-size: 27px; font-weight: 800; letter-spacing: -.7px; line-height: 1.15; color: #fff; }
+.lh-hijri { font-size: 12.5px; font-weight: 650; color: rgba(234, 245, 239, .65); }
+.lh-nav { display: flex; align-items: center; gap: 6px; margin-top: 14px; }
+.lh-nav a, .lh-pick { height: 36px; min-width: 36px; display: inline-grid; place-items: center; padding: 0 10px; border-radius: 11px; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16); font-size: 13px; font-weight: 750; transition: background .15s; cursor: pointer; position: relative; }
+.lh-nav a:hover, .lh-pick:hover { background: rgba(255, 255, 255, .18); }
+.lh-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.lh-pick input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; opacity: 0; cursor: pointer; }
+.lh-next { padding: 14px 16px; border-radius: 18px; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); display: flex; flex-direction: column; gap: 6px; }
+.lh-count { font-size: 26px; font-weight: 800; letter-spacing: -.6px; color: #fff; font-variant-numeric: tabular-nums; }
+.lh-count.sm { font-size: 18px; }
+.lh-count.live { color: #7CF0B8; }
+.lh-count.live::before { content: ""; display: inline-block; width: 9px; height: 9px; margin: 0 8px 3px 0; border-radius: 50%; background: #7CF0B8; box-shadow: 0 0 0 4px rgba(124, 240, 184, .25); animation: pulse 1.6s infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(124, 240, 184, 0); } }
+.lh-next-card { display: flex; gap: 10px; align-items: stretch; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.lh-next-card i { flex: none; width: 4px; border-radius: 2px; background: var(--c); box-shadow: 0 0 12px var(--c); }
+.lh-next-card b { display: block; font-size: 14.5px; color: #fff; }
+.lh-next-card small { display: block; font-size: 12px; font-weight: 600; color: rgba(234, 245, 239, .72); }
+.lh-empty { margin: 0; font-size: 12.5px; color: rgba(234, 245, 239, .7); }
+.lh-stat { display: flex; align-items: center; gap: 16px; }
+.lh-ring { width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--au-300) calc(var(--p) * 1%), rgba(255, 255, 255, .14) 0); box-shadow: 0 10px 24px -12px rgba(0, 0, 0, .5); }
+.lh-ring > div { width: 74px; height: 74px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #053B2E; line-height: 1.05; }
+.lh-ring b { font-size: 22px; font-weight: 800; color: #fff; }
+.lh-ring small { font-size: 12px; color: rgba(234, 245, 239, .6); }
+.lh-ring span { font-size: 10.5px; font-weight: 700; color: var(--au-300); text-transform: uppercase; letter-spacing: .6px; }
+.lh-stat-t b { display: block; font-size: 16px; color: #fff; }
+.lh-stat-t > span { display: block; font-size: 12px; font-weight: 600; color: rgba(234, 245, 239, .65); margin-bottom: 10px; }
+.lh-create { display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 16px; border-radius: 13px; border: 0; cursor: pointer; font: 800 13.5px var(--font); color: #33250A;
+  background: linear-gradient(135deg, #F3DDA2, #C49A3C); box-shadow: 0 10px 22px -10px rgba(196, 154, 60, .8); transition: transform .15s; white-space: nowrap; }
+.lh-create:active { transform: translateY(1px); }
+.lh-create kbd { font: 800 10px var(--font); padding: 1px 6px; border-radius: 5px; background: rgba(255, 255, 255, .45); }
+
+/* Dastur chiplari va ko'rinishlar */
+.lbar { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
+.lchips { display: flex; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.lchip { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--txt); transition: opacity .15s, border-color .15s, background .15s; max-width: 280px; }
+.lchip input { position: absolute; opacity: 0; pointer-events: none; }
+.lchip i { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+.lchip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lchip em { font-style: normal; font-size: 11px; font-weight: 800; color: var(--c); background: color-mix(in srgb, var(--c) 12%, var(--surface)); border-radius: 999px; padding: 0 7px; }
+.lchip:has(input:checked) { border-color: color-mix(in srgb, var(--c) 45%, var(--line)); }
+.lchip:has(input:not(:checked)) { opacity: .45; background: var(--surface2); }
+.lchip:has(input:not(:checked)) i { background: transparent; border: 2px solid var(--c); box-shadow: none; }
+.lchip:has(input:focus-visible) { box-shadow: var(--ring); }
+.lviews { display: inline-flex; padding: 4px; gap: 2px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(14, 26, 21, .05); }
+.lviews a { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--txt2); }
+.lviews a:hover { color: var(--txt); background: var(--surface2); }
+.lviews a.on { background: var(--grad-em); color: #fff; box-shadow: 0 6px 14px -8px rgba(6, 90, 71, .7); }
+
+/* Hafta: chiptalar doskasi */
+.lb { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.lb-day { display: flex; flex-direction: column; min-width: 0; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(14, 26, 21, .04); animation: rise .35s both; }
+.lb-day:nth-child(2) { animation-delay: .03s; } .lb-day:nth-child(3) { animation-delay: .06s; } .lb-day:nth-child(4) { animation-delay: .09s; }
+.lb-day:nth-child(5) { animation-delay: .12s; } .lb-day:nth-child(6) { animation-delay: .15s; } .lb-day:nth-child(7) { animation-delay: .18s; }
+.lb-day.weekend { background: color-mix(in srgb, var(--surface2) 55%, var(--surface)); }
+.lb-day.today { border: 1.5px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(160deg, var(--au-300), var(--em-500)) border-box; box-shadow: 0 16px 32px -22px rgba(184, 134, 43, .8); }
+.lb-day header { position: relative; padding: 12px 12px 10px; border-bottom: 1px dashed var(--line2); }
+.lb-day header a { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; color: var(--txt); }
+.lb-day header .wd { grid-column: 1 / -1; font-size: 10.5px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: var(--txt3); }
+.lb-day header b { font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.lb-day header .mo { align-self: end; padding-bottom: 5px; font-size: 12px; font-weight: 700; color: var(--txt3); }
+.lb-day.today header b, .lb-day.today header .wd { color: var(--brand-txt); }
+.lb-day.past header b { color: var(--txt3); }
+.lb-day header .hj { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 650; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-tag, .lb-n { position: absolute; top: 12px; right: 10px; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 10.5px; font-weight: 800; display: grid; place-items: center; }
+.lb-tag { color: #33250A; background: linear-gradient(135deg, #F3DDA2, #C49A3C); }
+.lb-n { color: var(--txt2); background: var(--surface2); border: 1px solid var(--line); }
+.lb-list { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 10px 8px 10px; min-height: 260px; border-radius: 0 0 18px 18px; transition: background .15s; cursor: cell; }
+.lb-list.drop-on { background: color-mix(in srgb, var(--brand-bg) 70%, transparent); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--brand) 40%, transparent); }
+.lb-add { margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 6px; height: 34px; border-radius: 11px; border: 1.5px dashed var(--line2); background: transparent; color: var(--txt3); font: 700 12px var(--font); cursor: pointer; opacity: 0; transition: opacity .15s, border-color .15s, color .15s; }
+.lb-day:hover .lb-add, .lb-day.no-les .lb-add, .lb-day.today .lb-add { opacity: 1; }
+.lb-add:hover { border-color: var(--brand); color: var(--brand-txt); }
+.lb-day.no-les .lb-add { margin-top: 0; }
+
+/* Dars chiptasi: tepada vaqt tasmasi, «qirqim» chizig'i, ostida mavzu */
+.tk { position: relative; display: flex; flex-direction: column; min-width: 0; border-radius: 13px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--c) 28%, var(--line));
+  box-shadow: 0 1px 2px rgba(14, 26, 21, .06), 0 10px 18px -16px var(--c); cursor: grab; user-select: none; touch-action: manipulation; transition: transform .15s, box-shadow .15s; }
+.tk:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(14, 26, 21, .08), 0 16px 26px -16px var(--c); }
+.tk-top { position: relative; display: flex; align-items: baseline; gap: 5px; padding: 6px 10px 7px; border-radius: 12px 12px 0 0; color: #fff;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--c) 80%, #fff), var(--c)); }
+.tk-top b { font-size: 13.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tk-top span { font-size: 11px; font-weight: 650; opacity: .82; font-variant-numeric: tabular-nums; }
+.tk-top span::before { content: "– "; }
+.tk-top::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; border-bottom: 2px dashed color-mix(in srgb, var(--c) 35%, var(--surface)); }
+.tk::before, .tk::after { content: ""; position: absolute; top: 26px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 28%, var(--line)); z-index: 1; }
+.tk::before { left: -7px; clip-path: inset(0 0 0 50%); } .tk::after { right: -7px; clip-path: inset(0 50% 0 0); }
+.lb-day.weekend .tk::before, .lb-day.weekend .tk::after { background: color-mix(in srgb, var(--surface2) 55%, var(--surface)); }
+.tk-st { margin-left: auto; font-style: normal; display: grid; place-items: center; }
+.tk-st.ok { width: 18px; height: 18px; border-radius: 50%; background: rgba(255, 255, 255, .9); color: var(--c); align-self: center; }
+.tk-st.ok .ic { width: 11px; height: 11px; stroke-width: 3.2; }
+.tk-st.bad { padding: 0 5px; border-radius: 4px; background: rgba(255, 255, 255, .92); color: var(--bad); font-size: 9.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; align-self: center; }
+.tk-b { padding: 8px 10px 9px; min-width: 0; }
+.tk-t { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; font-weight: 800; line-height: 1.3; }
+.tk-p { display: block; margin-top: 4px; font-size: 11px; font-weight: 700; color: var(--c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-m { display: flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 10.5px; font-weight: 600; color: var(--txt3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-m .ic { flex: none; width: 11px; height: 11px; }
+.tk.past:not(.st-bekor) { opacity: .72; }
+.tk.past .tk-top { filter: saturate(.5); opacity: .85; }
+.tk.st-bekor { opacity: .7; }
+.tk.st-bekor .tk-top { filter: grayscale(1); }
+.tk.st-bekor .tk-t { text-decoration: line-through; color: var(--txt3); }
+.tk.tk-src { opacity: .3; }
+.tk.saving { opacity: .55; }
+.tk-ghost { position: fixed; z-index: 100; pointer-events: none; transform: rotate(-2.5deg) scale(1.03); box-shadow: 0 24px 40px -14px rgba(0, 0, 0, .45); opacity: .96; cursor: grabbing; }
+body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
+
+/* Soatlar ko'rinishi — karta ichida */
+.lgrid-card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; overflow: clip; box-shadow: 0 1px 2px rgba(14, 26, 21, .04); }
+.cal-dh small { font-size: 10px; font-weight: 650; color: var(--gold); }
+.cal-ev { border-radius: 9px; background: linear-gradient(170deg, color-mix(in srgb, var(--c) 86%, #fff), var(--c)); }
+
+/* Oy */
+.lm { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; overflow: clip; }
+.lm-h { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--surface2); border-bottom: 1px solid var(--line); }
+.lm-h div { padding: 10px; font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--txt3); }
+.lm-g { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(124px, 1fr); }
+.lm-c { position: relative; min-width: 0; padding: 8px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); cursor: cell;
+  background: color-mix(in srgb, var(--em-500) calc(var(--n) * 4%), var(--surface)); }
+.lm-c:nth-child(7n) { border-right: 0; }
+.lm-c.out { background: var(--surface2); }
+.lm-c.out .lm-n { color: var(--txt3); }
+.lm-top { display: flex; align-items: center; justify-content: space-between; }
+.lm-n { min-width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; font-size: 13.5px; font-weight: 800; color: var(--txt); }
+.lm-n:hover { background: var(--surface2); }
+.lm-c.today .lm-n { background: var(--grad-em); color: #fff; box-shadow: 0 6px 12px -6px rgba(6, 90, 71, .7); }
+.lm-hj { font-size: 10px; font-weight: 700; color: var(--gold); }
+.lm-e { display: flex; gap: 5px; align-items: baseline; padding: 3px 7px; border-radius: 7px; font-size: 11.5px; font-weight: 700; color: color-mix(in srgb, var(--c) 70%, var(--txt)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+  background: color-mix(in srgb, var(--c) 13%, var(--surface)); border-left: 3px solid var(--c); }
+.lm-e b { font-weight: 800; font-size: 10.5px; opacity: .8; }
+.lm-e:hover { background: color-mix(in srgb, var(--c) 22%, var(--surface)); }
+.lm-e.st-bekor { text-decoration: line-through; opacity: .6; }
+.lm-more { font-size: 11px; font-weight: 800; color: var(--txt2); padding-left: 4px; }
+
+/* Yo'l xaritasi */
+.ly { display: flex; flex-direction: column; gap: 14px; }
+.ly-card { padding: 16px 18px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(14, 26, 21, .04), 0 12px 26px -22px var(--c); animation: rise .4s both; }
+.ly-card header { display: flex; align-items: center; gap: 12px; }
+.ly-ico { flex: none; width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; color: #fff; background: linear-gradient(150deg, color-mix(in srgb, var(--c) 75%, #fff), var(--c)); box-shadow: 0 8px 16px -8px var(--c); }
+.ly-t { flex: 1; min-width: 0; }
+.ly-t a { display: block; font-size: 15.5px; font-weight: 800; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ly-t a:hover { color: var(--c); }
+.ly-t span { display: block; font-size: 12px; font-weight: 600; color: var(--txt3); }
+.ly-pct { text-align: right; }
+.ly-pct b { display: block; font-size: 22px; font-weight: 800; color: var(--c); letter-spacing: -.5px; }
+.ly-pct span { font-size: 11.5px; font-weight: 650; color: var(--txt3); }
+.ly-track { position: relative; margin: 18px 4px 6px; padding: 18px 0 8px; overflow-x: auto; scrollbar-width: thin; }
+.ly-line { position: absolute; left: 12px; right: 12px; top: 30px; height: 4px; border-radius: 2px; background: var(--surface2); }
+.ly-line i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 60%, #fff), var(--c)); }
+.ly-track ol { position: relative; list-style: none; margin: 0; padding: 0; display: flex; justify-content: space-between; gap: 6px; min-width: max-content; }
+.ly-b { position: relative; flex: none; cursor: pointer; }
+.ly-b > i { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--c);
+  background: var(--surface); border: 2px solid color-mix(in srgb, var(--c) 55%, var(--line)); transition: transform .15s; }
+.ly-b > i .ic { width: 13px; height: 13px; stroke-width: 3; }
+.ly-b:hover > i { transform: scale(1.18); }
+.ly-b.done > i { background: var(--c); border-color: var(--c); color: #fff; }
+.ly-b.st-bekor > i { background: var(--surface2); border-color: var(--line2); color: var(--txt3); }
+.ly-b.next > i { width: 32px; height: 32px; margin-top: -3px; border-width: 3px; box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 18%, transparent); }
+.ly-flag { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10.5px; font-weight: 800; color: #fff; background: var(--c); padding: 1px 7px; border-radius: 999px; }
+.ly-today { flex: none; position: relative; width: 2px; align-self: stretch; margin: -12px 2px -4px; background: var(--au-500); border-radius: 1px; }
+.ly-today span { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 800; color: var(--gold); white-space: nowrap; }
+.ly-next { display: flex; align-items: center; gap: 7px; margin-top: 16px; padding: 9px 12px; border-radius: 12px; background: color-mix(in srgb, var(--c) 9%, var(--surface)); font-size: 12.5px; font-weight: 600; color: var(--txt2); }
+.ly-next .ic { color: var(--c); flex: none; }
+.ly-next b { color: var(--txt); }
+.ly-next.done { background: var(--ok-bg); color: var(--ok); }
+
+@media (max-width: 1240px) { .lh { grid-template-columns: 1fr 1fr; } .lh-stat { grid-column: 1 / -1; } .lb { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 860px) {
+  .lh { grid-template-columns: 1fr; padding: 18px; border-radius: 20px; gap: 14px; }
+  .lh h1 { font-size: 22px; }
+  .lh-stat { grid-column: auto; }
+  .lh-ring { width: 76px; height: 76px; } .lh-ring > div { width: 60px; height: 60px; } .lh-ring b { font-size: 18px; }
+  .lbar { flex-direction: column-reverse; align-items: stretch; flex-wrap: nowrap; }
+  .lbar > * { min-width: 0; max-width: 100%; }
+  .lviews { overflow-x: auto; justify-content: space-between; } .lviews a { flex: 1; justify-content: center; } .lviews a span { display: none; } .lviews a.on span { display: inline; }
+  .lchips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }
+  .lb { grid-template-columns: 1fr; gap: 10px; }
+  .lb-day { display: grid; grid-template-columns: 74px 1fr; }
+  .lb-day header { border-bottom: 0; border-right: 1px dashed var(--line2); padding: 12px 8px; text-align: center; }
+  .lb-day header a { display: flex; flex-direction: column; align-items: center; }
+  .lb-day header .hj { display: none; }
+  .lb-tag, .lb-n { position: static; margin: 6px auto 0; width: max-content; }
+  .lb-list { min-height: 0; padding: 8px; border-radius: 0 18px 18px 0; }
+  .lb-day.no-les .lb-list { justify-content: center; }
+  .lb-add { opacity: 1; height: 30px; }
+  .lb-day:not(.no-les):not(.today) .lb-add { display: none; }
+  .lm-g { grid-auto-rows: minmax(72px, 1fr); }
+  .lm-e { font-size: 0; padding: 0; height: 5px; border-left: 0; background: var(--c); border-radius: 3px; }
+  .lm-hj { display: none; }
+  .ly-card header { flex-wrap: wrap; }
+}
+.lchip, .cal-prog, .k-kind label, .lf-days label, .qe-kind label { position: relative; }
+@media (max-width: 860px) { .ly-next { display: block; line-height: 1.5; } .ly-next .ic { vertical-align: -2px; margin-right: 4px; } }

@@ -7,13 +7,6 @@
   var base = cal.dataset.base, h0 = +cal.dataset.h0, ppm = +cal.dataset.ppm, SNAP = 15;
   var qs = new URLSearchParams(location.search);
 
-  // Telefonda hafta ustunlari tor — standart ko'rinish «Ro'yxat»
-  if (!qs.get('v') && window.innerWidth < 760) {
-    qs.set('v', 'royxat');
-    location.replace(location.pathname + '?' + qs.toString());
-    return;
-  }
-
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function toMin(t) { var p = String(t).split(':'); return (+p[0]) * 60 + (+p[1]); }
   function toTime(m) { m = Math.max(0, Math.min(24 * 60 - 1, m)); return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
@@ -39,7 +32,8 @@
   var hidden;
   try { hidden = JSON.parse(localStorage.getItem('calHidden') || '[]'); } catch (e) { hidden = []; }
   function applyFilter() {
-    document.querySelectorAll('[data-ev]').forEach(function (el) {
+    document.querySelectorAll('[data-ev], [data-ev-group]').forEach(function (el) {
+      if (el.closest('[data-ev-group]') && !el.hasAttribute('data-ev-group')) return;  // karta ichidagi belgilar
       el.classList.toggle('is-hidden', hidden.indexOf(el.dataset.program) >= 0);
     });
   }
@@ -118,7 +112,9 @@
 
   // ── Bo'sh joyni bosish — yangi dars ──
   cal.addEventListener('click', function (e) {
-    if (e.target.closest('.cal-ev')) return;  // sudrash bilan boshqariladi
+    if (e.target.closest('.cal-ev, [data-drag]')) return;  // sudrash bilan boshqariladi
+    var add = e.target.closest('[data-add-day]');
+    if (add) { openWith('lesson-modal', { setDate: add.dataset.addDay, setStart: '19:00', setEnd: '21:00' }); return; }
     var ev = e.target.closest('[data-ev]');
     if (ev) { e.preventDefault(); showDetails(ev); return; }
     var col = e.target.closest('.cal-col');
@@ -128,7 +124,9 @@
       openWith('lesson-modal', { setDate: col.dataset.date, setStart: toTime(m), setEnd: toTime(m + 120) });
       return;
     }
-    var cell = e.target.closest('.cal-mc');
+    var list = e.target.closest('[data-drop]');
+    if (list && e.target === list) { openWith('lesson-modal', { setDate: list.dataset.drop, setStart: '19:00', setEnd: '21:00' }); return; }
+    var cell = e.target.closest('.lm-c');
     if (cell && !e.target.closest('a')) {
       openWith('lesson-modal', { setDate: cell.dataset.date, setStart: '19:00', setEnd: '21:00' });
     }
@@ -206,20 +204,93 @@
 
   // ?yangi=<dastur> — dastur sahifasidan «Darslar rejasini tuzish»
   if (qs.get('yangi')) {
-    var c = cal.querySelector('.cal-create');
+    var c = cal.querySelector('.lh-create');
     openWith('lesson-modal', { setProgramId: qs.get('yangi'), setDate: c.dataset.setDate, setStart: '19:00', setEnd: '21:00' });
     qs.delete('yangi');
     history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : ''));
   }
 
-  // Klaviatura (Google'dagi kabi): C — yangi, T — bugun, ← → — oldingi/keyingi, W/D/M/A — hafta/kun/oy/ro'yxat
+  // Klaviatura: C — yangi dars, T — bugun, ← → — oldingi/keyingi, H/S/O/Y — hafta/soatlar/oy/yo'l
   document.addEventListener('keydown', function (e) {
     if (e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
     var k = e.key.toLowerCase(), go = function (sel) { var a = cal.querySelector(sel); if (a) { e.preventDefault(); a.click(); } };
-    if (k === 'c') go('.cal-create');
-    else if (k === 't') go('.cal-bar > a.btn');
-    else if (e.key === 'ArrowLeft') go('.cal-nav a:first-child');
-    else if (e.key === 'ArrowRight') go('.cal-nav a:last-child');
-    else if ({ w: 1, d: 2, m: 3, a: 4 }[k]) go('.cal-views a:nth-child(' + { w: 1, d: 2, m: 3, a: 4 }[k] + ')');
+    var V = { h: 1, s: 2, o: 3, y: 4 };
+    if (k === 'c') go('.lh-create');
+    else if (k === 't') go('.lh-today');
+    else if (e.key === 'ArrowLeft') go('.lh-nav a:first-child');
+    else if (e.key === 'ArrowRight') go('.lh-nav a:nth-child(3)');
+    else if (V[k]) go('.lviews a:nth-child(' + V[k] + ')');
   });
+
+  // Sanaga tez o'tish
+  var jump = cal.querySelector('[data-jump]');
+  if (jump) jump.addEventListener('change', function () {
+    if (!jump.value) return;
+    qs.set('d', jump.value); qs.set('v', cal.dataset.view);
+    location.href = location.pathname + '?' + qs.toString();
+  });
+
+  // Keyingi darsgacha jonli sanoq
+  var cd = cal.querySelector('[data-countdown]');
+  function tick() {
+    if (!cd) return;
+    var start = new Date(cd.dataset.countdown), end = new Date(cd.dataset.end), now = new Date();
+    if (now >= start && now < end) { cd.textContent = 'Hozir davom etmoqda'; cd.classList.add('live'); return; }
+    var m = Math.max(0, Math.round((start - now) / 60000)), dd = Math.floor(m / 1440), hh = Math.floor((m % 1440) / 60), mm = m % 60;
+    cd.textContent = dd ? dd + ' kun ' + (hh ? hh + ' soat' : '') : (hh ? hh + ' soat ' + mm + ' daq' : mm + ' daqiqa');
+  }
+  tick(); setInterval(tick, 30000);
+
+  // Hafta doskasi: chiptani boshqa kunga sudrab tashlash (vaqti o'zgarmaydi)
+  var bd = null;
+  function bdClean(d) {
+    if (d.ghost) d.ghost.remove();
+    d.tk.classList.remove('tk-src');
+    if (d.over) d.over.classList.remove('drop-on');
+    document.body.classList.remove('is-dragging');
+  }
+  cal.addEventListener('pointerdown', function (e) {
+    var tk = e.target.closest('[data-drag]');
+    if (!tk || e.button !== 0) return;
+    bd = { tk: tk, x: e.clientX, y: e.clientY, moved: false, from: tk.closest('[data-drop]') };
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (!bd) return;
+    if (!bd.moved) {
+      if (Math.abs(e.clientX - bd.x) + Math.abs(e.clientY - bd.y) < 7) return;
+      bd.moved = true;
+      var r = bd.tk.getBoundingClientRect();
+      bd.dx = e.clientX - r.left; bd.dy = e.clientY - r.top;
+      bd.ghost = bd.tk.cloneNode(true);
+      bd.ghost.classList.add('tk-ghost'); bd.ghost.style.width = r.width + 'px';
+      document.body.appendChild(bd.ghost);
+      bd.tk.classList.add('tk-src'); document.body.classList.add('is-dragging');
+    }
+    bd.ghost.style.left = (e.clientX - bd.dx) + 'px';
+    bd.ghost.style.top = (e.clientY - bd.dy) + 'px';
+    var over = null;
+    document.elementsFromPoint(e.clientX, e.clientY).some(function (n) { over = n.closest && n.closest('[data-drop]'); return !!over; });
+    if (over !== bd.over) { if (bd.over) bd.over.classList.remove('drop-on'); bd.over = over; if (over) over.classList.add('drop-on'); }
+  });
+  document.addEventListener('pointerup', function () {
+    if (!bd) return;
+    var d = bd; bd = null;
+    if (!d.moved) { showDetails(d.tk); return; }
+    bdClean(d);
+    if (!d.over || d.over === d.from) return;
+    d.over.insertBefore(d.tk, d.over.querySelector('.lb-add'));
+    d.tk.classList.add('saving');
+    fetch(base + d.tk.dataset.id + '/kochirish', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: d.over.dataset.drop, start: d.tk.dataset.start, end: d.tk.dataset.end })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      var dt = new Date(d.over.dataset.drop + 'T00:00');
+      var msg = j.ok ? (j.conflicts && j.conflicts.length ? "Ko'chirildi, lekin to'qnashuv: " + j.conflicts.join('; ')
+                                                            : '«' + d.tk.dataset.title + '» ' + dt.getDate() + '-sanaga ko\'chirildi')
+                     : (j.error || "Saqlab bo'lmadi");
+      try { sessionStorage.setItem('calToast', JSON.stringify({ msg: msg, warn: !j.ok || (j.conflicts && j.conflicts.length) })); } catch (e) {}
+      location.reload();
+    }).catch(function () { toast("Saqlab bo'lmadi — internetni tekshiring", true); setTimeout(function () { location.reload(); }, 1500); });
+  });
+  document.addEventListener('pointercancel', function () { if (bd) { if (bd.moved) bdClean(bd); bd = null; } });
 })();

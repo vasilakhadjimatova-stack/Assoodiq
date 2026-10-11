@@ -723,7 +723,7 @@ def test_calendar_series_edit_move_delete(app):
     # seriyani 5-darsdan boshlab o'chirish
     client.post(f"/kalendar/{les[4].id}/ochirish", data={"scope": "series"})
     assert Lesson.query.filter(Lesson.series_id.isnot(None)).count() == 4
-    for v in ("hafta", "kun", "oy", "royxat"):
+    for v in ("hafta", "soat", "kun", "oy", "yol", "royxat"):
         page = client.get(f"/kalendar/?v={v}&d=2026-10-08").get_data(as_text=True)
         assert "Yangi dars" in page, v
     assert "Dars jadvali" in client.get(f"/dasturlar/{p.id}").get_data(as_text=True)

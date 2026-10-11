@@ -3,15 +3,19 @@ import uuid
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, flash, g, jsonify, redirect, render_template, request, url_for
+from sqlalchemy import or_
 
 from core import calendar as C
+from core import hijri
 from core.extensions import db
 from core.models import LESSON_STATUS, Lesson, Program
 from views import form_date, form_int, safe_next
 
 bp = Blueprint("kalendar", __name__, url_prefix="/kalendar")
 
-VIEWS = {"hafta": "Hafta", "kun": "Kun", "oy": "Oy", "royxat": "Ro'yxat"}
+# Ko'rinishlar: hafta — chiptalar doskasi, soatlar — vaqt to'ri, oy, yo'l xaritasi (kurs bo'yicha)
+VIEWS = {"hafta": ("Hafta", "dashboard"), "soat": ("Soatlar", "clock"), "oy": ("Oy", "calendar"),
+         "yol": ("Yo'l xaritasi", "up")}
 
 
 def _date_arg():
@@ -22,40 +26,49 @@ def _date_arg():
         return date.today()
 
 
+def _hijri_short(x):
+    parts = hijri.format_hijri(x).split()
+    return " ".join(parts[:2])  # "28 Rabius-soniy"
+
+
 @bp.route("/")
 def index():
     view = request.args.get("v", "hafta")
-    view = view if view in VIEWS else "hafta"
+    view = {"royxat": "hafta"}.get(view, view)  # eski havolalar
+    view = view if view in VIEWS or view == "kun" else "hafta"
     d = _date_arg()
     today = date.today()
+    now = C.now_local()
 
-    if view == "hafta":
+    if view in ("hafta", "soat"):
         start = C.week_start(d)
         days = [start + timedelta(days=i) for i in range(7)]
         step, title = 7, C.fmt_range(days[0], days[-1])
     elif view == "kun":
         days, step = [d], 1
-        title = f"{d.day} {C.MONTHS[d.month - 1]} {d.year}, {C.WEEKDAYS[d.weekday()].lower()}"
+        title = f"{d.day} {C.MONTHS[d.month - 1]} {d.year}"
     elif view == "oy":
         weeks = C.month_grid(d)
         days, step = [x for w in weeks for x in w], None
         title = f"{C.MONTHS[d.month - 1].capitalize()} {d.year}"
-    else:  # royxat — 5 hafta oldinga
-        days = [d + timedelta(days=i) for i in range(35)]
-        step, title = 35, f"{d.day} {C.MONTHS[d.month - 1]} — {days[-1].day} {C.MONTHS[days[-1].month - 1]} {days[-1].year}"
+    else:  # yol — butun kurslar bo'yicha, sana oralig'i yo'q
+        days, step, title = [], None, "Kurslar yo'li"
 
-    lessons = (Lesson.query.filter(Lesson.date >= days[0], Lesson.date <= days[-1])
-               .order_by(Lesson.date, Lesson.start).all())
+    if days:
+        lessons = (Lesson.query.filter(Lesson.date >= days[0], Lesson.date <= days[-1])
+                   .order_by(Lesson.date, Lesson.start).all())
+    else:
+        lessons = []
     by_day = {x: [] for x in days}
     for les in lessons:
         by_day.setdefault(les.date, []).append(les)
 
-    # Vaqt to'ri: 08:00–21:00, darslar shundan chiqsa kengayadi
+    # Soatlar to'ri: 08:00–21:00, darslar shundan chiqsa kengayadi
     h0, h1 = 8, 21
-    if view in ("hafta", "kun") and lessons:
+    if view in ("soat", "kun") and lessons:
         h0 = min(h0, min(les.start.hour for les in lessons))
         h1 = max(h1, max(les.end.hour + (1 if les.end.minute else 0) for les in lessons))
-    columns = {x: C.layout_day(by_day.get(x, []), h0 * 60) for x in days} if view in ("hafta", "kun") else {}
+    columns = {x: C.layout_day(by_day.get(x, []), h0 * 60) for x in days} if view in ("soat", "kun") else {}
 
     if step:
         prev_d, next_d = d - timedelta(days=step), d + timedelta(days=step)
@@ -64,27 +77,47 @@ def index():
         prev_d = (m - timedelta(days=1)).replace(day=1)
         next_d = (m + timedelta(days=32)).replace(day=1)
 
-    # Chap panel: mini oy (darsli kunlar nuqta bilan) va dasturlar
-    mini = C.month_grid(d)
-    lesson_days = {x for (x,) in db.session.query(Lesson.date).filter(
-        Lesson.date >= mini[0][0], Lesson.date <= mini[-1][-1], Lesson.status != "bekor").distinct()}
-    used = {les.program_id for les in lessons}
     programs = [p for p in Program.query.order_by(Program.status, Program.name).all()
-                if p.status != "yakunlangan" or p.id in used]
-    upcoming = (Lesson.query.filter(Lesson.date >= today, Lesson.status == "rejada")
-                .order_by(Lesson.date, Lesson.start).limit(5).all())
-    week_total = sum(1 for les in lessons if les.status != "bekor")
+                if p.status != "yakunlangan" or p.id in {les.program_id for les in lessons}]
+    counts = {}
+    for les in lessons:
+        if les.status != "bekor":
+            counts[les.program_id] = counts.get(les.program_id, 0) + 1
+
+    # Yo'l xaritasi: har dastur darslari boshidan oxirigacha
+    tracks = []
+    if view == "yol":
+        for p in programs:
+            items = p.lessons.order_by(Lesson.date, Lesson.start).all()
+            if not items:
+                continue
+            live = [x for x in items if x.status != "bekor"]
+            done = sum(1 for x in live if x.status == "otdi" or x.date < today)
+            nxt = next((x for x in live if (x.date, x.end) >= (today, now.time()) and x.status == "rejada"), None)
+            tracks.append({"program": p, "lessons": items, "total": len(live), "done": done, "next": nxt,
+                           "pct": done / len(live) if live else 0})
+
+    # Banner: keyingi dars va shu davr bo'yicha holat
+    nxt_lesson = (Lesson.query.filter(Lesson.status == "rejada",
+                                      or_(Lesson.date > today, (Lesson.date == today) & (Lesson.end > now.time())))
+                  .order_by(Lesson.date, Lesson.start).first())
+    scope = [x for x in lessons if x.status != "bekor"]
+    period = {"total": len(scope), "done": sum(1 for x in scope if x.status == "otdi"),
+              "hours": round(sum(x.minutes for x in scope) / 60, 1)}
+    if view == "yol":  # yo'l xaritasida — barcha kurslar bo'yicha
+        live = [x for tr in tracks for x in tr["lessons"] if x.status != "bekor"]
+        period = {"total": len(live), "done": sum(tr["done"] for tr in tracks),
+                  "hours": round(sum(x.minutes for x in live) / 60, 1)}
     locations = [x for (x,) in db.session.query(Lesson.location).filter(Lesson.location != "").distinct().limit(40)]
     teachers = [x for (x,) in db.session.query(Lesson.teacher).filter(Lesson.teacher != "").distinct().limit(40)]
     return render_template(
         "pages/kalendar.html", view=view, views=VIEWS, d=d, days=days, by_day=by_day, columns=columns,
-        h0=h0, h1=h1, title=title, prev_d=prev_d, next_d=next_d, mini=mini, lesson_days=lesson_days,
-        programs=programs, color_for=C.color_for, wd=C.WEEKDAYS, wd_short=C.WEEKDAYS_SHORT,
-        months=C.MONTHS, statuses=LESSON_STATUS, upcoming=upcoming, lessons=lessons, week_total=week_total,
-        now=C.now_local(), locations=locations, teachers=teachers, today=today,
+        h0=h0, h1=h1, title=title, prev_d=prev_d, next_d=next_d, programs=programs, counts=counts,
+        color_for=C.color_for, wd=C.WEEKDAYS, wd_short=C.WEEKDAYS_SHORT, months=C.MONTHS,
+        statuses=LESSON_STATUS, lessons=lessons, tracks=tracks, nxt=nxt_lesson, period=period,
+        hijri_short=_hijri_short, hijri_title=_hijri_short(days[0]) + (" – " + _hijri_short(days[-1]) if len(days) > 1 else "") if days else "",
+        now=now, locations=locations, teachers=teachers, today=today,
         open_program=form_int(request.args.get("yangi")),
-        mini_prev=(d.replace(day=1) - timedelta(days=1)).replace(day=1),
-        mini_next=(d.replace(day=1) + timedelta(days=32)).replace(day=1),
     )
 
 

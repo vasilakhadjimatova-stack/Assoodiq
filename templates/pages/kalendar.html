@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dars jadvali{% endblock %}
-{% set PPM = 52 / 60 %}{# 1 soat = 52px #}
+{% set PPM = 52 / 60 %}{# Soatlar ko'rinishi: 1 soat = 52px #}
 
 {# Darsning barcha ma'lumoti — ko'rish va tahrirlash oynalari shundan to'ladi #}
 {% macro ev_attrs(les) -%}
@@ -12,81 +12,121 @@ data-location="{{ les.location or '' }}" data-teacher="{{ les.teacher or '' }}" 
 data-status="{{ les.status }}" data-series="{{ 1 if les.series_id else 0 }}"
 {%- endmacro %}
 
+{# Dars chiptasi: chapda vaqt «qirqimi», o'ngda mavzu va tafsilotlar #}
+{% macro ticket(les) -%}
+{% set past = les.date < today or (les.date == today and les.end < now.time()) %}
+<div class="tk st-{{ les.status }} {{ 'past' if past }}" data-ev data-drag {{ ev_attrs(les) }} style="--c:{{ color_for(les.program_id) }}">
+  <div class="tk-top"><b>{{ les.start.strftime('%H:%M') }}</b><span>{{ les.end.strftime('%H:%M') }}</span>
+    {% if les.status == 'otdi' %}<em class="tk-st ok" title="O'tdi">{{ ui.icon('check', 'sm') }}</em>{% elif les.status == 'bekor' %}<em class="tk-st bad">Bekor</em>{% endif %}</div>
+  <div class="tk-b">
+    <b class="tk-t">{{ les.title }}</b>
+    <span class="tk-p">{{ les.program.name }}</span>
+    {% if les.location %}<span class="tk-m">{{ ui.icon('briefcase', 'sm') }}{{ les.location }}</span>{% endif %}
+    {% if les.teacher %}<span class="tk-m">{{ ui.icon('users', 'sm') }}{{ les.teacher }}</span>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
 {% block content %}
 {% set here = request.full_path.rstrip('?') %}
 {% set base = url_for('kalendar.index') %}
-<div class="cal" data-cal data-base="{{ base }}" data-view="{{ view }}" data-h0="{{ h0 }}" data-ppm="{{ PPM }}">
+{% set vq = '?v=' ~ view %}
+<div class="lc" data-cal data-base="{{ base }}" data-view="{{ view }}" data-h0="{{ h0 }}" data-ppm="{{ PPM }}">
 
-  {# ── Chap panel ── #}
-  <aside class="cal-side">
-    <button class="cal-create" type="button" data-open="lesson-modal" data-set-date="{{ (d if view != 'oy' else today).isoformat() }}" data-set-start="19:00" data-set-end="21:00">
-      <span>{{ ui.icon('plus') }}</span> Yangi dars
-    </button>
-
-    <div class="cal-mini">
-      <div class="cal-mini-h">
-        <b>{{ months[d.month - 1]|capitalize }} {{ d.year }}</b>
-        <div>
-          <a href="{{ base }}?v={{ view }}&d={{ mini_prev.isoformat() }}" title="Oldingi oy">{{ ui.icon('left', 'sm') }}</a>
-          <a href="{{ base }}?v={{ view }}&d={{ mini_next.isoformat() }}" title="Keyingi oy">{{ ui.icon('right', 'sm') }}</a>
-        </div>
-      </div>
-      <div class="cal-mini-g">
-        {% for w in wd_short %}<span class="wd">{{ w[:1] }}</span>{% endfor %}
-        {% for week in mini %}{% for x in week %}
-        <a href="{{ base }}?v={{ 'kun' if view == 'oy' else view }}&d={{ x.isoformat() }}" class="{{ 'out' if x.month != d.month }} {{ 'today' if x == today }} {{ 'sel' if x in days and view != 'oy' }} {{ 'has' if x in lesson_days }}">{{ x.day }}</a>
-        {% endfor %}{% endfor %}
+  {# ── Banner: sarlavha, keyingi dars, davr holati ── #}
+  <section class="lh">
+    <div class="lh-title">
+      <span class="lh-eyebrow">{{ ui.icon('calendar', 'sm') }} Dars jadvali</span>
+      <h1>{{ title }}</h1>
+      {% if hijri_title %}<span class="lh-hijri">{{ hijri_title }}</span>{% endif %}
+      <div class="lh-nav">
+        {% if view != 'yol' %}
+        <a href="{{ base }}{{ vq }}&d={{ prev_d.isoformat() }}" title="Oldingi (←)">{{ ui.icon('left', 'sm') }}</a>
+        <a href="{{ base }}{{ vq }}&d={{ today.isoformat() }}" class="lh-today" title="Bugun (T)">Bugun</a>
+        <a href="{{ base }}{{ vq }}&d={{ next_d.isoformat() }}" title="Keyingi (→)">{{ ui.icon('right', 'sm') }}</a>
+        <label class="lh-pick" title="Sanaga o'tish">{{ ui.icon('calendar', 'sm') }}<input type="date" value="{{ d.isoformat() }}" data-jump aria-label="Sanaga o'tish"></label>
+        {% endif %}
       </div>
     </div>
 
-    <div class="cal-progs">
-      <div class="cal-side-h">Dasturlar</div>
+    <div class="lh-next">
+      {% if nxt %}
+      <span class="lh-eyebrow">Keyingi dars</span>
+      <div class="lh-count" data-countdown="{{ nxt.date.isoformat() }}T{{ nxt.start.strftime('%H:%M') }}" data-end="{{ nxt.date.isoformat() }}T{{ nxt.end.strftime('%H:%M') }}">—</div>
+      <button type="button" class="lh-next-card" data-ev {{ ev_attrs(nxt) }} style="--c:{{ color_for(nxt.program_id) }}">
+        <i></i>
+        <span><b>{{ nxt.title }}</b><small>{{ nxt.program.name }}</small>
+        <small>{{ 'Bugun' if nxt.date == today else ('Ertaga' if (nxt.date - today).days == 1 else wd[nxt.date.weekday()] ~ ', ' ~ nxt.date.day ~ ' ' ~ months[nxt.date.month - 1]) }} · {{ nxt.start.strftime('%H:%M') }}–{{ nxt.end.strftime('%H:%M') }}{% if nxt.location %} · {{ nxt.location }}{% endif %}</small></span>
+      </button>
+      {% else %}
+      <span class="lh-eyebrow">Keyingi dars</span>
+      <div class="lh-count sm">Rejada dars yo'q</div>
+      <p class="lh-empty">«Yangi dars» bilan kurs jadvalini bir martada tuzing.</p>
+      {% endif %}
+    </div>
+
+    <div class="lh-stat">
+      {% set pct = (period.done / period.total * 100)|round|int if period.total else 0 %}
+      <div class="lh-ring" style="--p:{{ pct }}"><div><b>{{ period.done }}<small>/{{ period.total }}</small></b><span>o'tdi</span></div></div>
+      <div class="lh-stat-t">
+        <b>{{ period.total }} ta dars</b>
+        <span>{{ period.hours|string|replace('.0', '') }} soat · {{ 'shu hafta' if view in ('hafta', 'soat') else ('shu oy' if view == 'oy' else ('shu kun' if view == 'kun' else 'jami')) }}</span>
+        <button class="lh-create" type="button" data-open="lesson-modal" data-set-date="{{ (d if d >= today else today).isoformat() if view != 'oy' else today.isoformat() }}" data-set-start="19:00" data-set-end="21:00">{{ ui.icon('plus', 'sm') }} Yangi dars <kbd>C</kbd></button>
+      </div>
+    </div>
+  </section>
+
+  {# ── Dasturlar (filtr) va ko'rinishlar ── #}
+  <div class="lbar">
+    <div class="lchips">
       {% for p in programs %}
-      <label class="cal-prog" style="--c:{{ color_for(p.id) }}">
+      <label class="lchip" style="--c:{{ color_for(p.id) }}" title="Ko'rsatish / yashirish">
         <input type="checkbox" checked data-cal-filter value="{{ p.id }}">
-        <span class="sw"></span><span class="nm">{{ p.name }}</span>
-        {% if p.status == 'rejada' %}<span class="faint">rejada</span>{% endif %}
+        <i></i><span>{{ p.name }}</span>{% if counts.get(p.id) %}<em>{{ counts[p.id] }}</em>{% endif %}
       </label>
       {% else %}
-      <p class="faint" style="font-size:12.5px">Avval «Kurs va klublar»da dastur qo'shing.</p>
+      <span class="faint" style="font-size:13px">Avval «Kurs va klublar»da dastur qo'shing.</span>
       {% endfor %}
     </div>
-
-    {% if upcoming %}
-    <div class="cal-up">
-      <div class="cal-side-h">Yaqin darslar</div>
-      {% for les in upcoming %}
-      <button type="button" class="cal-up-i" {{ ev_attrs(les) }} data-ev style="--c:{{ color_for(les.program_id) }}">
-        <i></i><span><b>{{ les.title }}</b><small>{{ 'Bugun' if les.date == today else ('Ertaga' if (les.date - today).days == 1 else wd_short[les.date.weekday()] ~ ', ' ~ les.date.day ~ ' ' ~ months[les.date.month - 1][:3]) }} · {{ les.start.strftime('%H:%M') }} · {{ les.program.name }}</small></span>
-      </button>
+    <nav class="lviews" aria-label="Ko'rinish">
+      {% for k, (label, ic) in views.items() %}
+      <a href="{{ base }}?v={{ k }}&d={{ d.isoformat() }}" class="{{ 'on' if view == k or (view == 'kun' and k == 'soat') }}">{{ ui.icon(ic, 'sm') }}<span>{{ label }}</span></a>
       {% endfor %}
-    </div>
-    {% endif %}
-  </aside>
+    </nav>
+  </div>
 
-  {# ── Asosiy qism ── #}
-  <section class="cal-main">
-    <header class="cal-bar">
-      <a class="btn outline sm" href="{{ base }}?v={{ view }}&d={{ today.isoformat() }}">Bugun</a>
-      <div class="cal-nav">
-        <a href="{{ base }}?v={{ view }}&d={{ prev_d.isoformat() }}" title="Oldingi">{{ ui.icon('left', 'sm') }}</a>
-        <a href="{{ base }}?v={{ view }}&d={{ next_d.isoformat() }}" title="Keyingi">{{ ui.icon('right', 'sm') }}</a>
+  {% if view == 'hafta' %}
+  {# ── Hafta: chiptalar doskasi — har kun alohida karta ── #}
+  <div class="lb">
+    {% for x in days %}
+    {% set items = by_day.get(x, []) %}
+    <section class="lb-day {{ 'today' if x == today }} {{ 'past' if x < today }} {{ 'weekend' if x.weekday() >= 5 }} {{ 'no-les' if not items }}" data-day="{{ x.isoformat() }}">
+      <header>
+        <a href="{{ base }}?v=kun&d={{ x.isoformat() }}" title="Kunni soatlar bo'yicha ochish">
+          <span class="wd">{{ wd[x.weekday()] }}</span>
+          <b>{{ x.day }}</b>
+          <span class="mo">{{ months[x.month - 1][:3] }}</span>
+        </a>
+        <span class="hj">{{ hijri_short(x) }}</span>
+        {% if x == today %}<span class="lb-tag">Bugun</span>{% elif items %}<span class="lb-n">{{ items|length }}</span>{% endif %}
+      </header>
+      <div class="lb-list" data-drop="{{ x.isoformat() }}">
+        {% for les in items %}{{ ticket(les) }}{% endfor %}
+        <button type="button" class="lb-add" data-add-day="{{ x.isoformat() }}" title="Shu kunga dars qo'shish">{{ ui.icon('plus', 'sm') }}<span>Dars qo'shish</span></button>
       </div>
-      <h2>{{ title }}</h2>
-      <span class="cal-count">{{ week_total }} ta dars</span>
-      <div class="seg cal-views">
-        {% for k, v in views.items() %}<a href="{{ base }}?v={{ k }}&d={{ d.isoformat() }}" class="{{ 'on' if view == k }}">{{ v }}</a>{% endfor %}
-      </div>
-    </header>
+    </section>
+    {% endfor %}
+  </div>
 
-    {% if view in ('hafta', 'kun') %}
-    {# ── Hafta / kun: vaqt to'ri ── #}
+  {% elif view in ('soat', 'kun') %}
+  {# ── Soatlar: vaqt to'ri (sudrab ko'chirish va cho'zish) ── #}
+  <div class="lgrid-card">
     <div class="cal-grid" style="--cols:{{ days|length }}; --ppm:{{ PPM }}px; --hours:{{ h1 - h0 }}">
       <div class="cal-head">
-        <div class="cal-gutter">GMT+5</div>
+        <div class="cal-gutter"></div>
         {% for x in days %}
         <a class="cal-dh {{ 'today' if x == today }} {{ 'past' if x < today }}" href="{{ base }}?v=kun&d={{ x.isoformat() }}">
-          <span>{{ wd_short[x.weekday()] }}</span><b>{{ x.day }}</b>
+          <span>{{ wd_short[x.weekday()] }}</span><b>{{ x.day }}</b><small>{{ hijri_short(x) }}</small>
         </a>
         {% endfor %}
       </div>
@@ -98,7 +138,7 @@ data-status="{{ les.status }}" data-series="{{ 1 if les.series_id else 0 }}"
             {% for it in columns[x] %}
             {% set les = it.lesson %}
             <div class="cal-ev st-{{ les.status }} {{ 'past' if les.date < today or (les.date == today and les.end < now.time()) }} {{ 'short' if it.height < 45 }}" data-ev {{ ev_attrs(les) }}
-                 style="--c:{{ color_for(les.program_id) }}; top:calc({{ it.top }} * var(--ppm)); height:calc({{ it.height }} * var(--ppm) - 2px); left:calc({{ it.col }} / {{ it.cols }} * 100%); width:calc({{ 1 }} / {{ it.cols }} * 100% - 4px)">
+                 style="--c:{{ color_for(les.program_id) }}; top:calc({{ it.top }} * var(--ppm)); height:calc({{ it.height }} * var(--ppm) - 2px); left:calc({{ it.col }} / {{ it.cols }} * 100%); width:calc(1 / {{ it.cols }} * 100% - 4px)">
               <b>{{ les.title }}</b>
               <span class="t">{{ les.start.strftime('%H:%M') }}–{{ les.end.strftime('%H:%M') }}{% if les.location %} · {{ les.location }}{% endif %}</span>
               <span class="p">{{ les.program.name }}</span>
@@ -111,51 +151,63 @@ data-status="{{ les.status }}" data-series="{{ 1 if les.series_id else 0 }}"
         </div>
       </div>
     </div>
+  </div>
 
-    {% elif view == 'oy' %}
-    {# ── Oy ── #}
-    <div class="cal-month">
-      <div class="cal-mh">{% for w in wd %}<div>{{ w[:3] }}</div>{% endfor %}</div>
-      <div class="cal-mg">
-        {% for x in days %}
-        {% set items = by_day.get(x, []) %}
-        <div class="cal-mc {{ 'out' if x.month != d.month }} {{ 'today' if x == today }} {{ 'weekend' if x.weekday() >= 5 }}" data-date="{{ x.isoformat() }}">
-          <a class="cal-mn" href="{{ base }}?v=kun&d={{ x.isoformat() }}">{{ x.day }}{% if x.day == 1 %} {{ months[x.month - 1][:3] }}{% endif %}</a>
-          {% for les in items[:3] %}
-          <div class="cal-me st-{{ les.status }}" data-ev {{ ev_attrs(les) }} style="--c:{{ color_for(les.program_id) }}"><i></i><span>{{ les.start.strftime('%H:%M') }}</span> {{ les.title }}</div>
-          {% endfor %}
-          {% if items|length > 3 %}<a class="cal-more" href="{{ base }}?v=kun&d={{ x.isoformat() }}">yana {{ items|length - 3 }} ta</a>{% endif %}
-        </div>
+  {% elif view == 'oy' %}
+  {# ── Oy: har kunda darslar rangli belgilar bilan ── #}
+  <div class="lm">
+    <div class="lm-h">{% for w in wd %}<div>{{ w }}</div>{% endfor %}</div>
+    <div class="lm-g">
+      {% for x in days %}
+      {% set items = by_day.get(x, []) %}
+      <div class="lm-c {{ 'out' if x.month != d.month }} {{ 'today' if x == today }} {{ 'weekend' if x.weekday() >= 5 }}" data-date="{{ x.isoformat() }}" style="--n:{{ [items|length, 4]|min }}">
+        <div class="lm-top"><a class="lm-n" href="{{ base }}?v=kun&d={{ x.isoformat() }}">{{ x.day }}</a>{% if items %}<span class="lm-hj">{{ hijri_short(x).split()[0] }}</span>{% endif %}</div>
+        {% for les in items[:3] %}
+        <div class="lm-e st-{{ les.status }}" data-ev {{ ev_attrs(les) }} style="--c:{{ color_for(les.program_id) }}"><b>{{ les.start.strftime('%H:%M') }}</b>{{ les.title }}</div>
         {% endfor %}
-      </div>
-    </div>
-
-    {% else %}
-    {# ── Ro'yxat ── #}
-    <div class="cal-agenda">
-      {% set ns = namespace(any=false) %}
-      {% for x in days if by_day.get(x) %}
-      {% set ns.any = true %}
-      <div class="cal-ad {{ 'today' if x == today }}">
-        <div class="cal-ad-d"><b>{{ x.day }}</b><span>{{ months[x.month - 1][:3] }}, {{ wd_short[x.weekday()] }}</span></div>
-        <div class="cal-ad-l">
-          {% for les in by_day[x] %}
-          <div class="cal-ai st-{{ les.status }}" data-ev {{ ev_attrs(les) }} style="--c:{{ color_for(les.program_id) }}">
-            <i></i>
-            <span class="tm">{{ les.start.strftime('%H:%M') }} – {{ les.end.strftime('%H:%M') }}</span>
-            <span class="tt"><b>{{ les.title }}</b><small>{{ les.program.name }}{% if les.location %} · {{ les.location }}{% endif %}{% if les.teacher %} · {{ les.teacher }}{% endif %}</small></span>
-            {% if les.status != 'rejada' %}<span class="pill {{ 'ok' if les.status == 'otdi' else 'bad' }}">{{ les.status_name }}</span>{% endif %}
-          </div>
-          {% endfor %}
-        </div>
+        {% if items|length > 3 %}<a class="lm-more" href="{{ base }}?v=kun&d={{ x.isoformat() }}">+{{ items|length - 3 }} ta</a>{% endif %}
       </div>
       {% endfor %}
-      {% if not ns.any %}
-      <div class="empty">{{ ui.icon('calendar') }}<b>Bu davrda dars yo'q</b>«Yangi dars» tugmasi bilan jadval tuzing — takrorlanuvchi darslarni bir martada qo'shish mumkin.</div>
-      {% endif %}
     </div>
-    {% endif %}
-  </section>
+  </div>
+
+  {% else %}
+  {# ── Yo'l xaritasi: har kurs boshidan oxirigacha ── #}
+  <div class="ly">
+    {% for tr in tracks %}
+    {% set p = tr.program %}
+    <section class="ly-card" data-ev-group data-program="{{ p.id }}" style="--c:{{ color_for(p.id) }}">
+      <header>
+        <span class="ly-ico">{{ ui.icon({'kurs': 'cap', 'klub': 'users', 'tadbir': 'calendar', 'konsalting': 'briefcase'}.get(p.kind, 'cap'), 'sm') }}</span>
+        <div class="ly-t"><a href="{{ url_for('dastur.program', pid=p.id) }}">{{ p.name }}</a><span>{{ p.kind_name }} · {{ tr.total }} ta dars{% if tr.lessons[0] %} · {{ tr.lessons[0].date|d }} – {{ tr.lessons[-1].date|d }}{% endif %}</span></div>
+        <div class="ly-pct"><b>{{ (tr.pct * 100)|round|int }}%</b><span>{{ tr.done }} / {{ tr.total }} o'tdi</span></div>
+      </header>
+      <div class="ly-track">
+        <div class="ly-line"><i style="width:{{ (tr.pct * 100)|round }}%"></i></div>
+        <ol>
+          {% set ns = namespace(flag=false) %}
+          {% for les in tr.lessons %}
+          {% if not ns.flag and les.date >= today %}{% set ns.flag = true %}<li class="ly-today" title="Bugun"><span>Bugun</span></li>{% endif %}
+          {% set done = les.status == 'otdi' or (les.status == 'rejada' and les.date < today) %}
+          <li class="ly-b {{ 'done' if done }} st-{{ les.status }} {{ 'next' if tr.next and tr.next.id == les.id }}" data-ev {{ ev_attrs(les) }}
+              title="{{ les.title }} · {{ les.date.day }} {{ months[les.date.month - 1] }}, {{ les.start.strftime('%H:%M') }}">
+            <i>{% if les.status == 'bekor' %}{{ ui.icon('x', 'sm') }}{% elif done %}{{ ui.icon('check', 'sm') }}{% else %}{{ loop.index }}{% endif %}</i>
+            {% if tr.next and tr.next.id == les.id %}<span class="ly-flag">Keyingi · {{ les.date.day }} {{ months[les.date.month - 1][:3] }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+      {% if tr.next %}
+      <div class="ly-next">{{ ui.icon('clock', 'sm') }} Keyingi: <b>{{ tr.next.title }}</b> — {{ wd[tr.next.date.weekday()] }}, {{ tr.next.date.day }} {{ months[tr.next.date.month - 1] }}, {{ tr.next.start.strftime('%H:%M') }}{% if tr.next.location %} · {{ tr.next.location }}{% endif %}</div>
+      {% else %}
+      <div class="ly-next done">{{ ui.icon('check', 'sm') }} Barcha darslar o'tdi</div>
+      {% endif %}
+    </section>
+    {% else %}
+    <div class="card empty">{{ ui.icon('up') }}<b>Hali darslar rejasi yo'q</b>«Yangi dars» bilan takrorlanuvchi darslarni qo'shing — har kursning yo'li shu yerda ko'rinadi.</div>
+    {% endfor %}
+  </div>
+  {% endif %}
 </div>
 
 {# ── Dars tafsilotlari (Google'dagi kabi qalqib chiquvchi karta) ── #}
@@ -238,5 +290,5 @@ data-status="{{ les.status }}" data-series="{{ 1 if les.series_id else 0 }}"
 </dialog>
 <div class="cal-toast" data-cal-toast hidden></div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/calendar.js') }}?v=1"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/calendar.js') }}?v=2"></script>{% endblock %}
 {% block fab %}<button class="fab" data-open="lesson-modal" data-set-date="{{ today.isoformat() }}" data-set-start="19:00" data-set-end="21:00" aria-label="Yangi dars">{{ ui.icon('plus') }}</button>{% endblock %}
