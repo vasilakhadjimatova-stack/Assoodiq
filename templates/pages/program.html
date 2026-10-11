@@ -29,6 +29,28 @@
   <div class="stat"><div class="stat-l">Sof foyda</div><div class="stat-v {{ 'bad-t' if stat.profit < 0 else 'ok-t' }}">{{ ui.som(stat.profit) }}</div><div class="stat-s">rentabellik {{ stat.margin|pct }}</div></div>
 </div>
 
+{# Dars jadvali: yaqin darslar #}
+<div class="p-lessons" style="--c:{{ color }}">
+  <div class="p-lessons-h">
+    <div><b>{{ ui.icon('calendar', 'sm') }} Dars jadvali</b>
+      <span>{% if lesson_stat.total %}{{ lesson_stat.done }} / {{ lesson_stat.total }} ta dars o'tdi{% else %}hali reja tuzilmagan{% endif %}</span></div>
+    <div class="p-lessons-a">
+      <a class="btn ghost sm" href="{{ url_for('kalendar.index', v='hafta', d=(next_lessons[0].date.isoformat() if next_lessons else none)) }}">Kalendarda ochish</a>
+      <a class="btn tonal sm" href="{{ url_for('kalendar.index', yangi=p.id, d=(p.start_date.isoformat() if p.start_date and p.start_date > today else none)) }}">{{ ui.icon('plus', 'sm') }} Darslar rejasini tuzish</a>
+    </div>
+  </div>
+  {% if next_lessons %}
+  <div class="p-lessons-l">
+    {% for les in next_lessons %}
+    <a class="p-les {{ 'today' if les.date == today }}" href="{{ url_for('kalendar.index', v='hafta', d=les.date.isoformat()) }}">
+      <span class="d"><b>{{ les.date.day }}</b>{{ ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'][les.date.weekday()] }}</span>
+      <span class="i"><b>{{ les.title }}</b><small>{{ 'Bugun · ' if les.date == today }}{{ les.start.strftime('%H:%M') }}–{{ les.end.strftime('%H:%M') }}{% if les.location %} · {{ les.location }}{% endif %}</small></span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
 <div class="grid g-main">
   <div class="card">
     <div class="card-h">

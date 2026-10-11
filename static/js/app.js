@@ -13,6 +13,7 @@
         excludeProgram(dlg, opener.dataset.excludeProgram);
         applyPreset(dlg, opener.dataset);
         openExtras(dlg);
+        dlg.dispatchEvent(new CustomEvent('dialog:open', { detail: opener }));
         var txf = dlg.querySelector('.tx-form');
         if (txf) {
           var editing = !!(txf.querySelector('[name=tx_id]') || {}).value;

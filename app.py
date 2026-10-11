@@ -12,9 +12,9 @@ from core.models import User
 
 # Rol → kirish mumkin bo'lgan bo'limlar (blueprint nomlari)
 ROLE_SECTIONS = {
-    "rahbar": {"main", "kassa", "dastur", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
-    "buxgalter": {"main", "kassa", "dastur", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
-    "menejer": {"kassa", "dastur", "qidiruv"},
+    "rahbar": {"main", "kassa", "dastur", "kalendar", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
+    "buxgalter": {"main", "kassa", "dastur", "kalendar", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
+    "menejer": {"kassa", "dastur", "kalendar", "qidiruv"},
 }
 
 

@@ -664,3 +664,66 @@ def test_kassa_export_has_balance_and_reimports_as_duplicates(app):
     r = client.post("/kassa/import", data={"action": "preview", "file": (BytesIO(r.data), "kassa.xlsx")},
                     content_type="multipart/form-data")
     assert "2 ta bazada bor" in r.get_data(as_text=True)
+
+
+# ── Dars jadvali (kalendar) ──
+
+def test_calendar_helpers():
+    from datetime import time
+    from core import calendar as C
+    from core.models import Lesson
+    start = date(2026, 10, 5)  # dushanba
+    days = C.expand_weekly(start, [1, 3], count=5)
+    assert [d.weekday() for d in days] == [1, 3, 1, 3, 1] and days[0] == date(2026, 10, 6)
+    assert C.expand_weekly(start, [0], until=date(2026, 10, 26)) == [date(2026, 10, d) for d in (5, 12, 19, 26)]
+    a = Lesson(start=time(9, 0), end=time(11, 0))
+    b = Lesson(start=time(10, 0), end=time(12, 0))
+    c = Lesson(start=time(13, 0), end=time(14, 0))
+    lay = {id(x["lesson"]): x for x in C.layout_day([a, b, c], 8 * 60)}
+    assert (lay[id(a)]["col"], lay[id(b)]["col"], lay[id(a)]["cols"]) == (0, 1, 2)  # kesishganlar yonma-yon
+    assert (lay[id(c)]["cols"], lay[id(c)]["top"]) == (1, 300)
+    assert C.fmt_range(date(2026, 9, 28), date(2026, 10, 4)) == "28 sentabr – 4 oktabr 2026"
+
+
+def test_calendar_series_edit_move_delete(app):
+    from core.models import Lesson
+    client = app.test_client()
+    login(client, "300300")  # menejer ham jadval tuza oladi
+    p = Program(name="Kurs K", kind="kurs", price=1)
+    db.session.add(p)
+    db.session.commit()
+    r = client.post("/kalendar/saqlash", data={"program_id": p.id, "date": "2026-10-06", "start": "19:00", "end": "21:00",
+                                               "repeat": "weekly", "weekdays": ["1", "3"], "count": "6",
+                                               "location": "Asosiy zal", "teacher": "Ustoz A"})
+    assert r.status_code == 302
+    les = Lesson.query.order_by(Lesson.date).all()
+    assert len(les) == 6 and les[0].title == "1-dars" and les[5].title == "6-dars"
+    assert len({x.series_id for x in les}) == 1 and les[1].date == date(2026, 10, 8)
+    # xato vaqt
+    client.post("/kalendar/saqlash", data={"program_id": p.id, "date": "2026-10-06", "start": "20:00", "end": "19:00"})
+    assert Lesson.query.count() == 6
+    # seriyani 3-darsdan boshlab tahrirlash — oldingilari o'zgarmaydi
+    third = les[2]
+    client.post("/kalendar/saqlash", data={"lesson_id": third.id, "scope": "series", "program_id": p.id,
+                                           "date": third.date.isoformat(), "start": "18:00", "end": "20:00",
+                                           "location": "Kichik zal", "title": third.title})
+    les = Lesson.query.order_by(Lesson.date).all()
+    assert [x.start.hour for x in les] == [19, 19, 18, 18, 18, 18] and les[5].location == "Kichik zal"
+    # to'qnashuv: shu zalda shu vaqtga boshqa dars — ogohlantirish
+    client.post("/kalendar/saqlash", data={"program_id": p.id, "date": les[3].date.isoformat(), "start": "19:00",
+                                           "end": "20:30", "location": "kichik zal", "title": "Qo'shimcha"})
+    with client.session_transaction() as sess:
+        assert any("To'qnashuv" in m for c, m in sess.get("_flashes", []) if c == "warn")
+    # sudrab ko'chirish (JSON)
+    r = client.post(f"/kalendar/{les[0].id}/kochirish", json={"date": "2026-10-07", "start": "10:00", "end": "11:30"})
+    assert r.get_json()["ok"] and db.session.get(Lesson, les[0].id).date == date(2026, 10, 7)
+    assert client.post(f"/kalendar/{les[0].id}/kochirish", json={"date": "x"}).status_code == 400
+    client.post(f"/kalendar/{les[1].id}/holat", data={"status": "otdi"})
+    assert db.session.get(Lesson, les[1].id).status == "otdi"
+    # seriyani 5-darsdan boshlab o'chirish
+    client.post(f"/kalendar/{les[4].id}/ochirish", data={"scope": "series"})
+    assert Lesson.query.filter(Lesson.series_id.isnot(None)).count() == 4
+    for v in ("hafta", "kun", "oy", "royxat"):
+        page = client.get(f"/kalendar/?v={v}&d=2026-10-08").get_data(as_text=True)
+        assert "Yangi dars" in page, v
+    assert "Dars jadvali" in client.get(f"/dasturlar/{p.id}").get_data(as_text=True)

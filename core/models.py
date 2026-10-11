@@ -197,6 +197,37 @@ class Enrollment(db.Model):
     note = db.Column(db.String(255), default="")
 
 
+LESSON_STATUS = {"rejada": "Rejada", "otdi": "O'tdi", "bekor": "Bekor qilindi"}
+
+
+class Lesson(db.Model):
+    """Kalendardagi dars / mashg'ulot. Takrorlanuvchi darslar bitta series_id bilan bog'lanadi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey("program.id"), nullable=False, index=True)
+    title = db.Column(db.String(160), default="")
+    date = db.Column(db.Date, nullable=False, index=True)
+    start = db.Column(db.Time, nullable=False)
+    end = db.Column(db.Time, nullable=False)
+    location = db.Column(db.String(120), default="")   # zal yoki onlayn havola
+    teacher = db.Column(db.String(120), default="")    # mentor / ustoz
+    note = db.Column(db.String(500), default="")
+    status = db.Column(db.String(10), nullable=False, default="rejada")
+    series_id = db.Column(db.String(32), index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+    created_at = db.Column(db.DateTime, default=_now)
+
+    program = db.relationship("Program", backref=db.backref("lessons", lazy="dynamic"))
+
+    @property
+    def minutes(self):
+        return (self.end.hour * 60 + self.end.minute) - (self.start.hour * 60 + self.start.minute)
+
+    @property
+    def status_name(self):
+        return LESSON_STATUS.get(self.status, self.status)
+
+
 class MemberEvent(db.Model):
     """A'zo tarixidagi voqealar (to'lov va yozilish o'z jadvalidan olinadi):
     obuna uzaytirildi, dasturdagi holati o'zgardi, dasturga yozildi."""

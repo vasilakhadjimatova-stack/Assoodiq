@@ -106,7 +106,14 @@ def program(pid):
     expenses = (Transaction.query.filter_by(program_id=p.id, kind="chiqim")
                 .order_by(Transaction.date.desc()).all())
     members = Member.query.order_by(Member.full_name).all()
+    from core.calendar import color_for
+    from core.models import Lesson
+    next_lessons = (Lesson.query.filter(Lesson.program_id == p.id, Lesson.date >= date.today(),
+                                        Lesson.status != "bekor").order_by(Lesson.date, Lesson.start).limit(6).all())
+    lesson_stat = {"total": p.lessons.filter(Lesson.status != "bekor").count(),
+                   "done": p.lessons.filter_by(status="otdi").count()}
     return render_template("pages/program.html", p=p, stat=stat, rows=rows, seg=seg,
+                           next_lessons=next_lessons, lesson_stat=lesson_stat, color=color_for(p.id),
                            expenses=expenses, members=members, kinds=PROGRAM_KINDS,
                            statuses=PROGRAM_STATUS, billings=BILLING,
                            pay_category=_payment_category(p), transfer_targets=transfer_targets(),

@@ -10,7 +10,7 @@ from core import finance as F
 from core import hijri
 from core.extensions import db
 from core.models import (
-    Account, Category, Debt, Enrollment, Member, MemberEvent, Program, Setting, Transaction, User, ZakatSnapshot,
+    Account, Category, Debt, Enrollment, Lesson, Member, MemberEvent, Program, Setting, Transaction, User, ZakatSnapshot,
 )
 
 # Namuna uchun boshlang'ich qoldiqlar
@@ -259,6 +259,9 @@ def demo(today=None):
     F.record("qarz_chiqim", d3.amount, acc["Asosiy kassa"], date=d3.date, debt_id=d3.id,
              counterparty=d3.counterparty, note="Qarz berildi", created_by=admin.id)
 
+    # ── Dars jadvali (kalendar) ──
+    demo_lessons(today, admin, p6=p6, mur=mur, club=club, cons=cons, nxt=nxt)
+
     F.set_setting("hawl_start", (today - timedelta(days=290)).isoformat())
     F.set_setting("inventory_value", "14000000")
     snap_date = today - timedelta(days=290)
@@ -268,6 +271,47 @@ def demo(today=None):
                                  base=129_000_000, due=3_225_000, note="O'tgan havl hisobi"))
     spend("Zakot", 3_225_000, snap_date + timedelta(days=2), who="Ehtiyojmand oilalar")
     db.session.commit()
+
+
+TOPICS = ["Kirish: halol savdo asoslari", "Bitim turlari va shartlari", "Riba va uning shakllari",
+          "Narx belgilash odobi", "Murobaha", "Ijara", "Salam va istisno", "Mushoraka", "Mudoraba",
+          "Qarz va kafolat", "Zakot va biznes", "Amaliy keys: savdo", "Amaliy keys: ishlab chiqarish",
+          "Marketing va halollik", "Soliq va shariat", "Yakuniy taqdimot"]
+
+
+def demo_lessons(today, admin, p6, mur, club, cons, nxt):
+    """Namuna darslar: kurslar haftada 2 marta, klub — ikki haftada shanba, konsalting — juma."""
+    import uuid
+    from datetime import time
+
+    from core.calendar import expand_weekly
+
+    def series(program, start, weekdays, count, t0, t1, place, teacher, topics=None, every=1):
+        sid = uuid.uuid4().hex
+        days = expand_weekly(start, weekdays, count=count * every)
+        if every > 1:
+            days = [d for d in days if ((d - days[0]).days // 7) % every == 0][:count]
+        for i, d in enumerate(days):
+            title = f"{i + 1}-dars: {topics[i % len(topics)]}" if topics else program.name.split(" — ")[0]
+            status = "otdi" if d < today else "rejada"
+            db.session.add(Lesson(program_id=program.id, title=title, date=d, start=time(*t0), end=time(*t1),
+                                  location=place, teacher=teacher, status=status, series_id=sid,
+                                  created_by=admin.id))
+
+    series(p6, p6.start_date, [1, 3], 16, (19, 0), (21, 0), "Asosiy zal", "Ustoz Abdulloh", TOPICS)
+    series(mur, mur.start_date, [0, 2], 14, (18, 30), (20, 30), "Kichik zal", "Ustoz Sardor",
+           ["Murobaha shartnomasi", "Mushoraka", "Mudoraba", "Hujjatlar", "Amaliyot"])
+    sat = today - timedelta(days=(today.weekday() - 5) % 7) - timedelta(weeks=8)
+    series(club, sat, [5], 10, (10, 0), (13, 0), "Konferens zal", "Rahbar",
+           ["Mastermind", "Ekspert uchrashuvi", "Biznes nonushta"], every=2)
+    fri = today - timedelta(days=(today.weekday() - 4) % 7) - timedelta(weeks=3)
+    series(cons, fri, [4], 8, (15, 0), (16, 30), "Ofis, 2-xona", "Rahbar", ["Individual audit"])
+    if nxt.start_date:
+        series(nxt, nxt.start_date, [1, 3], 16, (19, 0), (21, 0), "Asosiy zal", "Ustoz Abdulloh", TOPICS)
+    # bugun ham bitta uchrashuv bo'lsin — kalendar jonli ko'rinsin
+    db.session.add(Lesson(program_id=club.id, title="Mehmon spiker: eksport", date=today, start=time(16, 0),
+                          end=time(17, 30), location="Konferens zal", teacher="Mehmon ekspert",
+                          created_by=admin.id))
 
 
 def has_records():
@@ -289,6 +333,7 @@ def clear_data():
     """Barcha moliyaviy yozuvlarni o'chiradi. Xodimlar, hisoblar, kategoriyalar va
     sozlamalar (kurs, nisob narxi) saqlanib qoladi; hisoblar qoldig'i nolga tushadi."""
     Transaction.query.delete()
+    Lesson.query.delete()
     MemberEvent.query.delete()
     Enrollment.query.delete()
     Member.query.delete()

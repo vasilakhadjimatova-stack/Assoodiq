@@ -13,6 +13,7 @@ ichiga qurilgan.
 | **Bosh sahifa** | Umumiy balans, oy kirim/chiqim/sof foyda (o'tgan oyga nisbatan), 12 oylik grafik, hisoblar, zakot holati, undiriladigan summalar, diqqat talab qiladigan ishlar |
 | **Kassa** | Hamma pul harakati bitta daftarda: kirim, chiqim, hisoblar orasidagi o'tkazma. **Jadval ko'rinishi** Sheets'dagi kassa daftari kabi: Kirim · Chiqim · Qoldiq ustunlari, oy boshi va oxiri qoldig'i, jami qatori. Jadval ostidagi **tez yozish qatori** (Enter — saqlash, `N` — shu qatorga o'tish), avval yozilgan ism tanlansa kategoriya va hisob o'zi to'ladi, qatorni ikki marta bosish — tahrirlash, «Nusxa olish». Oy, tur, hisob, kategoriya va matn bo'yicha filtr |
 | **Sheets'dan ko'chirish** | Google Sheets / Excel'dan qatorlarni nusxa olib qo'yish yoki .xlsx/.csv yuklash. Ustunlar sarlavha bo'yicha taniladi (Sana, Summa yoki Kirim/Chiqim, Hisob, Kategoriya, Kimdan/kimga, Izoh…), har qator tekshiriladi, bazada bor yozuv ikkinchi marta qo'shilmaydi |
+| **Dars jadvali** | Google Calendar uslubidagi kalendar: hafta, kun, oy va ro'yxat ko'rinishlari, mini oy, dasturlar bo'yicha rangli filtr. Bo'sh joyni bosib dars qo'shish, takrorlanuvchi darslar (haftaning tanlangan kunlari, sana yoki son bo'yicha, avtomatik «N-dars» raqami), darsni sudrab ko'chirish va pastki chetidan cho'zish, «o'tdi / bekor» holati, zal yoki o'qituvchi to'qnashuvi haqida ogohlantirish, seriyani bir martada tahrirlash yoki o'chirish. Klaviatura: C, T, ←/→, W/D/M/A |
 | **Kurs va klublar** | Har bir potok/klub/tadbir bo'yicha: a'zolar soni, kutilgan va yig'ilgan summa, xarajat, sof foyda, rentabellik, 1 a'zoni jalb qilish narxi |
 | **A'zolar** | O'quvchi va klub a'zolari, kim qancha to'lagan va qancha qarz. Klub obunasini bir tugma bilan uzaytirish, muddati tugayotganlar ro'yxati |
 | **Zakot** | Naqd, undiriladigan haqlar, tovar zaxirasi va qarzlar daftardan avtomatik yig'iladi. Nisob oltin (85 g) yoki kumush (595 g) bo'yicha. Havl sanasi hijriy taqvimda, hisob-kitoblar tarixi saqlanadi |
@@ -83,6 +84,7 @@ core/
   models.py         Ma'lumotlar modeli (Transaction — yagona daftar)
   finance.py        Barcha hisob-kitob: balans, foyda-zarar, dastur iqtisodiyoti, zakot, fondlar
   hijri.py          Hijriy taqvim (jadval usuli) va havl sanasi
+  calendar.py       Dars jadvali: haftalik takrorlash, kun ichida joylashtirish, to'qnashuvlar
   sheets.py         Google Sheets / Excel'dan import: ustunlarni tanish, summa va sana formatlari, takrorlar
 views/              Bo'limlar: kassa, dastur, qarz, islomiy, hisobot, sozlama, auth
 templates/          Jinja shablonlari; partials/ui.html — umumiy bo'laklar (ikonka, grafik, oynalar)
