@@ -4,7 +4,7 @@ from io import BytesIO
 from flask import Blueprint, flash, g, redirect, render_template, request, send_file, url_for
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from core import audit, sheets
 from core import finance as F
@@ -43,13 +43,17 @@ def _filters():
     start, end = F.month_bounds(month)
     kind = request.args.get("tur", "")
     acc_id = form_int(request.args.get("hisob"))
-    cat_id = form_int(request.args.get("kat"))
+    kat_raw = request.args.get("kat", "")
+    no_cat = kat_raw == "yoq"  # kategoriyasiz kirim/chiqimlar (importdan keyin tekshirish uchun)
+    cat_id = "yoq" if no_cat else form_int(kat_raw)
     q_text = (request.args.get("q") or "").strip()
     period = Transaction.query.filter(Transaction.date >= start, Transaction.date <= end)
     if acc_id:
         period = period.filter(or_(Transaction.account_id == acc_id, Transaction.to_account_id == acc_id))
     base = period
-    if cat_id:
+    if no_cat:
+        base = base.filter(Transaction.category_id.is_(None), Transaction.kind.in_(("kirim", "chiqim")))
+    elif cat_id:
         base = base.filter(Transaction.category_id == cat_id)
     if q_text:
         like = f"%{q_text}%"
@@ -89,13 +93,15 @@ def ledger():
         d[1] += r["out"]
 
     filtered = bool(kind or fl["cat_id"] or fl["q"])
+    no_cat_count = fl["period"].filter(Transaction.category_id.is_(None),
+                                       Transaction.kind.in_(("kirim", "chiqim"))).count()
     today = date.today()
     qe_date = today if start <= today <= end else (end if end < today else start)
     totals = F.period_totals(start, end)
     return render_template(
         "pages/kassa.html",
         rows=rows, kind=kind, kinds=KIND_FILTERS, counts=counts, acc_id=acc_id, q=fl["q"],
-        cat_id=fl["cat_id"], account=account, filtered=filtered,
+        cat_id=fl["cat_id"], account=account, filtered=filtered, no_cat_count=no_cat_count,
         table=table, opening=opening, qe_date=qe_date, closing=closing, sums=sums, ledger_cur=ledger_cur, day_totals=day_totals,
         month=month, prev_month=F.shift_month(month, -1), next_month=F.shift_month(month, 1),
         month_name=f"{F.MONTHS_FULL[month.month - 1]} {month.year}",
@@ -113,14 +119,39 @@ def _kind_filter(q, kind):
 
 def form_context():
     """Kirim/chiqim oynasi uchun ro'yxatlar (boshqa sahifalar ham ishlatadi)."""
+    hints = counterparty_hints()
+    members = member_payment_hints()
     return {
         "f_accounts": F.accounts_with_balance(),
         "f_categories": Category.query.filter_by(active=True).order_by(Category.kind, Category.sort, Category.name).all(),
         "f_programs": Program.query.filter(Program.status != "yakunlangan").order_by(Program.name).all(),
-        "f_hints": counterparty_hints(),
+        "f_hints": hints,
+        "f_members": members,
+        "f_names": sorted(set(hints) | {v["name"] for v in members.values()}, key=str.lower),
         "aqd_types": AQD_TYPES,
         "shariat_types": SHARIAT,
     }
+
+
+def member_payment_hints():
+    """{ism (kichik harfda): {name, items: [{e, p, pid, c, d}]}} — kassada o'quvchi ismi
+    yozilganda kirimni uning dastur to'loviga bog'lash uchun (qarzidan ayiriladi)."""
+    paid_map = F.enrollment_paid_map()
+    pay_cat = {c.program_kind: c.id for c in Category.query.filter(Category.kind == "kirim",
+                                                                     Category.program_kind.isnot(None),
+                                                                     Category.active.is_(True)).all()}
+    out = {}
+    enrs = (Enrollment.query.filter(Enrollment.status != "chiqqan")
+            .order_by(Enrollment.joined_at.desc()).all())
+    for e in enrs:
+        row = F.enrollment_row(e, paid_map)
+        name = e.member.full_name.strip()
+        rec = out.setdefault(name.lower(), {"name": name, "items": []})
+        rec["items"].append({"e": e.id, "p": e.program.name, "pid": e.program_id,
+                             "c": pay_cat.get(e.program.kind), "d": round(row["due"])})
+    for rec in out.values():  # qarzi borlari birinchi
+        rec["items"].sort(key=lambda i: i["d"] <= 0)
+    return out
 
 
 def counterparty_hints(limit=500):
@@ -198,6 +229,7 @@ def create():
 
     tx = F.record(kind, amount, account, created_by=g.user.id, **fields)
     db.session.commit()
+    _warn(tx)
     flash(f"{'Kirim' if kind == 'kirim' else 'Chiqim' if kind == 'chiqim' else 'O‘tkazma'} saqlandi: "
           f"{amount:,.0f} {'$' if account.currency == 'USD' else 'so‘m'}".replace(",", " "), "ok")
     sep = "&" if "?" in _back_url() else "?"
@@ -240,8 +272,27 @@ def update(tx_id):
     db.session.flush()
     audit.log("tx_update", f"{before} → {audit.describe_tx(tx)}")
     db.session.commit()
+    _warn(tx)
     flash("Yozuv yangilandi.", "ok")
     return _back()
+
+
+def _warn(tx):
+    """Saqlangandan keyin ogohlantirish (bloklamaydi): takror, manfiy qoldiq, kelajak sanasi."""
+    n = lambda v: f"{abs(v):,.0f}".replace(",", " ")  # noqa: E731
+    same = Transaction.query.filter(
+        Transaction.id != tx.id, Transaction.date == tx.date, Transaction.kind == tx.kind,
+        Transaction.account_id == tx.account_id, func.abs(Transaction.amount - tx.amount) < 0.01,
+        func.lower(func.coalesce(Transaction.counterparty, "")) == (tx.counterparty or "").lower(),
+    ).count()
+    if same:
+        flash(f"Diqqat: {tx.date:%d.%m.%Y} kuni xuddi shunday yozuv ({tx.counterparty or tx.kind_name}, "
+              f"{n(tx.amount)}) avval ham kiritilgan — takror emasligini tekshiring.", "warn")
+    bal = F.account_balances().get(tx.account_id, 0)
+    if bal < -0.01:
+        flash(f"«{tx.account.name}» qoldig'i manfiy bo'lib qoldi: −{n(bal)}. Summa yoki hisobni tekshiring.", "warn")
+    if tx.date > date.today():
+        flash(f"Sana kelajakda ({tx.date:%d.%m.%Y}) — shu kungacha hisobotlarda ko'rinmaydi.", "warn")
 
 
 @bp.route("/excel")
@@ -252,29 +303,49 @@ def export():
     fl = _filters()
     month, kind = fl["month"], fl["kind"]
     rows = _kind_filter(fl["base"], kind).order_by(Transaction.date, Transaction.id).all()
+    account = db.session.get(Account, fl["acc_id"]) if fl["acc_id"] else None
+    all_rows = fl["period"].order_by(Transaction.date, Transaction.id).all()
+    opening, cur, flows = F.ledger_rows(all_rows, account=account, start=fl["start"])
     wb = Workbook()
     ws = wb.active
     ws.title = f"Kassa {month:%m.%Y}"
-    head = ["Sana", "Turi", "Hisob", "Summa", "Valyuta", "So'mda", "Kategoriya", "Dastur",
-            "Kimdan / kimga", "Aqd", "Shar'iy holat", "Izoh", "Kiritgan"]
+    unit = "$" if cur == "USD" else "so'm"
+    # Sheets'dagi kassa daftari tartibi; qayta import qilsa ham ustunlar taniladi
+    head = ["Sana", "Turi", "Hisob", "Kimdan / kimga", "Kategoriya", "Dastur", "Izoh",
+            f"Kirim, {unit}", f"Chiqim, {unit}", f"Qoldiq, {unit}", "Valyuta", "Aqd", "Shar'iy holat", "Kiritgan"]
     ws.append(head)
+    bold = Font(bold=True)
     for c in ws[1]:
-        c.font, c.fill = Font(bold=True), PatternFill("solid", fgColor="E0F1E9")
+        c.font, c.fill = bold, PatternFill("solid", fgColor="E0F1E9")
+    ws.append([fl["start"], "", account.name if account else "Barcha hisoblar", "Oy boshidagi qoldiq",
+               "", "", "", None, None, round(opening, 2)])
+    for c in ws[2]:
+        c.fill = PatternFill("solid", fgColor="FBF3DF")
     for t in rows:
-        sign = -1 if t.kind in ("chiqim", "qarz_chiqim") else 1
+        r = flows[t.id]
+        refund = t.kind == "kirim" and t.amount < 0
         ws.append([
-            t.date, t.kind_name,
+            t.date, "Qaytarish" if refund else t.kind_name,
             f"{t.account.name} → {t.to_account.name}" if t.kind == "otkazma" else t.account.name,
-            sign * t.amount, t.currency, sign * t.amount_uzs,
-            t.category.name if t.category else "", t.program.name if t.program else "",
-            t.counterparty, AQD_TYPES.get(t.aqd, ""), SHARIAT.get(t.shariat, ""), t.note,
+            t.counterparty, t.category.name if t.category else "", t.program.name if t.program else "", t.note,
+            (-r["out"] if refund else (r["inc"] or None)) if not r["move"] else None,
+            None if refund or r["move"] else (r["out"] or None),
+            round(r["bal"], 2), t.currency, AQD_TYPES.get(t.aqd, ""), SHARIAT.get(t.shariat, ""),
             t.author.name if t.author else "",
         ])
+    last = ws.max_row
+    ws.append(["", "", "", f"Jami: {len(rows)} ta yozuv", "", "", "",
+               f"=SUM(H3:H{last})" if last >= 3 else 0, f"=SUM(I3:I{last})" if last >= 3 else 0,
+               round(flows[all_rows[-1].id]["bal"] if all_rows else opening, 2)])
+    for c in ws[ws.max_row]:
+        c.font = bold
     for row in ws.iter_rows(min_row=2):
         row[0].number_format = "DD.MM.YYYY"
-        row[3].number_format = row[5].number_format = "# ##0"
-    for i, w in enumerate((12, 14, 22, 14, 8, 14, 24, 26, 24, 18, 12, 30, 14), start=1):
+        for k in (7, 8, 9):
+            row[k].number_format = "# ##0" if cur == "UZS" else "#,##0.00"
+    for i, w in enumerate((12, 12, 22, 24, 26, 26, 30, 15, 15, 16, 8, 16, 12, 14), start=1):
         ws.column_dimensions[ws.cell(1, i).column_letter].width = w
+    ws.freeze_panes = "A2"
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -364,15 +435,51 @@ def delete(tx_id):
     if g.user.role == "menejer":
         flash("O'chirish uchun ruxsat yo'q.", "bad")
         return _back()
-    tx = db.get_or_404(Transaction, tx_id)
+    _delete_tx(db.get_or_404(Transaction, tx_id))
+    db.session.commit()
+    flash("Yozuv o'chirildi.", "ok")
+    return _back()
+
+
+def _delete_tx(tx):
     debt = tx.debt
     audit.log("tx_delete", audit.describe_tx(tx))
     db.session.delete(tx)
     db.session.flush()
     if debt is not None:  # qaytarish o'chirilsa qarz qayta ochiladi
         debt.closed = F.debt_remaining(debt) <= 0.01
-    db.session.commit()
-    flash("Yozuv o'chirildi.", "ok")
+
+
+@bp.route("/ommaviy", methods=["POST"])
+def bulk():
+    """Belgilangan bir nechta yozuv: kategoriyasini qo'yish yoki o'chirish."""
+    if g.user.role == "menejer":
+        flash("Ruxsat yo'q.", "bad")
+        return _back()
+    ids = [i for i in (form_int(x) for x in request.form.getlist("ids")) if i]
+    txs = Transaction.query.filter(Transaction.id.in_(ids)).all() if ids else []
+    if not txs:
+        flash("Hech qaysi yozuv tanlanmagan.", "bad")
+        return _back()
+    action = request.form.get("action")
+    if action == "category":
+        cat = db.session.get(Category, form_int(request.form.get("category_id")) or 0)
+        if cat is None:
+            flash("Kategoriyani tanlang.", "bad")
+            return _back()
+        ok = [t for t in txs if t.kind == cat.kind]
+        for t in ok:
+            t.category_id = cat.id
+        skipped = len(txs) - len(ok)
+        audit.log("tx_update", f"{len(ok)} ta yozuv kategoriyasi → «{cat.name}»")
+        db.session.commit()
+        flash(f"{len(ok)} ta yozuvga «{cat.name}» qo'yildi"
+              + (f"; {skipped} tasi turi mos kelmagani uchun o'zgarmadi." if skipped else "."), "ok" if ok else "warn")
+    elif action == "delete":
+        for t in txs:
+            _delete_tx(t)
+        db.session.commit()
+        flash(f"{len(txs)} ta yozuv o'chirildi.", "ok")
     return _back()
 
 

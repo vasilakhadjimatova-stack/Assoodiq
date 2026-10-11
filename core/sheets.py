@@ -175,7 +175,7 @@ def parse_kind(raw):
     n = _loose(raw)
     if not n:
         return None
-    if "otkazma" in n or "transfer" in n or "qarz" in n:
+    if "otkazma" in n or "transfer" in n or "qarz" in n or "qaytar" in n:
         return "skip"
     if n in ("+",) or "kirim" in n or "tushum" in n or "income" in n:
         return "kirim"
@@ -225,6 +225,9 @@ def analyze(text, accounts, categories, programs, default_account=None, default_
     for n, cells in enumerate(raw_rows, start=2 if result["header"] else 1):
         get = {f: (cells[i] if i < len(cells) else "") for i, f in mapping.items()}
         row = {"n": n, "cells": cells, "status": "ok", "msg": [], "warn": []}
+        # Assoodiq eksportidagi xizmat qatorlari (oy boshi qoldig'i, jami) — o'tkazib yuboriladi
+        if any(_norm(c).startswith(("oy boshidagi qoldiq", "jami:")) for c in cells):
+            continue
         result["rows"].append(row)
 
         d = parse_date(get.get("date"))
@@ -235,7 +238,7 @@ def analyze(text, accounts, categories, programs, default_account=None, default_
         kind = parse_kind(get.get("kind"))
         amount = None
         if kind == "skip":
-            row["status"], row["msg"] = "skip", ["o'tkazma/qarz — qo'lda yozing"]
+            row["status"], row["msg"] = "skip", ["o'tkazma, qarz yoki qaytarish — qo'lda yozing"]
             continue
         if "income" in get or "expense" in get:
             inc, exp = parse_amount(get.get("income")), parse_amount(get.get("expense"))

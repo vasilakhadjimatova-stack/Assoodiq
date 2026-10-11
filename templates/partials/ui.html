@@ -179,7 +179,7 @@ data-set-kind="{{ t.kind }}" data-set-amount="{{ t.amount }}" data-set-account-i
 {% macro tx_modal(id, f_accounts, f_categories, f_programs, aqd_types, shariat_types, preset={}, next_url="", title="Yangi yozuv") -%}
 {% set kind = preset.get('kind', 'kirim') %}
 <dialog class="modal" id="{{ id }}">
-  <form method="post" action="{{ url_for('kassa.create') }}" class="tx-form" data-kind="{{ kind }}"{% if f_hints %} data-hints='{{ f_hints|tojson }}'{% endif %}>
+  <form method="post" action="{{ url_for('kassa.create') }}" class="tx-form" data-kind="{{ kind }}"{% if f_hints %} data-hints='{{ f_hints|tojson }}'{% endif %}{% if f_members and not preset.get('enrollment_id') %} data-members='{{ f_members|tojson }}'{% endif %}>
     <input type="hidden" name="next" value="{{ next_url }}">
     {% if preset.get('enrollment_id') %}<input type="hidden" name="enrollment_id" value="{{ preset.enrollment_id }}">{% endif %}
     <input type="hidden" name="tx_id" value="">
@@ -204,7 +204,7 @@ data-set-kind="{{ t.kind }}" data-set-amount="{{ t.amount }}" data-set-account-i
         <div class="field">
           <label><span data-show="kirim">Kimdan</span><span data-show="chiqim">Kimga</span></label>
           <input type="text" name="counterparty" value="{{ preset.get('counterparty', '') }}" placeholder="Ism yoki tashkilot" list="{{ id }}-cp" autocomplete="off">
-          {% if f_hints %}<datalist id="{{ id }}-cp">{% for n in f_hints %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
+          {% if f_names %}<datalist id="{{ id }}-cp">{% for n in f_names %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
         </div>
         <div class="field">
           <label>Kategoriya</label>
@@ -215,6 +215,13 @@ data-set-kind="{{ t.kind }}" data-set-amount="{{ t.amount }}" data-set-account-i
           </select>
         </div>
       </div>
+      {% if f_members and not preset.get('enrollment_id') %}
+      <div data-show="kirim"><div class="field m-link" data-member-link hidden>
+        <label>{{ icon('cap', 'sm') }} O'quvchi to'lovi</label>
+        <select name="enrollment_id"><option value="">— Dasturga bog'lamaslik —</option></select>
+        <span class="hint">Tanlansa, summa shu o'quvchining qarzidan ayiriladi va kartasida to'lov bo'lib ko'rinadi.</span>
+      </div></div>
+      {% endif %}
       <div class="field">
         <span class="fl"><span data-show="kirim chiqim">Hisob</span><span data-show="otkazma">Qaysi hisobdan</span></span>
         <div class="chips">

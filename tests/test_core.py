@@ -589,3 +589,78 @@ def test_refund_reduces_income_not_expense(app):
     login(client, "300300")
     client.post("/yozilish/qaytarish", data={"eid": e.id, "amount": "1", "account_id": payme.id})
     assert Transaction.query.filter(Transaction.amount < 0).count() == 2
+
+
+# ── Kassa auditi ──
+
+def test_kassa_kirim_linked_to_student_reduces_debt(app):
+    client = app.test_client()
+    login(client, "100100")
+    p = Program(name="Kurs L", kind="kurs", price=2_000_000)
+    m = Member(full_name="Otabek Nazarov")
+    db.session.add_all([p, m])
+    db.session.commit()
+    client.post(f"/dasturlar/{p.id}/yozish", data={"member_id": m.id})
+    e = Enrollment.query.one()
+    page = client.get("/kassa/").get_data(as_text=True)
+    assert "data-members=" in page and '<option value="Otabek Nazarov">' in page  # ism ro'yxatda, to'lovsiz ham
+    # kassadan (tez yozish qatori) o'quvchi to'loviga bog'lab kirim
+    client.post("/kassa/yangi", data={"kind": "kirim", "amount": "800 000", "account_id": acc("Click").id,
+                                      "counterparty": "Otabek Nazarov", "enrollment_id": e.id, "quick": "1"})
+    assert F.enrollment_row(db.session.get(Enrollment, e.id))["due"] == 1_200_000
+    tx = Transaction.query.one()
+    assert tx.program_id == p.id
+
+
+def test_kassa_warnings_duplicate_negative_future(app):
+    client = app.test_client()
+    login(client, "100100")
+    data = {"kind": "chiqim", "amount": "300 000", "account_id": acc("Asosiy kassa").id, "counterparty": "Zal",
+            "date": date.today().isoformat()}
+    client.post("/kassa/yangi", data=data)
+    client.post("/kassa/yangi", data=data)
+    with client.session_transaction() as sess:
+        msgs = [m for cat_, m in sess.get("_flashes", []) if cat_ == "warn"]
+    assert any("xuddi shunday yozuv" in m for m in msgs) and any("manfiy" in m for m in msgs)
+    client.post("/kassa/yangi", data=dict(data, kind="kirim", amount="1000",
+                                          date=(date.today() + timedelta(days=3)).isoformat()))
+    with client.session_transaction() as sess:
+        assert any("kelajakda" in m for c, m in sess.get("_flashes", []) if c == "warn")
+
+
+def test_kassa_bulk_category_delete_and_uncategorized_filter(app):
+    client = app.test_client()
+    login(client, "100100")
+    a = F.record("chiqim", 100, acc("Asosiy kassa"))
+    b = F.record("chiqim", 200, acc("Asosiy kassa"))
+    c = F.record("kirim", 300, acc("Asosiy kassa"))
+    db.session.commit()
+    page = client.get("/kassa/?kat=yoq").get_data(as_text=True)
+    assert "Kategoriyasiz (3)" in page and "Jami: 3 ta yozuv" in page
+    office = cat("Ofis ijarasi")
+    client.post("/kassa/ommaviy", data={"ids": [a.id, b.id, c.id], "action": "category", "category_id": office.id})
+    assert {t.id for t in Transaction.query.filter_by(category_id=office.id)} == {a.id, b.id}  # kirim o'zgarmaydi
+    client.post("/kassa/ommaviy", data={"ids": [a.id, c.id], "action": "delete"})
+    assert [t.id for t in Transaction.query.all()] == [b.id]
+    login(client, "300300")
+    client.post("/kassa/ommaviy", data={"ids": [b.id], "action": "delete"})
+    assert Transaction.query.count() == 1
+
+
+def test_kassa_export_has_balance_and_reimports_as_duplicates(app):
+    from io import BytesIO
+    from openpyxl import load_workbook
+    client = app.test_client()
+    login(client, "100100")
+    kassa = acc("Asosiy kassa")
+    F.record("kirim", 1_000_000, kassa, counterparty="Ali", category_id=cat("Konsalting").id)
+    F.record("chiqim", 250_000, kassa, counterparty="Zal", category_id=cat("Zal ijarasi").id)
+    db.session.commit()
+    r = client.get(f"/kassa/excel?hisob={kassa.id}")
+    ws = load_workbook(BytesIO(r.data)).active
+    head = [c.value for c in ws[1]]
+    assert head[7:10] == ["Kirim, so'm", "Chiqim, so'm", "Qoldiq, so'm"]
+    assert ws.cell(4, 10).value == 750_000 and str(ws.cell(5, 8).value).startswith("=SUM(")
+    r = client.post("/kassa/import", data={"action": "preview", "file": (BytesIO(r.data), "kassa.xlsx")},
+                    content_type="multipart/form-data")
+    assert "2 ta bazada bor" in r.get_data(as_text=True)

@@ -44,6 +44,9 @@
     var tx = dlg.querySelector('[name=tx_id]');
     if (tx) tx.value = '';
     dlg.querySelectorAll('[data-text][data-default]').forEach(function (el) { el.textContent = el.dataset.default; });
+    dlg.querySelectorAll('[data-member-link]').forEach(function (box) {
+      box.hidden = true; var sel = box.querySelector('select'); if (sel) sel.length = 1;
+    });
   }
 
   // O'tkazish oynasi: hozirgi dastur ro'yxatda tanlanmaydi, birinchi boshqasi tanlanib narxi qo'yiladi
@@ -333,6 +336,43 @@
     who.addEventListener('input', function (e) { if (!e.inputType || e.inputType === 'insertReplacementText') apply(); });
   });
 
+  // O'quvchi ismi yozilsa — kirimni uning dastur to'loviga bog'lash (qarzidan ayiriladi)
+  document.querySelectorAll('form[data-members]').forEach(function (form) {
+    var map;
+    try { map = JSON.parse(form.dataset.members); } catch (e) { return; }
+    var who = form.querySelector('[name=counterparty]'), box = form.querySelector('[data-member-link]');
+    if (!who || !box) return;
+    var sel = box.querySelector('select');
+    function applyLink() {
+      var o = sel.selectedOptions[0];
+      if (!o || !o.value) return;
+      if (o.dataset.c) setField(form, 'category_id', o.dataset.c);
+      setField(form, 'program_id', o.dataset.pid);
+      var amt = form.querySelector('[name=amount]');
+      if (amt && !amt.value && +o.dataset.d > 0) amt.value = fmt(o.dataset.d);
+    }
+    function update() {
+      var editing = (form.querySelector('[name=tx_id]') || {}).value;
+      var rec = map[who.value.trim().toLowerCase()];
+      sel.length = 1;
+      if (!rec || editing || form.dataset.kind !== 'kirim') { box.hidden = true; return; }
+      var pick = 0;
+      rec.items.forEach(function (it, i) {
+        var o = new Option(it.p + (it.d > 0 ? ' — qoldiq ' + fmt(it.d) + " so'm" : " — to'langan"), it.e);
+        o.dataset.c = it.c || ''; o.dataset.pid = it.pid; o.dataset.d = it.d;
+        sel.add(o);
+        if (!pick && it.d > 0) pick = i + 1;
+      });
+      sel.selectedIndex = pick;
+      box.hidden = false;
+      applyLink();
+    }
+    sel.addEventListener('change', applyLink);
+    who.addEventListener('change', update);
+    who.addEventListener('input', function (e) { if (!e.inputType || e.inputType === 'insertReplacementText') update(); });
+    form.addEventListener('change', function (e) { if (e.target.name === 'kind') update(); });
+  });
+
   // Tez yozish qatori: oxirgi tanlovlar eslab qolinadi, saqlangach fokus yana shu yerda
   var qe = document.querySelector('[data-qe]');
   if (qe) {
@@ -361,10 +401,45 @@
     }
   }
 
+  // Bir nechta qatorni belgilash (Shift — oraliq) va ular bilan amal
+  var bulk = document.querySelector('[data-bulk]');
+  if (bulk) {
+    var ledgerCard = bulk.closest('.ledger');
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-sel]'));
+    var selAll = document.querySelector('[data-sel-all]'), lastIdx = null;
+    var refresh = function () {
+      var n = boxes.filter(function (b) { return b.checked; }).length;
+      bulk.querySelector('[data-sel-count]').textContent = n;
+      ledgerCard.classList.toggle('has-sel', n > 0);
+      boxes.forEach(function (b) { b.closest('tr').classList.toggle('is-sel', b.checked); });
+      if (selAll) { selAll.checked = n > 0 && n === boxes.length; selAll.indeterminate = n > 0 && n < boxes.length; }
+    };
+    boxes.forEach(function (b, i) {
+      b.addEventListener('click', function (e) {
+        if (e.shiftKey && lastIdx !== null) {
+          for (var k = Math.min(lastIdx, i); k <= Math.max(lastIdx, i); k++) boxes[k].checked = b.checked;
+        }
+        lastIdx = i;
+        refresh();
+      });
+    });
+    if (selAll) selAll.addEventListener('change', function () { boxes.forEach(function (b) { b.checked = selAll.checked; }); refresh(); });
+    bulk.querySelector('[data-sel-clear]').addEventListener('click', function () { boxes.forEach(function (b) { b.checked = false; }); refresh(); });
+    bulk.addEventListener('submit', function (e) {
+      var sb = e.submitter;
+      if (sb && sb.dataset.confirm && !window.confirm(sb.dataset.confirm)) e.preventDefault();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && ledgerCard.classList.contains('has-sel') && !document.querySelector('dialog[open]')) {
+        boxes.forEach(function (b) { b.checked = false; }); refresh();
+      }
+    });
+  }
+
   // Jadvalda qatorni ikki marta bosish — tahrirlash oynasi
   document.addEventListener('dblclick', function (e) {
     var tr = e.target.closest('tr.can-edit');
-    if (!tr || e.target.closest('details, a, button')) return;
+    if (!tr || e.target.closest('details, a, button, label')) return;
     var btn = tr.querySelector('[data-edit]');
     if (btn) { window.getSelection && window.getSelection().removeAllRanges(); btn.click(); }
   });
@@ -416,10 +491,10 @@
   });
 
   // Xabarlar o'zi yo'qoladi
-  setTimeout(function () {
-    document.querySelectorAll('.flash').forEach(function (f) {
-      f.style.transition = 'opacity .4s'; f.style.opacity = '0';
-      setTimeout(function () { f.remove(); }, 400);
-    });
-  }, 5000);
+  // (ogohlantirishlar uzoqroq turadi; bosilsa darhol yopiladi)
+  document.querySelectorAll('.flash').forEach(function (f) {
+    function hide() { f.style.transition = 'opacity .4s'; f.style.opacity = '0'; setTimeout(function () { f.remove(); }, 400); }
+    setTimeout(hide, f.classList.contains('warn') ? 12000 : 5000);
+    f.addEventListener('click', hide);
+  });
 })();

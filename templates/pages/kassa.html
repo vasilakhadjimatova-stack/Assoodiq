@@ -7,7 +7,7 @@
 <div class="head">
   <div>
     <div class="head-t">Kassa</div>
-    <div class="head-s k-meta">{{ month_name }}: kirim <b class="ok-t">{{ totals.income|num }}</b> · chiqim <b>{{ totals.expense|num }}</b> · sof <b>{{ totals.profit|num }}</b> so'm</div>
+    <div class="head-s k-meta" title="Foyda-zarar bo'yicha: faqat halol kirim va xarajatlar (o'tkazma, qarz va tozalash fondi kirmaydi). Jadval ostidagi «Jami» esa barcha pul harakati.">{{ month_name }}: kirim <b class="ok-t">{{ totals.income|num }}</b> · chiqim <b>{{ totals.expense|num }}</b> · sof <b>{{ totals.profit|num }}</b> so'm</div>
   </div>
   <div class="head-a">
     {% if can_edit %}
@@ -51,6 +51,7 @@
   {% if acc_id %}<input type="hidden" name="hisob" value="{{ acc_id }}">{% endif %}
   <select name="kat" class="k-cat" data-autosubmit aria-label="Kategoriya bo'yicha">
     <option value="">Barcha kategoriyalar</option>
+    {% if no_cat_count or cat_id == 'yoq' %}<option value="yoq" {{ 'selected' if cat_id == 'yoq' }}>⚠ Kategoriyasiz ({{ no_cat_count }})</option>{% endif %}
     {% for kk, label in (('kirim', 'Kirim'), ('chiqim', 'Chiqim')) %}
     <optgroup label="{{ label }}">
       {% for c in f_categories if c.kind == kk %}<option value="{{ c.id }}" {{ 'selected' if cat_id == c.id }}>{{ c.name }}</option>{% endfor %}
@@ -58,6 +59,7 @@
     {% endfor %}
   </select>
   <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Qidirish: kim yoki izoh"></label>
+  {% if no_cat_count and cat_id != 'yoq' and can_edit %}<a class="pill warn k-nocat" href="{{ url_for('kassa.ledger', **dict(keep, kat='yoq')) }}" title="Kategoriyasi qo'yilmagan kirim/chiqimlar — hisobotda «Boshqa» bo'lib ketadi">{{ ui.icon('alert', 'sm') }} {{ no_cat_count }} ta kategoriyasiz</a>{% endif %}
   {% if filtered %}<a class="btn ghost sm" href="{{ url_for('kassa.ledger', oy=month.strftime('%Y-%m'), hisob=acc_id) }}" title="Filtrni tozalash">{{ ui.icon('x', 'sm') }} Tozalash</a>{% endif %}
   <div class="seg kv-toggle" role="group" aria-label="Ko'rinish">
     <button type="button" data-kview="table" title="Jadval — Sheets'dagidek" aria-label="Jadval">{{ ui.icon('table', 'sm') }}</button>
@@ -72,7 +74,7 @@
       {% set show_acc = not account %}
       <colgroup><col style="width:42px"><col style="width:66px"><col style="width:15%"><col style="width:13%">{% if show_acc %}<col style="width:10%">{% endif %}<col><col style="width:106px"><col style="width:106px"><col style="width:116px"><col style="width:44px"></colgroup>
       <thead><tr>
-        <th class="c-n">№</th><th>Sana</th><th>Kimdan / kimga</th><th>Kategoriya</th>{% if show_acc %}<th>Hisob</th>{% endif %}<th>Izoh</th>
+        <th class="c-n">{% if can_edit %}<label class="rsel" title="Hammasini belgilash"><input type="checkbox" data-sel-all aria-label="Hammasini belgilash"><span>№</span></label>{% else %}№{% endif %}</th><th>Sana</th><th>Kimdan / kimga</th><th>Kategoriya</th>{% if show_acc %}<th>Hisob</th>{% endif %}<th>Izoh</th>
         <th class="r">Kirim</th><th class="r">Chiqim</th><th class="r" title="{{ account.name if account else 'Barcha hisoblar' }}">Qoldiq{{ ', $' if ledger_cur == 'USD' }}</th><th class="c-act"></th>
       </tr></thead>
       <tbody>
@@ -84,7 +86,7 @@
         {% for r in table %}
         {% set t = r.t %}
         <tr data-tx="{{ t.id }}" class="k-{{ t.kind }}{{ ' can-edit' if can_edit and t.kind in ('kirim', 'chiqim') }}">
-          <td class="c-n">{{ loop.index }}</td>
+          <td class="c-n">{% if can_edit %}<label class="rsel"><input type="checkbox" name="ids" value="{{ t.id }}" form="bulk-form" data-sel aria-label="Belgilash"><span>{{ loop.index }}</span></label>{% else %}{{ loop.index }}{% endif %}</td>
           <td class="nowrap" title="{{ t.date|d('long') }}">{{ t.date.strftime('%d.%m') }}</td>
           <td class="c-who" title="{{ t.counterparty or '' }}">
             {% if t.kind == 'otkazma' %}<span class="faint">O'tkazma</span>{% else %}<b>{{ t.counterparty or '—' }}</b>{% endif %}
@@ -107,7 +109,7 @@
       </tbody>
       <tfoot><tr>
         <td class="c-n"></td>
-        <td colspan="{{ 5 if show_acc else 4 }}">Jami: {{ table|length }} ta yozuv{% if filtered %} (filtr bo'yicha){% endif %}</td>
+        <td colspan="{{ 5 if show_acc else 4 }}" title="Barcha pul harakati (o'tkazmalar kirmaydi)">Jami: {{ table|length }} ta yozuv{% if filtered %} (filtr bo'yicha){% endif %} <span class="faint" style="font-weight:600">· pul harakati</span></td>
         <td class="r ok-t">{{ sums.inc|money(ledger_cur) }}</td>
         <td class="r">{{ sums.out|money(ledger_cur) }}</td>
         <td class="r" title="Oy oxiridagi qoldiq">{{ closing|money(ledger_cur) }}</td>
@@ -116,8 +118,25 @@
     </table>
   </div>
 
+  {% if can_edit %}
+  {# Belgilangan qatorlar bilan amal (Sheets'dagi kabi bir nechtasini birdaniga) #}
+  <form class="bulk" id="bulk-form" method="post" action="{{ url_for('kassa.bulk') }}" data-bulk>
+    <input type="hidden" name="next" value="{{ here }}">
+    <span class="bulk-n"><b data-sel-count>0</b> ta tanlandi</span>
+    <select name="category_id" aria-label="Kategoriya">
+      {% for kk, label in (('kirim', 'Kirim'), ('chiqim', 'Chiqim')) %}
+      <optgroup label="{{ label }}">{% for c in f_categories if c.kind == kk %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</optgroup>
+      {% endfor %}
+    </select>
+    <button class="btn solid sm" name="action" value="category">{{ ui.icon('check', 'sm') }} Kategoriyani qo'yish</button>
+    <button class="btn danger sm" name="action" value="delete" data-confirm="Belgilangan yozuvlarni o'chirasizmi?">{{ ui.icon('trash', 'sm') }} O'chirish</button>
+    <button type="button" class="btn ghost sm" data-sel-clear>Bekor qilish</button>
+    <span class="bulk-tip faint"><kbd>Shift</kbd> bilan bosing — oraliqni belgilaydi</span>
+  </form>
+  {% endif %}
+
   {# Tez yozish qatori: Sheets'dagi bo'sh qatorga yozgandek — Enter bosilsa saqlanadi #}
-  <form class="qe tx-form" method="post" action="{{ url_for('kassa.create') }}" data-kind="kirim" data-qe autocomplete="off"{% if f_hints %} data-hints='{{ f_hints|tojson }}'{% endif %}>
+  <form class="qe tx-form" method="post" action="{{ url_for('kassa.create') }}" data-kind="kirim" data-qe autocomplete="off"{% if f_hints %} data-hints='{{ f_hints|tojson }}'{% endif %}{% if f_members %} data-members='{{ f_members|tojson }}'{% endif %}>
     <input type="hidden" name="next" value="{{ here }}">
     <input type="hidden" name="quick" value="1">
     <input type="hidden" name="program_id" value="">
@@ -127,7 +146,7 @@
     </div>
     <input type="date" name="date" value="{{ qe_date.isoformat() }}" aria-label="Sana" class="qe-date">
     <input type="text" name="counterparty" list="qe-cp" placeholder="Kimdan / kimga" aria-label="Kimdan / kimga" class="qe-who">
-    {% if f_hints %}<datalist id="qe-cp">{% for n in f_hints %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
+    {% if f_names %}<datalist id="qe-cp">{% for n in f_names %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
     <select name="category_id" aria-label="Kategoriya" class="qe-cat">
       {% for c in f_categories %}<option value="{{ c.id }}" data-kind="{{ c.kind }}">{{ c.name }}</option>{% endfor %}
     </select>
@@ -137,7 +156,14 @@
     <input name="amount" inputmode="decimal" data-money required placeholder="Summa" aria-label="Summa" class="qe-amount">
     <input type="text" name="note" placeholder="Izoh" aria-label="Izoh" class="qe-note">
     <button class="btn solid qe-save" title="Saqlash (Enter)">{{ ui.icon('enter', 'sm') }} Qo'shish</button>
-    <div class="qe-hint"><kbd>Enter</kbd> — saqlash · <kbd>N</kbd> — shu qatorga o'tish · qatorni ikki marta bosing — tahrirlash · tanish ismni tanlasangiz kategoriya va hisob o'zi to'ladi</div>
+    {% if f_members %}
+    <div class="qe-link" data-member-link hidden>
+      {{ ui.icon('cap', 'sm') }}<span>O'quvchi to'lovi:</span>
+      <select name="enrollment_id" aria-label="O'quvchi to'lovi"><option value="">— Dasturga bog'lamaslik —</option></select>
+      <span class="faint">summa qarzidan ayiriladi</span>
+    </div>
+    {% endif %}
+    <div class="qe-hint"><kbd>Enter</kbd> — saqlash · <kbd>N</kbd> — shu qatorga o'tish · qatorni ikki marta bosing — tahrirlash · o'quvchi ismini tanlasangiz to'lov uning qarziga bog'lanadi</div>
   </form>
 </div>
 

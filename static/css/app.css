@@ -1291,3 +1291,36 @@ tr.row-link:hover .t-main { color: var(--brand-txt); }
 .btn.danger-solid { background: linear-gradient(180deg, #D0644E, #B4432F); box-shadow: 0 6px 16px -6px rgba(180, 67, 47, .55); }
 .btn.danger-solid:hover { background: linear-gradient(180deg, #C2553F, #A33A27); }
 @media (max-width: 560px) { .rf-then { grid-template-columns: 1fr; } }
+
+/* Ogohlantirish xabari */
+.flash.warn .ic { color: var(--warn); }
+.flash.warn::after { background: var(--warn); }
+.flash { cursor: pointer; }
+.flash.warn::after { animation-duration: 12s; }
+
+/* Kassa: qatorlarni belgilash va ommaviy amal */
+.rsel { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; width: 100%; cursor: pointer; }
+.rsel input { display: none; width: 15px; height: 15px; margin: 0; accent-color: var(--brand); cursor: pointer; }
+.table.sheet tr:hover .rsel input, .ledger.has-sel .rsel input, .rsel input:checked, th .rsel input { display: inline-block; }
+.table.sheet tr:hover .rsel span, .ledger.has-sel .rsel span, th .rsel span { display: none; }
+.table.sheet tr.is-sel td { background: color-mix(in srgb, var(--brand-bg) 75%, transparent) !important; }
+.bulk { display: none; position: sticky; bottom: 0; z-index: 5; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand-bg) 80%, var(--surface)), var(--surface)); box-shadow: 0 -10px 24px -14px rgba(14, 26, 21, .3); }
+.ledger.has-sel .bulk { display: flex; }
+.ledger.has-sel .qe { display: none; }
+.bulk-n { font-size: 13px; font-weight: 700; }
+.bulk-n b { font-size: 15px; color: var(--brand-txt); }
+.bulk select { width: 240px; height: 34px; font-size: 13px; }
+.bulk-tip { margin-left: auto; font-size: 11.5px; font-weight: 600; }
+.bulk-tip kbd { font: 700 10.5px var(--font); color: var(--txt2); background: var(--surface); border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; }
+.k-nocat { height: 30px; padding: 0 11px; }
+.k-nocat .ic { width: 13px; height: 13px; }
+/* Tez yozish / oyna: o'quvchi to'loviga bog'lash */
+.qe-link { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--gold-bg); font-size: 12.5px; font-weight: 700; color: var(--txt2); }
+.qe-link[hidden], .m-link[hidden] { display: none; }
+.qe-link .ic { color: var(--gold); }
+.qe-link select { width: auto; min-width: 300px; height: 32px; font-size: 12.5px; }
+.qe-link .faint { font-weight: 600; font-size: 11.5px; }
+.m-link { padding: 10px 12px; border-radius: 12px; background: var(--gold-bg); border: 1px solid color-mix(in srgb, var(--gold) 25%, transparent); }
+.m-link > label { display: inline-flex; align-items: center; gap: 6px; }
+.m-link > label .ic { color: var(--gold); }
