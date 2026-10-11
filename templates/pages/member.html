@@ -6,7 +6,7 @@
 {% set KIND_ICON = {"kurs": "cap", "klub": "users", "tadbir": "calendar", "konsalting": "briefcase"} %}
 {% set first_due = (enrs|selectattr('due', 'gt', 0)|rejectattr('enrollment.status', 'equalto', 'chiqqan')|list or [None])[0] %}
 {% set active_n = enrs|selectattr('enrollment.status', 'equalto', 'faol')|list|length %}
-{% set last_pay = payments[0] if payments else None %}
+{% set last_pay = (payments|selectattr('amount', 'gt', 0)|list or [None])[0] %}
 <a class="crumb" href="{{ url_for('dastur.members') }}">{{ ui.icon('left', 'sm') }} A'zolar</a>
 
 {# ── Profil ── #}
@@ -56,7 +56,7 @@
     <div class="stat-l">{{ ui.icon('in', 'sm') }} Oxirgi to'lov</div>
     {% if last_pay %}
     <div class="stat-v">{{ ui.som(last_pay.amount, last_pay.currency) }}</div>
-    <div class="stat-s">{{ last_pay.date|d('long') }} · {{ payments|length }} ta to'lov</div>
+    <div class="stat-s">{{ last_pay.date|d('long') }} · {{ payments|selectattr('amount', 'gt', 0)|list|length }} ta to'lov</div>
     {% else %}<div class="stat-v faint">—</div><div class="stat-s">hali to'lov yo'q</div>{% endif %}
   </div>
 </div>
@@ -122,6 +122,9 @@
           <div class="me-f">
             <span>{% if moved %}to'lovlar yangi dasturga o'tgan{% else %}{{ pay_count.get(e.id, 0) }} ta to'lov · {{ r.progress|pct }}{% endif %}</span>
             <div class="me-a">
+              {% if can_edit and r.paid > 0 %}
+              <button class="btn ghost sm" title="O'quvchiga pul qaytarish" data-open="refund-modal" data-set-eid="{{ e.id }}" data-set-member="{{ m.full_name }}" data-set-program="{{ e.program.name }}" data-set-paid="{{ r.paid|num }}" data-set-amount="{{ r.paid|round(2) }}" data-set-then="{{ 'chiqdi' if e.status != 'chiqqan' else 'chegirma' }}">{{ ui.icon('out', 'sm') }} Qaytarish</button>
+              {% endif %}
               {% if can_edit and e.status != 'chiqqan' and transfer_targets|length > 1 %}
               <button class="btn ghost sm" title="Boshqa dasturga o'tkazish" data-open="transfer-modal" data-set-eid="{{ e.id }}" data-set-member="{{ m.full_name }}" data-set-from="{{ e.program.name }}" data-set-paid="{{ r.paid|num }}" data-exclude-program="{{ (enrs|selectattr('enrollment.status', 'equalto', 'faol')|map(attribute='enrollment.program_id')|list + [e.program_id])|join(',') }}">{{ ui.icon('swap', 'sm') }} O'tkazish</button>
               {% endif %}
@@ -171,6 +174,6 @@
 
 {{ ui.pay_modal(f_accounts, None, aqd_types, here) }}
 {{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, next_url=here) }}
-{% if can_edit %}{% with next_url=here %}{% include "partials/transfer_modal.html" %}{% endwith %}{% endif %}
+{% if can_edit %}{% with next_url=here %}{% include "partials/transfer_modal.html" %}{% include "partials/refund_modal.html" %}{% endwith %}{% endif %}
 {% include "partials/member_form.html" %}
 {% endblock %}

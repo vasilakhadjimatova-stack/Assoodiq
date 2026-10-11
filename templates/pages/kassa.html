@@ -88,6 +88,7 @@
           <td class="nowrap" title="{{ t.date|d('long') }}">{{ t.date.strftime('%d.%m') }}</td>
           <td class="c-who" title="{{ t.counterparty or '' }}">
             {% if t.kind == 'otkazma' %}<span class="faint">O'tkazma</span>{% else %}<b>{{ t.counterparty or '—' }}</b>{% endif %}
+            {% if t.kind == 'kirim' and t.amount < 0 %}<span class="pill bad">Qaytarildi</span>{% endif %}
             {% if t.shariat != 'halol' %}<span class="pill {{ 'bad' if t.shariat == 'nohalol' else 'warn' }}">{{ 'Nohalol' if t.shariat == 'nohalol' else 'Shubhali' }}</span>{% endif %}
           </td>
           <td class="c-cat" title="{{ t.category.name if t.category else '' }}">{% if t.category %}{{ t.category.name }}{% else %}<span class="faint">{{ t.kind_name }}</span>{% endif %}</td>

@@ -547,3 +547,45 @@ def test_transfer_between_clubs_moves_payments(app):
     login(client, "300300")
     client.post("/yozilish/otkazish", data={"eid": new.id, "program_id": a.id})
     assert db.session.get(Enrollment, new.id).status == "faol"
+
+
+def test_refund_reduces_income_not_expense(app):
+    from core.models import AuditLog
+    client = app.test_client()
+    login(client, "100100")
+    p = Program(name="Kurs R", kind="kurs", price=4_000_000)
+    m = Member(full_name="Bobur Aliyev")
+    db.session.add_all([p, m])
+    db.session.commit()
+    client.post(f"/dasturlar/{p.id}/yozish", data={"member_id": m.id})
+    e = Enrollment.query.one()
+    payme = acc("Payme")
+    client.post("/kassa/yangi", data={"kind": "kirim", "amount": "4 000 000", "account_id": payme.id,
+                                      "category_id": cat("Kurs to'lovlari").id, "enrollment_id": e.id})
+    bal0, today = F.account_balances()[payme.id], date.today()
+    # to'langanidan ko'p qaytarib bo'lmaydi
+    client.post("/yozilish/qaytarish", data={"eid": e.id, "amount": "5 000 000", "account_id": payme.id})
+    assert Transaction.query.count() == 1
+    # qisman qaytarish — chegirma: narx kamayadi, qarz paydo bo'lmaydi
+    client.post("/yozilish/qaytarish", data={"eid": e.id, "amount": "1 000 000", "account_id": payme.id,
+                                             "then": "chegirma", "note": "chegirma berildi"})
+    e = db.session.get(Enrollment, e.id)
+    row = F.enrollment_row(e)
+    assert (e.price, row["paid"], row["due"], e.status) == (3_000_000, 3_000_000, 0, "faol")
+    t = F.period_totals(today, today)
+    assert t["income"] == 3_000_000 and t["expense"] == 0           # xarajat emas — kirim kamaydi
+    assert F.account_balances()[payme.id] == bal0 - 1_000_000
+    assert F.program_stats(p)["collected"] == 3_000_000
+    # kassa daftarida chiqim ustunida
+    refund_tx = Transaction.query.filter(Transaction.amount < 0).one()
+    _, _, flows = F.ledger_rows([refund_tx], account=payme, start=today.replace(day=1))
+    assert (flows[refund_tx.id]["inc"], flows[refund_tx.id]["out"]) == (0, 1_000_000)
+    # to'liq qaytarish — dasturdan chiqadi
+    client.post("/yozilish/qaytarish", data={"eid": e.id, "amount": "3 000 000", "account_id": payme.id, "then": "chiqdi"})
+    assert db.session.get(Enrollment, e.id).status == "chiqqan" and F.program_stats(p)["collected"] == 0
+    assert AuditLog.query.filter_by(action="refund").count() == 2
+    page = client.get(f"/azolar/{m.id}").get_data(as_text=True)
+    assert "Pul qaytarildi" in page and "Qaytarildi" in client.get("/kassa/").get_data(as_text=True)
+    login(client, "300300")
+    client.post("/yozilish/qaytarish", data={"eid": e.id, "amount": "1", "account_id": payme.id})
+    assert Transaction.query.filter(Transaction.amount < 0).count() == 2

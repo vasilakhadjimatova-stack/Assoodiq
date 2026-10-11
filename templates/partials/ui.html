@@ -77,7 +77,8 @@
 {%- endmacro %}
 
 {% macro tx_row(t, show_actions=False, next_url="", show_date=True) -%}
-{% set incoming = t.kind in ("kirim", "qarz_kirim") %}
+{% set refund = t.kind == "kirim" and t.amount < 0 %}
+{% set incoming = t.kind in ("kirim", "qarz_kirim") and not refund %}
 <div class="tx">
   <div class="tx-i {{ 'in' if incoming else ('mv' if t.kind == 'otkazma' else 'out') }}">
     {{ icon('in' if incoming else ('swap' if t.kind == 'otkazma' else 'out'), 'sm') }}
@@ -93,7 +94,8 @@
     <span>{{ parts|join(' · ') }}</span>
   </div>
   {% if t.shariat != 'halol' %}<span class="pill {{ 'bad' if t.shariat == 'nohalol' else 'warn' }}">{{ 'Nohalol' if t.shariat == 'nohalol' else 'Shubhali' }}</span>{% endif %}
-  <div class="tx-a {{ 'in' if incoming else '' }}">{{ '+' if incoming else ('' if t.kind == 'otkazma' else '−') }}{{ som(t.amount, t.currency) }}</div>
+  {% if refund %}<span class="pill bad">Qaytarildi</span>{% endif %}
+  <div class="tx-a {{ 'in' if incoming else '' }}">{{ '+' if incoming else ('' if t.kind == 'otkazma' else '−') }}{{ som(t.amount|abs, t.currency) }}</div>
   {% if show_actions %}{{ tx_menu(t, next_url) }}{% endif %}
 </div>
 {%- endmacro %}
@@ -110,7 +112,7 @@ data-set-kind="{{ t.kind }}" data-set-amount="{{ t.amount }}" data-set-account-i
 <details class="more">
   <summary class="icon-btn" title="Amallar">{{ icon('more') }}</summary>
   <div class="menu">
-    {% if t.kind in ('kirim', 'chiqim') %}
+    {% if t.kind in ('kirim', 'chiqim') and t.amount > 0 %}
     <button type="button" data-open="tx-modal" data-edit data-set-tx-id="{{ t.id }}" data-set-date="{{ t.date.isoformat() }}" {{ tx_attrs(t) }} data-set-title="Yozuvni tahrirlash">{{ icon('pencil', 'sm') }} Tahrirlash</button>
     <button type="button" data-open="tx-modal" {{ tx_attrs(t) }} data-set-title="Nusxa — yangi yozuv">{{ icon('copy', 'sm') }} Nusxa olish</button>
     {% endif %}

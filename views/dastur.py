@@ -6,7 +6,7 @@ from sqlalchemy import func, or_
 from core import finance as F
 from core.extensions import db
 from core.models import (
-    BILLING, PROGRAM_KINDS, PROGRAM_STATUS, Category, Debt, Enrollment, Member, MemberEvent, Program,
+    BILLING, PROGRAM_KINDS, PROGRAM_STATUS, Account, Category, Debt, Enrollment, Member, MemberEvent, Program,
     Transaction,
 )
 from core import audit
@@ -243,6 +243,55 @@ def transfer():
     return redirect(back)
 
 
+@bp.route("/yozilish/qaytarish", methods=["POST"])
+def refund():
+    """O'quvchiga pul qaytarish.
+
+    Kassada manfiy kirim bo'lib yoziladi (o'sha kategoriya va dasturga): hisob qoldig'i,
+    dastur daromadi va foyda-zarardagi kirim shuncha kamayadi — xarajat bo'lib ko'rinmaydi.
+    Keyin a'zolik yopiladi yoki (chegirma bo'lsa) hisoblangan narx kamaytiriladi.
+    """
+    if g.user.role == "menejer":
+        flash("Pul qaytarish uchun ruxsat yo'q.", "bad")
+        return redirect(safe_next(url_for("dastur.members")))
+    f = request.form
+    e = db.get_or_404(Enrollment, form_int(f.get("eid")) or 0)
+    back = safe_next(url_for("dastur.member", mid=e.member_id))
+    amount = money(f.get("amount"))
+    account = db.session.get(Account, form_int(f.get("account_id")) or 0)
+    if amount <= 0 or account is None:
+        flash("Qaytariladigan summa va hisobni ko'rsating.", "bad")
+        return redirect(back)
+    paid = F.enrollment_paid_map().get(e.id, 0) or 0
+    amount_uzs = F.to_uzs(amount, account.currency)
+    if amount_uzs > paid + 0.01:
+        flash(f"Qaytariladigan summa to'langanidan ({paid:,.0f} so'm) ko'p bo'lmasin.".replace(",", " "), "bad")
+        return redirect(back)
+    last = (Transaction.query.filter(Transaction.enrollment_id == e.id, Transaction.kind == "kirim",
+                                     Transaction.amount > 0)
+            .order_by(Transaction.date.desc()).first())
+    cat = last.category if last and last.category else _payment_category(e.program)
+    reason = (f.get("note") or "").strip()
+    when = form_date(f.get("date"))
+    F.record("kirim", -amount, account, date=when, category_id=cat.id if cat else None, program_id=e.program_id,
+             enrollment_id=e.id, counterparty=e.member.full_name, shariat="halol", aqd="",
+             note=("Pul qaytarildi" + (f": {reason}" if reason else ""))[:500], created_by=g.user.id)
+    n = lambda v: f"{v:,.0f}".replace(",", " ")  # noqa: E731
+    if f.get("then") == "chegirma":
+        cut = F.convert(amount, account.currency, e.program.currency)
+        e.price = round(max(e.price - cut, 0), 2)
+        _event(e, "refund", f"«{e.program.name}»: narx {n(e.price)} ga kamaytirildi (pul qaytarildi)", on=when)
+    elif e.status != "chiqqan":
+        e.status = "chiqqan"
+        _event(e, "status", f"«{e.program.name}»: dasturdan chiqdi, pul qaytarildi", on=when)
+    audit.log("refund", f"{e.member.full_name}: «{e.program.name}», {n(amount)} "
+                        f"{'$' if account.currency == 'USD' else 'so‘m'} {account.name} hisobidan")
+    db.session.commit()
+    flash(f"{e.member.full_name}ga {n(amount)} {'$' if account.currency == 'USD' else 'so‘m'} qaytarildi "
+          f"({account.name}).", "ok")
+    return redirect(back)
+
+
 def transfer_targets():
     return (Program.query.filter(Program.status != "yakunlangan")
             .order_by(Program.kind, Program.name).all())
@@ -276,7 +325,7 @@ def members():
     last_pay = dict(
         db.session.query(Enrollment.member_id, func.max(Transaction.date))
         .join(Transaction, Transaction.enrollment_id == Enrollment.id)
-        .filter(Transaction.kind == "kirim").group_by(Enrollment.member_id).all()
+        .filter(Transaction.kind == "kirim", Transaction.amount > 0).group_by(Enrollment.member_id).all()
     )
     rows = []
     for m in q.order_by(Member.full_name).all():
@@ -341,7 +390,8 @@ def member(mid):
                 .order_by(Transaction.date.desc(), Transaction.id.desc()).all()) if eids else []
     pay_count = {}
     for t in payments:
-        pay_count[t.enrollment_id] = pay_count.get(t.enrollment_id, 0) + 1
+        if t.amount > 0:
+            pay_count[t.enrollment_id] = pay_count.get(t.enrollment_id, 0) + 1
     timeline = member_timeline(m, enrs, payments)
     enrolled = {r["enrollment"].program_id for r in enrs if r["enrollment"].status == "faol"}
     open_programs = [p for p in Program.query.filter(Program.status != "yakunlangan").order_by(Program.name).all()
@@ -365,8 +415,10 @@ def member_timeline(m, enrs, payments):
     items = []
     for t in payments:
         e = t.enrollment
-        items.append({"date": t.date, "kind": "pay", "icon": "in", "tone": "ok",
-                      "title": "To'lov qabul qilindi", "amount": t.amount, "cur": t.currency, "sign": "+",
+        back = t.amount < 0  # qaytarilgan pul
+        items.append({"date": t.date, "kind": "pay", "icon": "out" if back else "in", "tone": "bad" if back else "ok",
+                      "title": "Pul qaytarildi" if back else "To'lov qabul qilindi",
+                      "amount": abs(t.amount), "cur": t.currency, "sign": "−" if back else "+",
                       "sub": " · ".join(x for x in (e.program.name if e else "", t.account.name, t.note) if x),
                       "tx": t})
     for r in enrs:
@@ -376,8 +428,11 @@ def member_timeline(m, enrs, payments):
                       "sub": f"Kelishilgan narx {e.price:,.0f} {'$' if e.program.currency == 'USD' else 'so‘m'}".replace(",", " ")
                              + (f" · {e.note}" if e.note else "")})
     for ev in MemberEvent.query.filter_by(member_id=m.id).all():
-        icon, tone = {"renew": ("renew", "gold"), "transfer": ("swap", "brand")}.get(ev.kind, ("info", "info"))
-        if ev.kind == "transfer":
+        icon, tone = {"renew": ("renew", "gold"), "transfer": ("swap", "brand"),
+                      "refund": ("out", "bad")}.get(ev.kind, ("info", "info"))
+        if ev.kind == "refund":
+            sub = ""
+        elif ev.kind == "transfer":
             sub = f"Yangi dasturga o'tgan to'lov {ev.amount:,.0f} so'm".replace(",", " ") if ev.amount else "To'lov bo'lmagan"
         else:
             sub = f"Hisoblangan summa +{ev.amount:,.0f}".replace(",", " ") if ev.amount else ""

@@ -16,6 +16,7 @@ ACTIONS = {
     "user_toggle": "Xodim holati o'zgardi",
     "program_save": "Dastur saqlandi",
     "transfer": "A'zo boshqa dasturga o'tkazildi",
+    "refund": "O'quvchiga pul qaytarildi",
     "debt_toggle": "Qarz holati o'zgardi",
 }
 

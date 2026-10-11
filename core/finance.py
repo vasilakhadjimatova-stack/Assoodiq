@@ -172,6 +172,8 @@ def ledger_rows(rows, account=None, start=None):
     out_map, bal = {}, opening
     for t in rows:
         inc, out = flows(t)
+        if inc < 0:  # qaytarilgan to'lov (manfiy kirim) — chiqib ketgan pul
+            inc, out = 0.0, out - inc
         bal += inc - out
         out_map[t.id] = {"inc": inc, "out": out, "bal": bal,
                          "move": t.kind == "otkazma" and account is None}

@@ -1,0 +1,32 @@
+{# O'quvchiga pul qaytarish. Tugma data-set-eid, data-set-member, data-set-program, data-set-paid, data-set-amount beradi #}
+<dialog class="modal" id="refund-modal">
+  <form method="post" action="{{ url_for('dastur.refund') }}">
+    <input type="hidden" name="eid" value="">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <div class="modal-h"><div><h3>Pul qaytarish</h3><div class="faint" style="font-size:13px;font-weight:650"><span data-text="member"></span> · <span data-text="program"></span></div></div><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b">
+      <div class="tr-paid rf-info">{{ ui.icon('info', 'sm') }}<span>To'lagan: <b data-text="paid">0</b> so'm. Qaytarilgan summa uning to'lovidan va dastur daromadidan ayiriladi — hisobotlarda kirim kamayadi, xarajat bo'lib ko'rinmaydi.</span></div>
+      <div class="field"><label>Qaytariladigan summa</label><input class="amount-in" name="amount" inputmode="decimal" data-money required autocomplete="off"></div>
+      <div class="field">
+        <span class="fl">Qaysi hisobdan berildi</span>
+        <div class="chips">
+          {% for r in f_accounts %}
+          <label class="chip"><input type="radio" name="account_id" value="{{ r.account.id }}" {{ 'checked' if loop.first }}>{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }}{{ r.account.name }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field">
+        <span class="fl">Keyin</span>
+        <div class="rf-then">
+          <label><input type="radio" name="then" value="chiqdi" checked><b>Dasturdan chiqadi</b><span>A'zolik yopiladi, qarzdor bo'lib qolmaydi</span></label>
+          <label><input type="radio" name="then" value="chegirma"><b>Davom etadi — chegirma</b><span>Hisoblangan narx shu summaga kamayadi</span></label>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Sana</label><input type="date" name="date" value="{{ today.isoformat() }}"></div>
+        <div class="field"><label>Sababi</label><input type="text" name="note" placeholder="Masalan: sog'lig'i sababli"></div>
+      </div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid danger-solid">{{ ui.icon('out', 'sm') }} Qaytarish</button></div>
+  </form>
+</dialog>
