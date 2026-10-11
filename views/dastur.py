@@ -1,12 +1,12 @@
 from datetime import date, timedelta
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
-from sqlalchemy import or_
+from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from sqlalchemy import func, or_
 
 from core import finance as F
 from core.extensions import db
 from core.models import (
-    BILLING, PROGRAM_KINDS, PROGRAM_STATUS, Category, Enrollment, Member, Program,
+    BILLING, PROGRAM_KINDS, PROGRAM_STATUS, Category, Debt, Enrollment, Member, MemberEvent, Program,
     Transaction,
 )
 from core import audit
@@ -131,9 +131,26 @@ def enroll(pid):
                         business=(f.get("business") or "").strip()[:160])
         db.session.add(member)
         db.session.flush()
+    _enroll(p, member, f)
+    return redirect(url_for("dastur.program", pid=pid))
+
+
+@bp.route("/azolar/<int:mid>/yozish", methods=["POST"])
+def member_enroll(mid):
+    """O'quvchi kartasidan boshqa dasturga yozish."""
+    member = db.get_or_404(Member, mid)
+    p = db.session.get(Program, form_int(request.form.get("program_id")) or 0)
+    if p is None:
+        flash("Dasturni tanlang.", "bad")
+    else:
+        _enroll(p, member, request.form)
+    return redirect(url_for("dastur.member", mid=mid))
+
+
+def _enroll(p, member, f):
     if p.enrollments.filter_by(member_id=member.id, status="faol").first():
         flash(f"{member.full_name} bu dasturda allaqachon bor.", "bad")
-        return redirect(url_for("dastur.program", pid=pid))
+        return None
     joined = form_date(f.get("joined_at"))
     price = money(f.get("price")) if (f.get("price") or "").strip() else p.price
     enr = Enrollment(member_id=member.id, program_id=p.id, price=price, joined_at=joined,
@@ -143,7 +160,12 @@ def enroll(pid):
     db.session.add(enr)
     db.session.commit()
     flash(f"{member.full_name} dasturga yozildi.", "ok")
-    return redirect(url_for("dastur.program", pid=pid))
+    return enr
+
+
+def _event(enr, kind, text, amount=None):
+    db.session.add(MemberEvent(member_id=enr.member_id, enrollment_id=enr.id, kind=kind, text=text[:255],
+                               amount=amount, user_id=g.user.id if g.get("user") else None))
 
 
 @bp.route("/yozilish/<int:eid>/uzaytirish", methods=["POST"])
@@ -155,6 +177,7 @@ def renew(eid):
     e.valid_until = _add_period(base + timedelta(days=1), p.billing) - timedelta(days=1)
     e.price += p.price
     e.status = "faol"
+    _event(e, "renew", f"«{p.name}» obunasi {e.valid_until:%d.%m.%Y} gacha uzaytirildi", p.price)
     db.session.commit()
     flash(f"{e.member.full_name}: obuna {e.valid_until.strftime('%d.%m.%Y')} gacha uzaytirildi.", "ok")
     return redirect(safe_next(url_for("dastur.program", pid=p.id)))
@@ -164,8 +187,10 @@ def renew(eid):
 def enrollment_status(eid):
     e = db.get_or_404(Enrollment, eid)
     st = request.form.get("status")
-    if st in ("faol", "tugatgan", "chiqqan"):
+    if st in ("faol", "tugatgan", "chiqqan") and st != e.status:
         e.status = st
+        label = {"faol": "faol deb belgilandi", "tugatgan": "dasturni tugatdi", "chiqqan": "dasturdan chiqdi"}[st]
+        _event(e, "status", f"«{e.program.name}»: {label}")
         db.session.commit()
         flash("Holat yangilandi.", "ok")
     return redirect(safe_next(url_for("dastur.program", pid=e.program_id)))
@@ -183,17 +208,27 @@ def members():
         q = q.filter(or_(Member.full_name.ilike(like), Member.phone.ilike(like), Member.business.ilike(like)))
     paid_map = F.enrollment_paid_map()
     expiring_ids = {e.member_id for e in F.expiring_memberships(7)}
+    last_pay = dict(
+        db.session.query(Enrollment.member_id, func.max(Transaction.date))
+        .join(Transaction, Transaction.enrollment_id == Enrollment.id)
+        .filter(Transaction.kind == "kirim").group_by(Enrollment.member_id).all()
+    )
     rows = []
     for m in q.order_by(Member.full_name).all():
         enrs = [F.enrollment_row(e, paid_map) for e in m.enrollments.all()]
         active = [r for r in enrs if r["enrollment"].status != "chiqqan"]
+        paid = sum(r["paid"] for r in enrs)
+        due = sum(r["due"] for r in active)
         rows.append({
             "member": m,
-            "programs": [r["enrollment"].program for r in active],
-            "paid": sum(r["paid"] for r in enrs),
-            "due": sum(r["due"] for r in active),
+            "programs": [r["enrollment"].program for r in sorted(active, key=lambda r: r["enrollment"].status != "faol")],
+            "paid": paid,
+            "due": due,
+            "progress": paid / (paid + due) if paid + due else 1,
+            "active": any(r["enrollment"].status == "faol" for r in enrs),
             "club": any(r["enrollment"].program.kind == "klub" and r["enrollment"].status == "faol" for r in enrs),
             "expiring": m.id in expiring_ids,
+            "last_pay": last_pay.get(m.id),
         })
     counts = {
         "": len(rows),
@@ -205,8 +240,9 @@ def members():
             "tugayapti": lambda r: r["expiring"]}.get(seg)
     if filt:
         rows = [r for r in rows if filt(r)]
+    summary = {"active": sum(1 for r in rows if r["active"]), "paid": sum(r["paid"] for r in rows)}
     return render_template("pages/members.html", rows=rows, seg=seg, counts=counts, q=q_text,
-                           total_due=sum(r["due"] for r in rows))
+                           total_due=sum(r["due"] for r in rows), summary=summary)
 
 
 @bp.route("/azolar/saqlash", methods=["POST"])
@@ -237,9 +273,80 @@ def member(mid):
     enrs = [F.enrollment_row(e, paid_map) for e in m.enrollments.order_by(Enrollment.joined_at.desc()).all()]
     eids = [r["enrollment"].id for r in enrs]
     payments = (Transaction.query.filter(Transaction.enrollment_id.in_(eids))
-                .order_by(Transaction.date.desc()).all()) if eids else []
-    return render_template("pages/member.html", m=m, enrs=enrs, payments=payments,
+                .order_by(Transaction.date.desc(), Transaction.id.desc()).all()) if eids else []
+    pay_count = {}
+    for t in payments:
+        pay_count[t.enrollment_id] = pay_count.get(t.enrollment_id, 0) + 1
+    timeline = member_timeline(m, enrs, payments)
+    enrolled = {r["enrollment"].program_id for r in enrs if r["enrollment"].status == "faol"}
+    open_programs = [p for p in Program.query.filter(Program.status != "yakunlangan").order_by(Program.name).all()
+                     if p.id not in enrolled]
+    return render_template("pages/member.html", m=m, enrs=enrs, payments=payments, timeline=timeline,
+                           since=member_since(m, enrs),
+                           pay_count=pay_count, open_programs=open_programs,
                            total_paid=sum(r["paid"] for r in enrs),
+                           total_price=sum(r["price"] for r in enrs if r["enrollment"].status != "chiqqan"),
                            total_due=sum(r["due"] for r in enrs if r["enrollment"].status != "chiqqan"),
                            pay_categories={r["enrollment"].id: _payment_category(r["enrollment"].program) for r in enrs},
                            **form_context())
+
+
+def member_timeline(m, enrs, payments):
+    """O'quvchining butun tarixi bitta ro'yxatda (yangidan eskiga).
+
+    To'lovlar, dasturga yozilish, obuna uzaytirish va holat o'zgarishi, shuningdek
+    kassadagi uning nomi yozilgan boshqa yozuvlar va qarz daftaridagi qarzlari.
+    """
+    items = []
+    for t in payments:
+        e = t.enrollment
+        items.append({"date": t.date, "kind": "pay", "icon": "in", "tone": "ok",
+                      "title": "To'lov qabul qilindi", "amount": t.amount, "cur": t.currency, "sign": "+",
+                      "sub": " · ".join(x for x in (e.program.name if e else "", t.account.name, t.note) if x),
+                      "tx": t})
+    for r in enrs:
+        e = r["enrollment"]
+        items.append({"date": e.joined_at, "kind": "program", "icon": "cap", "tone": "brand",
+                      "title": f"«{e.program.name}» dasturiga yozildi",
+                      "sub": f"Kelishilgan narx {e.price:,.0f} {'$' if e.program.currency == 'USD' else 'so‘m'}".replace(",", " ")
+                             + (f" · {e.note}" if e.note else "")})
+    for ev in MemberEvent.query.filter_by(member_id=m.id).all():
+        items.append({"date": ev.created_at.date(), "kind": "program", "icon": "renew" if ev.kind == "renew" else "info",
+                      "tone": "gold" if ev.kind == "renew" else "info", "title": ev.text,
+                      "sub": f"Hisoblangan summa +{ev.amount:,.0f}".replace(",", " ") if ev.amount else "",
+                      "who": ev.user.name if ev.user else ""})
+    # Kassada shu ism bilan yozilgan, lekin dasturga bog'lanmagan yozuvlar
+    known = {t.id for t in payments}
+    name = m.full_name.strip()
+    if name:
+        for t in Transaction.query.filter(func.lower(Transaction.counterparty) == name.lower()).all():
+            if t.id in known:
+                continue
+            incoming = t.kind in ("kirim", "qarz_kirim")
+            items.append({"date": t.date, "kind": "pay", "icon": "in" if incoming else "out",
+                          "tone": "ok" if incoming else "", "title": t.kind_name + (f" · {t.category.name}" if t.category else ""),
+                          "amount": t.amount, "cur": t.currency, "sign": "+" if incoming else "−",
+                          "sub": " · ".join(x for x in (t.program.name if t.program else "", t.account.name, t.note) if x),
+                          "tx": t})
+        for d in Debt.query.filter(func.lower(Debt.counterparty) == name.lower()).all():
+            items.append({"date": d.date, "kind": "debt", "icon": "book", "tone": "warn",
+                          "title": "Qarz berildi" if d.direction == "berilgan" else "Qarz olindi",
+                          "amount": d.amount, "cur": d.currency, "sign": "",
+                          "sub": ("yopilgan" if d.closed else (f"muddati {d.due_date:%d.%m.%Y}" if d.due_date else "ochiq"))
+                                 + (f" · {d.note}" if d.note else ""),
+                          "debt": d})
+    since = member_since(m, enrs)
+    if since:
+        items.append({"date": since, "kind": "program", "icon": "user-plus", "tone": "",
+                      "title": "Bazaga qo'shildi", "sub": m.business or ""})
+    order = {"pay": 0, "debt": 1, "program": 2}
+    items.sort(key=lambda x: (x["date"], -order[x["kind"]]), reverse=True)
+    return items
+
+
+def member_since(m, enrs):
+    """A'zo qachondan beri: bazaga qo'shilgan yoki birinchi dasturga yozilgan kun (qaysi biri oldin)."""
+    dates = [r["enrollment"].joined_at for r in enrs if r["enrollment"].joined_at]
+    if m.created_at:
+        dates.append(m.created_at.date())
+    return min(dates) if dates else None

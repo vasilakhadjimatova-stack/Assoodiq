@@ -197,6 +197,23 @@ class Enrollment(db.Model):
     note = db.Column(db.String(255), default="")
 
 
+class MemberEvent(db.Model):
+    """A'zo tarixidagi voqealar (to'lov va yozilish o'z jadvalidan olinadi):
+    obuna uzaytirildi, dasturdagi holati o'zgardi, dasturga yozildi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=False, index=True)
+    enrollment_id = db.Column(db.Integer, db.ForeignKey("enrollment.id"))
+    kind = db.Column(db.String(20), nullable=False)  # renew | status
+    text = db.Column(db.String(255), default="")
+    amount = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=_now)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+
+    enrollment = db.relationship("Enrollment")
+    user = db.relationship("User")
+
+
 class Debt(db.Model):
     """Qarz daftari (Baqara 282). Qarzga foiz qo'shilmaydi."""
 

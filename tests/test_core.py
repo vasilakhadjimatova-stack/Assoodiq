@@ -477,3 +477,37 @@ def test_import_xlsx_roundtrip_and_manager_blocked(app):
     assert r.status_code == 302 and Transaction.query.count() == 2
     login(client, "300300")
     assert client.get("/kassa/import").status_code == 302
+
+
+# ── O'quvchi kartasi ──
+
+def test_member_card_shows_full_history(app):
+    from core.models import MemberEvent
+    client = app.test_client()
+    login(client, "100100")
+    club = Program(name="Biznes klub", kind="klub", billing="oylik", price=1_000_000)
+    course = Program(name="Kurs 9", kind="kurs", price=3_000_000)
+    m = Member(full_name="Sardor Aliyev", phone="+998901112233", business="Savdo")
+    db.session.add_all([club, course, m])
+    db.session.commit()
+    client.post(f"/dasturlar/{club.id}/yozish", data={"member_id": m.id, "joined_at": date.today().isoformat()})
+    client.post(f"/azolar/{m.id}/yozish", data={"program_id": course.id, "price": "2 500 000"})
+    e_club = Enrollment.query.filter_by(program_id=club.id).one()
+    e_course = Enrollment.query.filter_by(program_id=course.id).one()
+    assert e_course.price == 2_500_000 and e_course.member_id == m.id
+    client.post("/kassa/yangi", data={"kind": "kirim", "amount": "1 000 000", "account_id": acc("Payme").id,
+                                      "enrollment_id": e_club.id, "note": "1-oy"})
+    client.post(f"/yozilish/{e_club.id}/uzaytirish")
+    client.post(f"/yozilish/{e_course.id}/holat", data={"status": "tugatgan"})
+    F.record("kirim", 200_000, acc("Asosiy kassa"), counterparty="sardor aliyev")  # dasturga bog'lanmagan
+    db.session.add(Debt(direction="berilgan", counterparty="Sardor Aliyev", amount=500_000))
+    db.session.commit()
+    assert MemberEvent.query.filter_by(member_id=m.id).count() == 2
+    page = client.get(f"/azolar/{m.id}").get_data(as_text=True)
+    for text in ("Barcha tarix", "To&#39;lov qabul qilindi", "dasturiga yozildi", "uzaytirildi", "dasturni tugatdi",
+                 "Qarz berildi", "200\u00a0000", "Dasturga yozish"):
+        assert text in page or text.replace("&#39;", "'") in page, text
+    # a'zolar paneli — kartochkalar, dastur sahifasida qator kartaga olib boradi
+    page = client.get("/azolar").get_data(as_text=True)
+    assert 'class="mcard' in page and f'/azolar/{m.id}' in page
+    assert f'data-href="/azolar/{m.id}"' in client.get(f"/dasturlar/{club.id}").get_data(as_text=True)

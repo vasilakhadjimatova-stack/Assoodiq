@@ -2,61 +2,169 @@
 {% block title %}{{ m.full_name }}{% endblock %}
 {% block content %}
 {% set here = request.full_path.rstrip('?') %}
+{% set can_edit = g.user.role != 'menejer' %}
+{% set KIND_ICON = {"kurs": "cap", "klub": "users", "tadbir": "calendar", "konsalting": "briefcase"} %}
+{% set first_due = (enrs|selectattr('due', 'gt', 0)|rejectattr('enrollment.status', 'equalto', 'chiqqan')|list or [None])[0] %}
+{% set active_n = enrs|selectattr('enrollment.status', 'equalto', 'faol')|list|length %}
+{% set last_pay = payments[0] if payments else None %}
 <a class="crumb" href="{{ url_for('dastur.members') }}">{{ ui.icon('left', 'sm') }} A'zolar</a>
-<div class="head">
-  <div style="display:flex;gap:16px;align-items:center">
-    <div class="avatar" style="width:56px;height:56px;font-size:22px;background:var(--gold-bg);color:var(--gold)">{{ m.full_name[:1] }}</div>
-    <div>
-      <div class="head-t">{{ m.full_name }}</div>
-      <div class="head-s">{{ m.business or 'Biznes ko\'rsatilmagan' }}{% if m.city %} · {{ m.city }}{% endif %}{% if m.phone %} · <a class="link" href="tel:{{ m.phone }}">{{ m.phone }}</a>{% endif %}</div>
-    </div>
-  </div>
-  <div class="head-a"><button class="btn outline" data-open="member-modal">{{ ui.icon('pencil', 'sm') }} Tahrirlash</button></div>
-</div>
 
-<div class="stats">
-  <div class="stat"><div class="stat-l">Jami to'lagan</div><div class="stat-v ok-t">{{ ui.som(total_paid) }}</div></div>
-  <div class="stat"><div class="stat-l">Qoldiq qarz</div><div class="stat-v {{ 'bad-t' if total_due > 0 }}">{{ ui.som(total_due) }}</div></div>
-  <div class="stat"><div class="stat-l">Dasturlar</div><div class="stat-v">{{ enrs|length }}</div><div class="stat-s">a'zo bo'lgan: {{ m.created_at|d }}</div></div>
-</div>
-
-<div class="grid g-2">
-  <div class="card">
-    <div class="card-h"><h3>Dasturlari</h3></div>
-    <div class="card-b">
-      {% for r in enrs %}
-      {% set e = r.enrollment %}
-      <div class="zrow" style="align-items:flex-start">
-        <div style="flex:1;min-width:0">
-          <a class="t-main" href="{{ url_for('dastur.program', pid=e.program_id) }}" style="font-weight:700">{{ e.program.name }}</a>
-          <small>{{ e.program.kind_name }} · {{ e.joined_at|d }}{% if e.valid_until %} · obuna {{ e.valid_until|d }} gacha{% endif %}</small>
-          <div class="bar thin" style="margin-top:8px;max-width:260px"><i style="width:{{ (r.progress * 100)|round }}%"></i></div>
-          <small style="margin-top:4px">{{ r.paid|num }} / {{ r.price|num }} so'm</small>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-          {% if r.due > 0 %}
-            <b class="bad-t">{{ r.due|num }}</b>
-            <button class="btn tonal sm" data-open="pay-modal" data-set-enrollment-id="{{ e.id }}" data-set-amount="{{ r.due|round(2) }}" data-set-member="{{ e.program.name }}" data-set-category-id="{{ pay_categories[e.id].id if pay_categories[e.id] }}">To'lov</button>
-          {% else %}<span class="pill ok">To'langan</span>{% endif %}
-          {% if e.program.billing != 'bir_martalik' %}
-          <form method="post" action="{{ url_for('dastur.renew', eid=e.id) }}"><input type="hidden" name="next" value="{{ here }}"><button class="btn ghost sm">{{ ui.icon('renew', 'sm') }} Uzaytirish</button></form>
-          {% endif %}
-        </div>
+{# ── Profil ── #}
+<section class="mp-hero">
+  <div class="mp-id">
+    {{ ui.avatar(m, 'xl') }}
+    <div class="mp-who">
+      <h1>{{ m.full_name }}</h1>
+      <div class="mp-sub">{{ m.business or "Biznesi ko'rsatilmagan" }}{% if m.city %} · {{ m.city }}{% endif %}</div>
+      <div class="mp-tags">
+        {% if total_due > 0 %}<span class="mp-tag bad">{{ ui.icon('alert', 'sm') }} Qarzdor: {{ total_due|short }}</span>
+        {% elif enrs %}<span class="mp-tag ok">{{ ui.icon('check', 'sm') }} To'liq to'lagan</span>{% endif %}
+        {% for r in enrs if r.enrollment.status == 'faol' and r.enrollment.program.kind == 'klub' %}{% if loop.first %}<span class="mp-tag gold">{{ ui.icon('users', 'sm') }} Klub a'zosi</span>{% endif %}{% endfor %}
+        <span class="mp-tag">{{ ui.icon('calendar', 'sm') }} {{ since|d }} dan beri</span>
       </div>
-      {% else %}
-      <div class="empty"><b>Hali dasturga yozilmagan</b>Dastur sahifasidan «A'zo qo'shish» orqali yozing.</div>
-      {% endfor %}
     </div>
   </div>
-  <div class="card">
-    <div class="card-h"><h3>To'lovlar tarixi</h3></div>
-    <div class="card-b" style="padding-top:4px">
-      {% for t in payments %}{{ ui.tx_row(t) }}{% else %}<div class="empty"><b>To'lov yo'q</b></div>{% endfor %}
-      {% if m.note %}<p class="muted" style="margin-top:14px">{{ m.note }}</p>{% endif %}
-    </div>
+  <div class="mp-act">
+    {% if m.phone %}<a class="mp-btn" href="tel:{{ m.phone|replace(' ', '') }}">{{ ui.icon('phone', 'sm') }} {{ m.phone }}</a>{% endif %}
+    {% if first_due %}
+    {% set e = first_due.enrollment %}
+    <button class="mp-btn gold" data-open="pay-modal" data-set-enrollment-id="{{ e.id }}" data-set-amount="{{ first_due.due|round(2) }}" data-set-member="{{ e.program.name }}" data-set-category-id="{{ pay_categories[e.id].id if pay_categories[e.id] }}">{{ ui.icon('plus', 'sm') }} To'lov qabul qilish</button>
+    {% endif %}
+    {% if can_edit and open_programs %}<button class="mp-btn" data-open="m-enroll-modal">{{ ui.icon('cap', 'sm') }} Dasturga yozish</button>{% endif %}
+    <button class="mp-btn icon" data-open="member-modal" title="Tahrirlash" aria-label="Tahrirlash">{{ ui.icon('pencil', 'sm') }}</button>
+  </div>
+</section>
+
+<div class="stats mp-stats">
+  <div class="stat">
+    <div class="stat-l">{{ ui.icon('coins', 'sm') }} Jami to'lagan</div>
+    <div class="stat-v ok-t">{{ ui.som(total_paid) }}</div>
+    <div class="bar thin" style="margin-top:10px"><i style="width:{{ ((total_paid / total_price * 100) if total_price else 100)|round }}%"></i></div>
+    <div class="stat-s">hisoblangan {{ total_price|short }} so'm dan</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">{{ ui.icon('clock', 'sm') }} Qoldiq qarz</div>
+    <div class="stat-v {{ 'bad-t' if total_due > 0 }}">{{ ui.som(total_due) }}</div>
+    <div class="stat-s">{% if total_due > 0 %}{{ enrs|selectattr('due', 'gt', 0)|list|length }} ta dastur bo'yicha{% else %}qarzdorlik yo'q{% endif %}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">{{ ui.icon('cap', 'sm') }} Dasturlar</div>
+    <div class="stat-v">{{ active_n }}<span class="cur">faol</span></div>
+    <div class="stat-s">jami {{ enrs|length }} ta dasturda qatnashgan</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">{{ ui.icon('in', 'sm') }} Oxirgi to'lov</div>
+    {% if last_pay %}
+    <div class="stat-v">{{ ui.som(last_pay.amount, last_pay.currency) }}</div>
+    <div class="stat-s">{{ last_pay.date|d('long') }} · {{ payments|length }} ta to'lov</div>
+    {% else %}<div class="stat-v faint">—</div><div class="stat-s">hali to'lov yo'q</div>{% endif %}
   </div>
 </div>
+
+<div class="grid mp-grid">
+  {# ── Barcha tarix ── #}
+  <div class="card">
+    <div class="card-h">
+      <h3>Barcha tarix</h3>
+      <div class="act seg" data-tl-filter>
+        <a href="#" class="on" data-k="">Hammasi <span class="n">{{ timeline|length }}</span></a>
+        <a href="#" data-k="pay">To'lovlar <span class="n">{{ timeline|selectattr('kind', 'equalto', 'pay')|list|length }}</span></a>
+        <a href="#" data-k="program">Dasturlar <span class="n">{{ timeline|selectattr('kind', 'equalto', 'program')|list|length }}</span></a>
+        {% if timeline|selectattr('kind', 'equalto', 'debt')|list %}<a href="#" data-k="debt">Qarzlar</a>{% endif %}
+      </div>
+    </div>
+    <div class="card-b">
+      <ol class="tl" id="tl">
+        {% for it in timeline %}
+        {% if loop.first or it.date.strftime('%Y-%m') != loop.previtem.date.strftime('%Y-%m') %}
+        <li class="tl-m" data-month>{{ it.date|d('long')|replace(it.date.day ~ ' ', '', 1) }}</li>
+        {% endif %}
+        <li class="tl-i {{ it.tone }}" data-k="{{ it.kind }}">
+          <span class="tl-dot">{{ ui.icon(it.icon, 'sm') }}</span>
+          <div class="tl-b">
+            <div class="tl-t"><b>{{ it.title }}</b>{% if it.amount %}<span class="tl-a {{ 'ok-t' if it.sign == '+' }}">{{ it.sign }}{{ it.amount|money(it.cur) }}{% if it.cur != 'USD' %} <small>so'm</small>{% endif %}</span>{% endif %}</div>
+            <div class="tl-s"><span>{{ it.date|d }}</span>{% if it.sub %} · {{ it.sub }}{% endif %}{% if it.who %} · {{ it.who }}{% endif %}{% if it.tx and it.tx.author %} · kiritgan: {{ it.tx.author.name }}{% endif %}</div>
+          </div>
+          {% if it.tx and can_edit %}<div class="tl-menu">{{ ui.tx_menu(it.tx, here) }}</div>{% endif %}
+          {% if it.debt %}<a class="tl-link" href="{{ url_for('qarz.detail', did=it.debt.id) }}" title="Qarz daftari">{{ ui.icon('right', 'sm') }}</a>{% endif %}
+        </li>
+        {% else %}
+        <li class="empty"><b>Tarix bo'sh</b>Dasturga yozilgach va to'lov qilgach shu yerda ko'rinadi.</li>
+        {% endfor %}
+      </ol>
+    </div>
+  </div>
+
+  {# ── Dasturlari ── #}
+  <div class="mp-side">
+    <div class="card">
+      <div class="card-h"><h3>Dasturlari</h3><span class="sub">{{ enrs|length }} ta</span></div>
+      <div class="card-b mp-enrs">
+        {% for r in enrs %}
+        {% set e = r.enrollment %}
+        <div class="me k-{{ e.program.kind }} st-{{ e.status }}">
+          <div class="me-h">
+            <span class="me-i">{{ ui.icon(KIND_ICON.get(e.program.kind, 'cap'), 'sm') }}</span>
+            <div class="me-t">
+              <a href="{{ url_for('dastur.program', pid=e.program_id) }}">{{ e.program.name }}</a>
+              <span>{{ e.program.kind_name }} · {{ e.joined_at|d }} dan{% if e.valid_until %} · obuna {{ e.valid_until|d }} gacha{% endif %}</span>
+            </div>
+            <span class="pill {{ 'ok' if e.status == 'faol' else ('' if e.status == 'tugatgan' else 'bad') }}">{{ {'faol': 'Faol', 'tugatgan': 'Tugatgan', 'chiqqan': 'Chiqqan'}[e.status] }}</span>
+          </div>
+          <div class="me-money">
+            <div><span>Hisoblangan</span><b>{{ r.price|short }}</b></div>
+            <div><span>To'langan</span><b class="ok-t">{{ r.paid|short }}</b></div>
+            <div><span>Qoldiq</span><b class="{{ 'bad-t' if r.due > 0 }}">{{ r.due|short if r.due > 0 else '—' }}</b></div>
+          </div>
+          <div class="bar thin"><i style="width:{{ (r.progress * 100)|round }}%"></i></div>
+          <div class="me-f">
+            <span>{{ pay_count.get(e.id, 0) }} ta to'lov · {{ r.progress|pct }}</span>
+            <div class="me-a">
+              {% if e.program.billing != 'bir_martalik' and can_edit %}
+              <form method="post" action="{{ url_for('dastur.renew', eid=e.id) }}"><input type="hidden" name="next" value="{{ here }}"><button class="btn ghost sm" title="Yana bir davrga uzaytirish">{{ ui.icon('renew', 'sm') }} Uzaytirish</button></form>
+              {% endif %}
+              {% if r.due > 0 and e.status != 'chiqqan' %}
+              <button class="btn tonal sm" data-open="pay-modal" data-set-enrollment-id="{{ e.id }}" data-set-amount="{{ r.due|round(2) }}" data-set-member="{{ e.program.name }}" data-set-category-id="{{ pay_categories[e.id].id if pay_categories[e.id] }}">To'lov</button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="empty"><b>Hali dasturga yozilmagan</b>{% if can_edit and open_programs %}«Dasturga yozish» tugmasini bosing.{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% if m.note %}
+    <div class="card mt">
+      <div class="card-h"><h3>Izoh</h3></div>
+      <div class="card-b"><p class="mp-note">{{ m.note }}</p></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if can_edit and open_programs %}
+<dialog class="modal" id="m-enroll-modal">
+  <form method="post" action="{{ url_for('dastur.member_enroll', mid=m.id) }}">
+    <div class="modal-h"><div><h3>Dasturga yozish</h3><div class="faint" style="font-size:13px;font-weight:650">{{ m.full_name }}</div></div><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b">
+      <div class="field"><label>Dastur</label>
+        <select name="program_id" required data-fill-price>
+          {% for p in open_programs %}<option value="{{ p.id }}" data-price="{{ p.price|round(2) }}">{{ p.name }} · {{ p.kind_name }}{{ ' (rejada)' if p.status == 'rejada' }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Kelishilgan narx</label><input name="price" inputmode="decimal" data-money value="{{ open_programs[0].price|num }}"><span class="hint">Chegirma bo'lsa o'zgartiring</span></div>
+        <div class="field"><label>Qo'shilgan sana</label><input type="date" name="joined_at" value="{{ today.isoformat() }}"></div>
+      </div>
+      <div class="field"><label>Izoh</label><input type="text" name="note"></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">{{ ui.icon('check', 'sm') }} Yozish</button></div>
+  </form>
+</dialog>
+{% endif %}
 
 {{ ui.pay_modal(f_accounts, None, aqd_types, here) }}
+{{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, next_url=here) }}
 {% include "partials/member_form.html" %}
 {% endblock %}

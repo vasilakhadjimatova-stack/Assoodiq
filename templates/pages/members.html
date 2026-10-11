@@ -1,17 +1,41 @@
 {% extends "base.html" %}
 {% block title %}A'zolar{% endblock %}
 {% block content %}
+{% set KIND_ICON = {"kurs": "cap", "klub": "users", "tadbir": "calendar", "konsalting": "briefcase"} %}
 <div class="head">
   <div>
     <div class="head-t">A'zolar</div>
-    <div class="head-s">Kurs o'quvchilari va klub a'zolari · ko'rsatilganlar qoldig'i <b>{{ total_due|num }}</b> so'm</div>
+    <div class="head-s">Kurs o'quvchilari va klub a'zolari — kartani bosing, butun tarix ochiladi</div>
   </div>
   <div class="head-a"><button class="btn solid" data-open="member-modal">{{ ui.icon('user-plus', 'sm') }} Yangi a'zo</button></div>
 </div>
 
+<div class="stats m-sum">
+  <div class="stat hero">
+    <div class="stat-l">{{ ui.icon('users', 'sm') }} A'zolar</div>
+    <div class="stat-v">{{ counts[''] }}<span class="cur">kishi</span></div>
+    <div class="stat-s">{{ summary.active }} tasi hozir faol dasturda</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">{{ ui.icon('coins', 'sm') }} Jami to'lagan</div>
+    <div class="stat-v ok-t">{{ ui.som(summary.paid) }}</div>
+    <div class="stat-s">{{ "ko'rsatilganlar bo'yicha" if seg or q else "barcha a'zolardan" }}</div>
+  </div>
+  <a class="stat {{ 'warn-stat' if total_due > 0 }}" href="{{ url_for('dastur.members', holat='qarzdor') }}">
+    <div class="stat-l">{{ ui.icon('alert', 'sm') }} Qarzdorlar</div>
+    <div class="stat-v {{ 'bad-t' if total_due > 0 }}">{{ counts.qarzdor }}<span class="cur">kishi</span></div>
+    <div class="stat-s">qoldiq {{ total_due|short }} so'm →</div>
+  </a>
+  <a class="stat" href="{{ url_for('dastur.members', holat='tugayapti') }}">
+    <div class="stat-l">{{ ui.icon('clock', 'sm') }} Obunasi tugayapti</div>
+    <div class="stat-v {{ 'warn-t' if counts.tugayapti }}">{{ counts.tugayapti }}<span class="cur">kishi</span></div>
+    <div class="stat-s">7 kun ichida · klub a'zolari {{ counts.klub }}</div>
+  </a>
+</div>
+
 <form class="toolbar" method="get">
   <div class="seg">
-    {% for k, v in (('', 'Hammasi'), ('qarzdor', 'Qarzdorlar'), ('klub', 'Klub a\'zolari'), ('tugayapti', 'Obunasi tugayapti')) %}
+    {% for k, v in (('', 'Hammasi'), ('qarzdor', 'Qarzdorlar'), ('klub', "Klub a'zolari"), ('tugayapti', 'Obunasi tugayapti')) %}
     <a href="{{ url_for('dastur.members', holat=k or None, q=q or None) }}" class="{{ 'on' if seg == k }}">{{ v }} <span class="n">{{ counts[k] }}</span></a>
     {% endfor %}
   </div>
@@ -19,26 +43,39 @@
   <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Ism, telefon yoki biznes"></label>
 </form>
 
-<div class="card">
-  <div class="table-wrap">
-  <table class="table cards tiles">
-    <thead><tr><th>A'zo</th><th>Dasturlar</th><th class="r">To'lagan</th><th class="r">Qoldiq</th><th></th></tr></thead>
-    <tbody>
-    {% for r in rows %}
-    {% set m = r.member %}
-    <tr>
-      <td><a href="{{ url_for('dastur.member', mid=m.id) }}"><div class="t-main">{{ m.full_name }}</div><div class="t-sub">{{ m.business or '—' }}{% if m.phone %} · {{ m.phone }}{% endif %}</div></a></td>
-      <td class="wide"><span class="lbl">Dasturlar</span><span>{% for p in r.programs[:2] %}<span class="pill {{ 'gold' if p.kind == 'klub' else '' }}" style="margin:1px">{{ p.name|truncate(28, True, '…') }}</span>{% endfor %}{% if r.programs|length > 2 %} <span class="faint">+{{ r.programs|length - 2 }}</span>{% endif %}</span></td>
-      <td class="r"><span class="lbl">To'lagan</span>{{ r.paid|num }}</td>
-      <td class="r"><span class="lbl">Qoldiq</span>{% if r.due > 0 %}<b class="bad-t">{{ r.due|num }}</b>{% else %}<span class="faint">—</span>{% endif %}</td>
-      <td class="r">{% if r.expiring %}<span class="pill warn">Obuna tugayapti</span>{% endif %}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="5"><div class="empty">{{ ui.icon('users') }}<b>Hech kim topilmadi</b></div></td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
+<div class="mcards">
+  {% for r in rows %}
+  {% set m = r.member %}
+  <a class="mcard {{ 'is-due' if r.due > 0 }}" href="{{ url_for('dastur.member', mid=m.id) }}">
+    <div class="mc-top">
+      {{ ui.avatar(m) }}
+      <div class="mc-who">
+        <b>{{ m.full_name }}</b>
+        <span>{{ m.business or "Biznesi ko'rsatilmagan" }}{% if m.city %} · {{ m.city }}{% endif %}</span>
+      </div>
+      {% if r.expiring %}<span class="pill warn">Obuna tugayapti</span>
+      {% elif r.due > 0 %}<span class="pill bad">Qarzdor</span>
+      {% elif r.programs %}<span class="pill ok">To'lagan</span>{% endif %}
+    </div>
+    <div class="mc-progs">
+      {% for p in r.programs[:2] %}<span class="mc-prog k-{{ p.kind }}">{{ ui.icon(KIND_ICON.get(p.kind, 'cap'), 'sm') }}<span class="t">{{ p.name }}</span></span>{% endfor %}
+      {% if r.programs|length > 2 %}<span class="mc-more">+{{ r.programs|length - 2 }}</span>{% endif %}
+      {% if not r.programs %}<span class="mc-more">Dasturga yozilmagan</span>{% endif %}
+    </div>
+    <div class="mc-money">
+      <div><span>To'lagan</span><b class="ok-t">{{ r.paid|num }}</b></div>
+      <div><span>Qoldiq</span><b class="{{ 'bad-t' if r.due > 0 }}">{{ r.due|num if r.due > 0 else '—' }}</b></div>
+    </div>
+    <div class="bar thin"><i style="width:{{ (r.progress * 100)|round }}%"></i></div>
+    <div class="mc-foot">
+      {% if m.phone %}<span>{{ ui.icon('phone', 'sm') }}{{ m.phone }}</span>{% endif %}
+      <span>{{ ui.icon('clock', 'sm') }}{% if r.last_pay %}oxirgi to'lov {{ r.last_pay|d }}{% else %}to'lov yo'q{% endif %}</span>
+      <span class="mc-go" aria-hidden="true">{{ ui.icon('right', 'sm') }}</span>
+    </div>
+  </a>
+  {% else %}
+  <div class="card empty" style="grid-column:1/-1">{{ ui.icon('users') }}<b>Hech kim topilmadi</b>Qidiruvni o'zgartiring yoki yangi a'zo qo'shing.</div>
+  {% endfor %}
 </div>
 {% include "partials/member_form.html" %}
 {% endblock %}

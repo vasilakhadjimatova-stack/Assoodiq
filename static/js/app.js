@@ -366,6 +366,42 @@
     if (opener) { e.preventDefault(); opener.click(); }
   });
 
+  // ── O'quvchilar ──
+  // Jadval qatori bosilsa — o'quvchi kartasi (tugma, menyu va havolalardan tashqari)
+  document.addEventListener('click', function (e) {
+    var tr = e.target.closest('tr[data-href]');
+    if (!tr || e.target.closest('a, button, details, form, input, select, label, dialog')) return;
+    if (window.getSelection && String(window.getSelection()).length) return;  // matn belgilanayotgan bo'lsa
+    location.href = tr.dataset.href;
+  });
+
+  // Tarix filtri: to'lovlar / dasturlar / qarzlar
+  document.querySelectorAll('[data-tl-filter]').forEach(function (seg) {
+    var list = document.getElementById('tl');
+    if (!list) return;
+    seg.addEventListener('click', function (e) {
+      var a = e.target.closest('a[data-k]');
+      if (!a) return;
+      e.preventDefault();
+      seg.querySelectorAll('a').forEach(function (x) { x.classList.toggle('on', x === a); });
+      var k = a.dataset.k;
+      list.querySelectorAll('.tl-i').forEach(function (li) { li.hidden = !!k && li.dataset.k !== k; });
+      list.querySelectorAll('[data-month]').forEach(function (mh) {
+        var n = mh.nextElementSibling, any = false;
+        while (n && !n.hasAttribute('data-month')) { if (!n.hidden && n.classList.contains('tl-i')) any = true; n = n.nextElementSibling; }
+        mh.hidden = !any;
+      });
+    });
+  });
+
+  // Dastur tanlanganda narx maydoni o'sha dastur narxi bilan to'ladi
+  document.querySelectorAll('select[data-fill-price]').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      var price = sel.form.querySelector('[name=price]'), o = sel.selectedOptions[0];
+      if (price && o && o.dataset.price) price.value = fmt(String(o.dataset.price).replace(/\.0+$/, ''));
+    });
+  });
+
   // Xabarlar o'zi yo'qoladi
   setTimeout(function () {
     document.querySelectorAll('.flash').forEach(function (f) {

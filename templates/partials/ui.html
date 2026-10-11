@@ -59,6 +59,12 @@
 
 {% set ACC_ICON = {"naqd": "cash", "karta": "card", "bank": "bank", "payme": "phone-pay", "click": "phone-pay", "uzum": "phone-pay"} %}
 
+{# O'quvchi avatari: ism-familiya bosh harflari, rangi id bo'yicha #}
+{% macro avatar(m, cls="") -%}
+{% set parts = (m.full_name or '?').split() %}
+<span class="mav av-{{ m.id % 6 }} {{ cls }}" aria-hidden="true">{{ (parts[0][:1] ~ (parts[1][:1] if parts|length > 1 else ''))|upper }}</span>
+{%- endmacro %}
+
 {% macro som(v, currency="UZS") -%}
 <span class="money">{% if currency == "USD" %}{{ v|money("USD") }}{% else %}{{ v|money }}<span class="cur">so'm</span>{% endif %}</span>
 {%- endmacro %}

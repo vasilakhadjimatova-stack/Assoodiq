@@ -135,5 +135,6 @@ tushirishdan oldin Assoodiq'ning shariat maslahatchisi bilan ko'rib chiqing:
 | ![Kirish](docs/screens/desk-light-login.jpg) | ![Zakot](docs/screens/desk-light-zakot.jpg) |
 | ![Dasturlar](docs/screens/desk-light-dasturlar.jpg) | ![Halollik](docs/screens/desk-light-halollik.jpg) |
 | ![Kirim oynasi](docs/screens/desk-modal-kirim.jpg) | ![Qorong'i mavzu](docs/screens/desk-dark-home.jpg) |
+| ![A'zolar paneli](docs/screens/desk-light-azolar.jpg) | ![O'quvchi kartasi](docs/screens/desk-light-azo-karta.jpg) |
 | ![Kassa daftari](docs/screens/desk-light-kassa.jpg) | ![Sheets'dan ko'chirish](docs/screens/desk-kassa-import.jpg) |
 | ![Mobil](docs/screens/mob-light-home.jpg) | ![Mobil oyna](docs/screens/mob-modal-kirim.jpg) |

@@ -45,9 +45,9 @@
         <tbody>
         {% for r in rows %}
         {% set e = r.enrollment %}
-        <tr>
-          <td><a href="{{ url_for('dastur.member', mid=e.member_id) }}"><div class="t-main">{{ e.member.full_name }}</div>
-            <div class="t-sub">{{ e.member.business or e.member.phone }}{% if e.status != 'faol' %} · <span class="pill" style="height:18px">{{ 'Tugatgan' if e.status == 'tugatgan' else 'Chiqqan' }}</span>{% endif %}</div></a></td>
+        <tr class="row-link" data-href="{{ url_for('dastur.member', mid=e.member_id) }}" title="O'quvchi kartasini ochish">
+          <td><a class="t-who" href="{{ url_for('dastur.member', mid=e.member_id) }}">{{ ui.avatar(e.member, 'sm') }}<span><span class="t-main">{{ e.member.full_name }}</span>
+            <div class="t-sub">{{ e.member.business or e.member.phone }}{% if e.status != 'faol' %} · <span class="pill" style="height:18px">{{ 'Tugatgan' if e.status == 'tugatgan' else 'Chiqqan' }}</span>{% endif %}</div></span></a></td>
           <td class="r"><span class="lbl">Hisoblangan</span>{{ r.price|num }}</td>
           <td class="r"><span class="lbl">To'langan</span>{{ r.paid|num }}</td>
           <td class="r"><span class="lbl">Qoldiq</span>{% if r.due > 0 %}<b class="bad-t">{{ r.due|num }}</b>{% else %}<span class="pill ok">To'langan</span>{% endif %}</td>
