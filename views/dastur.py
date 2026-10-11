@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 from sqlalchemy import func, or_
@@ -109,7 +109,8 @@ def program(pid):
     return render_template("pages/program.html", p=p, stat=stat, rows=rows, seg=seg,
                            expenses=expenses, members=members, kinds=PROGRAM_KINDS,
                            statuses=PROGRAM_STATUS, billings=BILLING,
-                           pay_category=_payment_category(p), **form_context())
+                           pay_category=_payment_category(p), transfer_targets=transfer_targets(),
+                           **form_context())
 
 
 def _payment_category(program):
@@ -163,9 +164,13 @@ def _enroll(p, member, f):
     return enr
 
 
-def _event(enr, kind, text, amount=None):
-    db.session.add(MemberEvent(member_id=enr.member_id, enrollment_id=enr.id, kind=kind, text=text[:255],
-                               amount=amount, user_id=g.user.id if g.get("user") else None))
+def _event(enr, kind, text, amount=None, on=None):
+    """on — voqea sanasi (o'tgan sana bilan kiritilsa tarixda o'z o'rnida turadi)."""
+    ev = MemberEvent(member_id=enr.member_id, enrollment_id=enr.id, kind=kind, text=text[:255],
+                     amount=amount, user_id=g.user.id if g.get("user") else None)
+    if on is not None and on != date.today():
+        ev.created_at = datetime.combine(on, datetime.min.time())
+    db.session.add(ev)
 
 
 @bp.route("/yozilish/<int:eid>/uzaytirish", methods=["POST"])
@@ -181,6 +186,66 @@ def renew(eid):
     db.session.commit()
     flash(f"{e.member.full_name}: obuna {e.valid_until.strftime('%d.%m.%Y')} gacha uzaytirildi.", "ok")
     return redirect(safe_next(url_for("dastur.program", pid=p.id)))
+
+
+@bp.route("/yozilish/otkazish", methods=["POST"])
+def transfer():
+    """A'zoni bir dasturdan (klubdan) boshqasiga o'tkazish.
+
+    Eski yozilish yopiladi («chiqqan»), yangi dasturda yozilish ochiladi va eski
+    dasturga qilingan to'lovlar yangisiga o'tadi: eski dastur daromadi shuncha
+    kamayadi, yangisiniki oshadi. Kassadagi summalar o'zgarmaydi.
+    """
+    if g.user.role == "menejer":
+        flash("O'tkazish uchun ruxsat yo'q.", "bad")
+        return redirect(safe_next(url_for("dastur.members")))
+    f = request.form
+    e = db.get_or_404(Enrollment, form_int(f.get("eid")) or 0)
+    back = safe_next(url_for("dastur.member", mid=e.member_id))
+    target = db.session.get(Program, form_int(f.get("program_id")) or 0)
+    if target is None or target.id == e.program_id:
+        flash("Boshqa dasturni tanlang.", "bad")
+        return redirect(back)
+    if e.status == "chiqqan":
+        flash("Bu yozilish allaqachon yopilgan.", "bad")
+        return redirect(back)
+    if target.enrollments.filter_by(member_id=e.member_id, status="faol").first():
+        flash(f"{e.member.full_name} «{target.name}» dasturida allaqachon bor.", "bad")
+        return redirect(back)
+    when = form_date(f.get("date"))
+    price = money(f.get("price")) if (f.get("price") or "").strip() else target.price
+    old = e.program
+    new = Enrollment(member_id=e.member_id, program_id=target.id, price=price, joined_at=when,
+                     note=f"«{old.name}» dan o'tkazildi"[:255])
+    if target.billing != "bir_martalik":
+        new.valid_until = _add_period(when, target.billing) - timedelta(days=1)
+    db.session.add(new)
+    db.session.flush()
+    moved = 0.0
+    for t in Transaction.query.filter_by(enrollment_id=e.id, kind="kirim").all():
+        t.enrollment_id, t.program_id = new.id, target.id
+        moved += t.amount_uzs
+    e.status = "chiqqan"
+    e.note = f"→ «{target.name}» ga o'tkazildi {when:%d.%m.%Y}"[:255]
+    reason = (f.get("note") or "").strip()
+    _event(new, "transfer", f"«{old.name}» → «{target.name}» ga o'tkazildi" + (f" · {reason}" if reason else ""),
+           moved or None, on=when)
+    audit.log("transfer", f"{e.member.full_name}: «{old.name}» → «{target.name}», {moved:,.0f} so'm".replace(",", " "))
+    db.session.commit()
+    msg = f"{e.member.full_name} «{target.name}» ga o'tkazildi"
+    if moved:
+        n = lambda v: f"{v:,.0f}".replace(",", " ")  # noqa: E731
+        msg += f", {n(moved)} so'm to'lov ham o'tdi"
+        price_uzs = F.to_uzs(price, target.currency)
+        if moved > price_uzs + 0.01:
+            msg += f" (ortiqcha {n(moved - price_uzs)} so'm — keyingi davrlarga hisoblanadi)"
+    flash(msg + ".", "ok")
+    return redirect(back)
+
+
+def transfer_targets():
+    return (Program.query.filter(Program.status != "yakunlangan")
+            .order_by(Program.kind, Program.name).all())
 
 
 @bp.route("/yozilish/<int:eid>/holat", methods=["POST"])
@@ -283,7 +348,7 @@ def member(mid):
                      if p.id not in enrolled]
     return render_template("pages/member.html", m=m, enrs=enrs, payments=payments, timeline=timeline,
                            since=member_since(m, enrs),
-                           pay_count=pay_count, open_programs=open_programs,
+                           pay_count=pay_count, open_programs=open_programs, transfer_targets=transfer_targets(),
                            total_paid=sum(r["paid"] for r in enrs),
                            total_price=sum(r["price"] for r in enrs if r["enrollment"].status != "chiqqan"),
                            total_due=sum(r["due"] for r in enrs if r["enrollment"].status != "chiqqan"),
@@ -311,9 +376,13 @@ def member_timeline(m, enrs, payments):
                       "sub": f"Kelishilgan narx {e.price:,.0f} {'$' if e.program.currency == 'USD' else 'so‘m'}".replace(",", " ")
                              + (f" · {e.note}" if e.note else "")})
     for ev in MemberEvent.query.filter_by(member_id=m.id).all():
-        items.append({"date": ev.created_at.date(), "kind": "program", "icon": "renew" if ev.kind == "renew" else "info",
-                      "tone": "gold" if ev.kind == "renew" else "info", "title": ev.text,
-                      "sub": f"Hisoblangan summa +{ev.amount:,.0f}".replace(",", " ") if ev.amount else "",
+        icon, tone = {"renew": ("renew", "gold"), "transfer": ("swap", "brand")}.get(ev.kind, ("info", "info"))
+        if ev.kind == "transfer":
+            sub = f"Yangi dasturga o'tgan to'lov {ev.amount:,.0f} so'm".replace(",", " ") if ev.amount else "To'lov bo'lmagan"
+        else:
+            sub = f"Hisoblangan summa +{ev.amount:,.0f}".replace(",", " ") if ev.amount else ""
+        items.append({"date": ev.created_at.date(), "kind": "program", "icon": icon, "tone": tone,
+                      "title": ev.text, "sub": sub,
                       "who": ev.user.name if ev.user else ""})
     # Kassada shu ism bilan yozilgan, lekin dasturga bog'lanmagan yozuvlar
     known = {t.id for t in payments}

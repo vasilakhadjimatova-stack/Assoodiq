@@ -511,3 +511,39 @@ def test_member_card_shows_full_history(app):
     page = client.get("/azolar").get_data(as_text=True)
     assert 'class="mcard' in page and f'/azolar/{m.id}' in page
     assert f'data-href="/azolar/{m.id}"' in client.get(f"/dasturlar/{club.id}").get_data(as_text=True)
+
+
+def test_transfer_between_clubs_moves_payments(app):
+    from core.models import AuditLog, MemberEvent
+    client = app.test_client()
+    login(client, "100100")
+    a = Program(name="Klub A", kind="klub", billing="oylik", price=1_000_000)
+    b = Program(name="Klub B", kind="klub", billing="oylik", price=1_500_000)
+    m = Member(full_name="Jasur Karimov")
+    db.session.add_all([a, b, m])
+    db.session.commit()
+    client.post(f"/dasturlar/{a.id}/yozish", data={"member_id": m.id})
+    e = Enrollment.query.filter_by(program_id=a.id).one()
+    client.post("/kassa/yangi", data={"kind": "kirim", "amount": "1 000 000", "account_id": acc("Payme").id,
+                                      "enrollment_id": e.id})
+    total_before = F.total_balance_uzs()
+    r = client.post("/yozilish/otkazish", data={"eid": e.id, "program_id": b.id, "price": "1 500 000",
+                                                "date": date.today().isoformat(), "note": "vaqti mos emas"})
+    assert r.status_code == 302 and r.headers["Location"].endswith(f"/azolar/{m.id}")
+    e = db.session.get(Enrollment, e.id)
+    new = Enrollment.query.filter_by(program_id=b.id).one()
+    assert e.status == "chiqqan" and new.status == "faol" and new.price == 1_500_000 and new.valid_until
+    paid_map = F.enrollment_paid_map()
+    assert F.enrollment_row(new, paid_map)["due"] == 500_000          # 1.5 mln − o'tgan 1 mln
+    assert F.program_stats(a)["collected"] == 0 and F.program_stats(b)["collected"] == 1_000_000
+    assert F.total_balance_uzs() == total_before                      # kassa o'zgarmaydi
+    assert MemberEvent.query.filter_by(kind="transfer").count() == 1
+    assert AuditLog.query.filter_by(action="transfer").count() == 1
+    page = client.get(f"/azolar/{m.id}").get_data(as_text=True)
+    assert "ga o&#39;tkazildi" in page or "ga o'tkazildi" in page
+    # yopilgan yozilishni qayta o'tkazib bo'lmaydi; menejerga ruxsat yo'q
+    client.post("/yozilish/otkazish", data={"eid": e.id, "program_id": b.id})
+    assert Enrollment.query.count() == 2
+    login(client, "300300")
+    client.post("/yozilish/otkazish", data={"eid": new.id, "program_id": a.id})
+    assert db.session.get(Enrollment, new.id).status == "faol"

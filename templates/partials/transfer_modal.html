@@ -1,0 +1,32 @@
+{# A'zoni boshqa dasturga (klubga) o'tkazish. Tugma data-set-eid, data-set-member, data-set-from,
+   data-set-paid va data-exclude-program beradi #}
+{% set KIND_NAMES = {"kurs": "Kurslar", "klub": "Klublar", "tadbir": "Tadbirlar", "konsalting": "Konsalting"} %}
+<dialog class="modal" id="transfer-modal">
+  <form method="post" action="{{ url_for('dastur.transfer') }}">
+    <input type="hidden" name="eid" value="">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <div class="modal-h"><div><h3>Boshqa dasturga o'tkazish</h3><div class="faint" style="font-size:13px;font-weight:650" data-text="member"></div></div><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+    <div class="modal-b">
+      <div class="tr-route">
+        <div><span>Hozir</span><b data-text="from"></b></div>
+        <i>{{ ui.icon('right', 'sm') }}</i>
+        <div class="field" style="flex:1"><span class="fl">Qayerga</span>
+          <select name="program_id" required data-fill-price>
+            {% for kind, items in transfer_targets|groupby('kind') %}
+            <optgroup label="{{ KIND_NAMES.get(kind, kind) }}">
+              {% for p in items %}<option value="{{ p.id }}" data-price="{{ p.price|round(2) }}">{{ p.name }}{{ ' (rejada)' if p.status == 'rejada' }}</option>{% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="tr-paid">{{ ui.icon('coins', 'sm') }}<span>Avval to'langan <b data-text="paid">0</b> so'm yangi dastur hisobiga o'tadi va uning narxidan ayiriladi. Kassadagi summalar o'zgarmaydi.</span></div>
+      <div class="form-grid">
+        <div class="field"><label>Yangi dasturdagi narx</label><input name="price" inputmode="decimal" data-money value="{{ transfer_targets[0].price|num if transfer_targets else '' }}"><span class="hint">Chegirma bo'lsa o'zgartiring</span></div>
+        <div class="field"><label>O'tkazish sanasi</label><input type="date" name="date" value="{{ today.isoformat() }}"></div>
+      </div>
+      <div class="field"><label>Sababi (ixtiyoriy)</label><input type="text" name="note" placeholder="Masalan: vaqti to'g'ri kelmadi"></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn ghost" data-close>Bekor qilish</button><button class="btn solid">{{ ui.icon('swap', 'sm') }} O'tkazish</button></div>
+  </form>
+</dialog>

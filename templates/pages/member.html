@@ -109,18 +109,23 @@
               <a href="{{ url_for('dastur.program', pid=e.program_id) }}">{{ e.program.name }}</a>
               <span>{{ e.program.kind_name }} · {{ e.joined_at|d }} dan{% if e.valid_until %} · obuna {{ e.valid_until|d }} gacha{% endif %}</span>
             </div>
-            <span class="pill {{ 'ok' if e.status == 'faol' else ('' if e.status == 'tugatgan' else 'bad') }}">{{ {'faol': 'Faol', 'tugatgan': 'Tugatgan', 'chiqqan': 'Chiqqan'}[e.status] }}</span>
+            {% set moved = e.status == 'chiqqan' and (e.note or '').startswith('→') %}
+            <span class="pill {{ 'ok' if e.status == 'faol' else ('info' if moved else ('' if e.status == 'tugatgan' else 'bad')) }}">{{ "O'tkazilgan" if moved else {'faol': 'Faol', 'tugatgan': 'Tugatgan', 'chiqqan': 'Chiqqan'}[e.status] }}</span>
           </div>
           <div class="me-money">
             <div><span>Hisoblangan</span><b>{{ r.price|short }}</b></div>
             <div><span>To'langan</span><b class="ok-t">{{ r.paid|short }}</b></div>
-            <div><span>Qoldiq</span><b class="{{ 'bad-t' if r.due > 0 }}">{{ r.due|short if r.due > 0 else '—' }}</b></div>
+            <div><span>Qoldiq</span><b class="{{ 'bad-t' if r.due > 0 and e.status != 'chiqqan' }}">{{ r.due|short if r.due > 0 and e.status != 'chiqqan' else '—' }}</b></div>
           </div>
           <div class="bar thin"><i style="width:{{ (r.progress * 100)|round }}%"></i></div>
+          {% if moved %}<div class="me-note">{{ ui.icon('swap', 'sm') }} {{ e.note[2:] }}</div>{% elif e.note %}<div class="me-note">{{ e.note }}</div>{% endif %}
           <div class="me-f">
-            <span>{{ pay_count.get(e.id, 0) }} ta to'lov · {{ r.progress|pct }}</span>
+            <span>{% if moved %}to'lovlar yangi dasturga o'tgan{% else %}{{ pay_count.get(e.id, 0) }} ta to'lov · {{ r.progress|pct }}{% endif %}</span>
             <div class="me-a">
-              {% if e.program.billing != 'bir_martalik' and can_edit %}
+              {% if can_edit and e.status != 'chiqqan' and transfer_targets|length > 1 %}
+              <button class="btn ghost sm" title="Boshqa dasturga o'tkazish" data-open="transfer-modal" data-set-eid="{{ e.id }}" data-set-member="{{ m.full_name }}" data-set-from="{{ e.program.name }}" data-set-paid="{{ r.paid|num }}" data-exclude-program="{{ (enrs|selectattr('enrollment.status', 'equalto', 'faol')|map(attribute='enrollment.program_id')|list + [e.program_id])|join(',') }}">{{ ui.icon('swap', 'sm') }} O'tkazish</button>
+              {% endif %}
+              {% if e.program.billing != 'bir_martalik' and can_edit and e.status != 'chiqqan' %}
               <form method="post" action="{{ url_for('dastur.renew', eid=e.id) }}"><input type="hidden" name="next" value="{{ here }}"><button class="btn ghost sm" title="Yana bir davrga uzaytirish">{{ ui.icon('renew', 'sm') }} Uzaytirish</button></form>
               {% endif %}
               {% if r.due > 0 and e.status != 'chiqqan' %}
@@ -166,5 +171,6 @@
 
 {{ ui.pay_modal(f_accounts, None, aqd_types, here) }}
 {{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, next_url=here) }}
+{% if can_edit %}{% with next_url=here %}{% include "partials/transfer_modal.html" %}{% endwith %}{% endif %}
 {% include "partials/member_form.html" %}
 {% endblock %}

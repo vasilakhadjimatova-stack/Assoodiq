@@ -10,6 +10,7 @@
       if (menu) menu.removeAttribute('open');
       if (dlg) {
         resetDialog(dlg);
+        excludeProgram(dlg, opener.dataset.excludeProgram);
         applyPreset(dlg, opener.dataset);
         openExtras(dlg);
         var txf = dlg.querySelector('.tx-form');
@@ -43,6 +44,18 @@
     var tx = dlg.querySelector('[name=tx_id]');
     if (tx) tx.value = '';
     dlg.querySelectorAll('[data-text][data-default]').forEach(function (el) { el.textContent = el.dataset.default; });
+  }
+
+  // O'tkazish oynasi: hozirgi dastur ro'yxatda tanlanmaydi, birinchi boshqasi tanlanib narxi qo'yiladi
+  function excludeProgram(dlg, pid) {
+    var sel = dlg.querySelector('select[data-fill-price]');
+    if (!sel || pid === undefined) return;
+    var first = null, skip = String(pid).split(',');
+    Array.prototype.forEach.call(sel.options, function (o) {
+      o.disabled = o.hidden = skip.indexOf(o.value) >= 0;
+      if (!o.disabled && !first) first = o;
+    });
+    if (first) { sel.value = first.value; sel.dispatchEvent(new Event('change')); }
   }
 
   // "Qo'shimcha" bo'limi: dastur tanlangan yoki holat halol emas bo'lsa ochiq turadi

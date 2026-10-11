@@ -62,6 +62,9 @@
                 {% if p.billing != 'bir_martalik' %}
                 <form method="post" action="{{ url_for('dastur.renew', eid=e.id) }}"><input type="hidden" name="next" value="{{ here }}"><button>{{ ui.icon('renew', 'sm') }} Obunani uzaytirish</button></form>
                 {% endif %}
+                {% if g.user.role != 'menejer' and e.status != 'chiqqan' and transfer_targets|length > 1 %}
+                <button type="button" data-open="transfer-modal" data-set-eid="{{ e.id }}" data-set-member="{{ e.member.full_name }}" data-set-from="{{ p.name }}" data-set-paid="{{ r.paid|num }}" data-exclude-program="{{ p.id }}">{{ ui.icon('swap', 'sm') }} Boshqa dasturga o'tkazish</button>
+                {% endif %}
                 {% for st, label in (('faol', 'Faol'), ('tugatgan', 'Tugatdi'), ('chiqqan', 'Chiqib ketdi')) if st != e.status %}
                 <form method="post" action="{{ url_for('dastur.enrollment_status', eid=e.id) }}"><input type="hidden" name="next" value="{{ here }}"><input type="hidden" name="status" value="{{ st }}"><button>{{ label }} deb belgilash</button></form>
                 {% endfor %}
@@ -110,4 +113,5 @@
 {{ ui.pay_modal(f_accounts, pay_category.id if pay_category, aqd_types, here) }}
 {{ ui.tx_modal('tx-modal', f_accounts, f_categories, f_programs, aqd_types, shariat_types, preset={'kind': 'chiqim', 'program_id': p.id, 'lock_kind': True}, next_url=here, title='Dastur xarajati') }}
 {% include "partials/program_form.html" %}
+{% if g.user.role != 'menejer' %}{% with next_url=here %}{% include "partials/transfer_modal.html" %}{% endwith %}{% endif %}
 {% endblock %}
