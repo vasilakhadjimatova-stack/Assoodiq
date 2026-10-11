@@ -1,48 +1,118 @@
 {% extends "base.html" %}
 {% block title %}Kurs va klublar{% endblock %}
 {% block content %}
+{% set KIND_ICON = {"kurs": "cap", "klub": "users", "tadbir": "calendar", "konsalting": "briefcase"} %}
+{% set can_edit = g.user.role != 'menejer' %}
 <div class="head">
   <div>
     <div class="head-t">Kurs va klublar</div>
-    <div class="head-s">Har bir yo'nalishning daromadi, xarajati va sof foydasi</div>
+    <div class="head-s">Har bir yo'nalishning a'zolari, to'lovlari va sof foydasi</div>
   </div>
   <div class="head-a">
-    {% if g.user.role != 'menejer' %}<button class="btn solid" data-open="prog-modal">{{ ui.icon('plus', 'sm') }} Yangi dastur</button>{% endif %}
+    {% if can_edit %}<button class="btn solid" data-open="prog-modal">{{ ui.icon('plus', 'sm') }} Yangi dastur</button>{% endif %}
   </div>
+</div>
+
+{# Umumiy ko'rsatkichlar #}
+<div class="stats p-sum">
+  <div class="stat hero">
+    <div class="stat-l">{{ ui.icon('gem', 'sm') }} Sof foyda{{ ' · ' ~ kinds[kind] if kind }}</div>
+    <div class="stat-v">{{ ui.som(summary.profit) }}</div>
+    <div class="stat-s">rentabellik {{ summary.margin|pct }} · xarajat {{ summary.expenses|short }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">{{ ui.icon('cap', 'sm') }} Faol dasturlar</div>
+    <div class="stat-v">{{ summary.active }}<span class="cur">ta</span></div>
+    <div class="stat-s">{{ summary.members }} ta a'zo o'qiyapti</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">{{ ui.icon('coins', 'sm') }} Yig'ildi</div>
+    <div class="stat-v">{{ ui.som(summary.collected) }}</div>
+    <div class="bar thin" style="margin-top:10px"><i style="width:{{ (summary.progress * 100)|round }}%"></i></div>
+    <div class="stat-s">kutilgandan {{ summary.progress|pct }}</div>
+  </div>
+  <a class="stat {{ 'warn-stat' if summary.due > 0 }}" href="{{ url_for('dastur.members', holat='qarzdor') }}">
+    <div class="stat-l">{{ ui.icon('clock', 'sm') }} Undirilishi kerak</div>
+    <div class="stat-v {{ 'bad-t' if summary.due > 0 }}">{{ ui.som(summary.due) }}</div>
+    <div class="stat-s">{% if summary.debtors %}{{ summary.debtors }} ta qarzdor a'zo →{% else %}hamma to'lagan{% endif %}</div>
+  </a>
 </div>
 
 <div class="toolbar">
   <div class="seg">
     <a href="{{ url_for('dastur.programs') }}" class="{{ 'on' if not kind }}">Hammasi <span class="n">{{ counts[''] }}</span></a>
-    {% for k, v in kinds.items() %}<a href="{{ url_for('dastur.programs', tur=k) }}" class="{{ 'on' if kind == k }}">{{ v }} <span class="n">{{ counts[k] }}</span></a>{% endfor %}
+    {% for k, v in kinds.items() %}<a href="{{ url_for('dastur.programs', tur=k) }}" class="{{ 'on' if kind == k }}">{{ ui.icon(KIND_ICON[k], 'sm') }} {{ v }} <span class="n">{{ counts[k] }}</span></a>{% endfor %}
   </div>
+  <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" placeholder="Dastur nomi bo'yicha" data-filter="#p-groups" aria-label="Dastur qidirish"></label>
 </div>
 
-<div class="prog-grid">
-  {% for s in stats %}
-  {% set p = s.program %}
-  <a class="card prog" href="{{ url_for('dastur.program', pid=p.id) }}">
-    <div>
-      <div class="prog-top">
-        <span class="pill {{ 'gold' if p.kind == 'klub' else 'brand' }}">{{ p.kind_name }}</span>
-        <span class="pill {{ 'ok' if p.status == 'faol' else ('info' if p.status == 'rejada' else '') }}">{{ p.status_name }}</span>
-      </div>
-      <h3 style="margin-top:10px">{{ p.name }}</h3>
-      <div class="meta">{{ ui.som(p.price, p.currency) }} · {{ p.billing_name }}{% if p.start_date %} · {{ p.start_date|d }}{% endif %}</div>
+<div id="p-groups">
+{% for st, st_name, items in groups %}
+  <div class="p-group">
+    <div class="p-group-h"><span class="dot-st st-{{ st }}"></span>{{ st_name }}<span class="n">{{ items|length }}</span></div>
+    <div class="pcards">
+    {% for s in items %}
+      {% set p = s.program %}
+      {% if p.status == 'rejada' and p.start_date %}{% set days = (p.start_date - today).days %}
+        {% set timing = (days ~ ' kundan keyin boshlanadi') if days > 0 else ('bugun boshlanadi' if days == 0 else "boshlanish sanasi o'tdi") %}
+      {% elif p.status == 'faol' and p.end_date and p.end_date >= today %}{% set timing = ((p.end_date - today).days ~ ' kun qoldi') %}
+      {% elif p.status == 'yakunlangan' and (p.end_date or p.start_date) %}{% set timing = 'tugagan ' ~ (p.end_date or p.start_date)|d %}
+      {% elif p.billing != 'bir_martalik' %}{% set timing = p.billing_name %}
+      {% else %}{% set timing = '' %}{% endif %}
+      <a class="pcard k-{{ p.kind }} st-{{ p.status }}" href="{{ url_for('dastur.program', pid=p.id) }}" data-q="{{ p.name }} {{ p.kind_name }}">
+        <div class="pc-cover">
+          <div class="pc-ico">{{ ui.icon(KIND_ICON.get(p.kind, 'cap')) }}</div>
+          <div class="pc-tags">
+            <span class="pc-kind">{{ p.kind_name }}</span>
+            <span class="pc-st"><i></i>{{ p.status_name }}</span>
+            {% if best and best.program.id == p.id and s.profit > 0 and stats|length > 2 %}<span class="pc-badge">{{ ui.icon('up', 'sm') }} Eng foydali</span>{% endif %}
+          </div>
+          {% if p.capacity %}
+          <div class="pc-ring" style="--p:{{ [((s.fill or 0) * 100)|round|int, 100]|min }}" title="{{ s.members }} / {{ p.capacity }} o'rin band">
+            <div><b>{{ s.members }}</b><span>/{{ p.capacity }}</span></div>
+          </div>
+          {% else %}
+          <div class="pc-ring nocap" title="{{ s.members }} ta a'zo"><div><b>{{ s.members }}</b><span>a'zo</span></div></div>
+          {% endif %}
+        </div>
+        <div class="pc-body">
+          <h3>{{ p.name }}</h3>
+          <div class="pc-meta">
+            <span>{{ ui.icon('coins', 'sm') }}{{ p.price|money(p.currency) }}{% if p.currency != 'USD' %} so'm{% endif %} · {{ p.billing_name|lower }}</span>
+            {% if p.start_date %}<span>{{ ui.icon('calendar', 'sm') }}{{ p.start_date|d }}{% if p.end_date %} – {{ p.end_date|d }}{% endif %}</span>{% endif %}
+          </div>
+          <div class="pc-kpis">
+            <div><span>Yig'ildi</span><b>{{ s.collected|short }}</b></div>
+            <div><span>Xarajat</span><b>{{ s.expenses|short }}</b></div>
+            <div><span>Sof foyda</span><b class="{{ 'bad-t' if s.profit < 0 else 'ok-t' }}">{{ s.profit|short }}</b>{% if s.collected %}<em>{{ s.margin|pct }}</em>{% endif %}</div>
+          </div>
+          <div class="pc-prog">
+            <div class="pc-prog-h"><span>To'lov yig'ilishi</span><b>{{ s.progress|pct }}</b></div>
+            <div class="bar"><i style="width:{{ (s.progress * 100)|round }}%"></i></div>
+            <div class="pc-prog-f">{{ s.collected|short }} / {{ s.expected|short }} so'm</div>
+          </div>
+        </div>
+        <div class="pc-foot">
+          {% if s.debtors %}<span class="pc-chip bad">{{ ui.icon('alert', 'sm') }} {{ s.debtors }} qarzdor · {{ s.due|short }}</span>
+          {% elif s.members %}<span class="pc-chip ok">{{ ui.icon('check', 'sm') }} Qarzdorlik yo'q</span>
+          {% else %}<span class="pc-chip">{{ ui.icon('user-plus', 'sm') }} A'zo yo'q</span>{% endif %}
+          {% if timing %}<span class="pc-time">{{ ui.icon('clock', 'sm') }}{{ timing }}</span>{% endif %}
+          <span class="pc-go" aria-hidden="true">{{ ui.icon('right', 'sm') }}</span>
+        </div>
+      </a>
+    {% endfor %}
+    {% if loop.first and can_edit %}
+      <button type="button" class="pcard pc-new" data-open="prog-modal">
+        <span class="pc-new-i">{{ ui.icon('plus') }}</span>
+        <b>Yangi dastur</b>
+        <span>Kurs, klub, tadbir yoki konsalting</span>
+      </button>
+    {% endif %}
     </div>
-    <div class="kv">
-      <div><span>A'zolar</span><b>{{ s.members }}{% if p.capacity %}<span class="faint" style="font-weight:600">/{{ p.capacity }}</span>{% endif %}</b></div>
-      <div><span>Yig'ildi</span><b>{{ s.collected|short }}</b></div>
-      <div><span>Foyda</span><b class="{{ 'bad-t' if s.profit < 0 else 'ok-t' }}">{{ s.profit|short }}</b></div>
-    </div>
-    <div>
-      <div class="bar"><i style="width:{{ (s.progress * 100)|round }}%"></i></div>
-      <div class="prog-foot"><span>{{ s.progress|pct }} to'langan</span><span>{% if s.due > 0 %}qoldiq {{ s.due|short }}{% else %}qarzdorlik yo'q{% endif %}</span></div>
-    </div>
-  </a>
-  {% else %}
-  <div class="card empty" style="grid-column:1/-1">{{ ui.icon('cap') }}<b>Hali dastur yo'q</b>Birinchi kurs yoki klubni qo'shing.</div>
-  {% endfor %}
+  </div>
+{% else %}
+  <div class="card empty">{{ ui.icon('cap') }}<b>Hali dastur yo'q</b>Birinchi kurs yoki klubni qo'shing.</div>
+{% endfor %}
 </div>
 
 {% include "partials/program_form.html" %}

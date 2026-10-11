@@ -41,8 +41,27 @@ def programs():
     stats = [F.program_stats(p, paid_map) for p in items]
     counts = {k: Program.query.filter_by(kind=k).count() for k in PROGRAM_KINDS}
     counts[""] = Program.query.count()
-    return render_template("pages/programs.html", stats=stats, kind=kind, counts=counts,
-                           kinds=PROGRAM_KINDS, statuses=PROGRAM_STATUS, billings=BILLING)
+    # Holat bo'yicha guruhlar: faol → rejada → yakunlangan
+    groups = [(st, PROGRAM_STATUS[st], [s for s in stats if s["program"].status == st])
+              for st in ("faol", "rejada", "yakunlangan")]
+    groups = [g for g in groups if g[2]]
+    active = [s for s in stats if s["program"].status == "faol"]
+    summary = {
+        "active": len(active),
+        "members": sum(s["members"] for s in active),
+        "collected": sum(s["collected"] for s in stats),
+        "expected": sum(s["expected"] for s in stats),
+        "due": sum(s["due"] for s in stats),
+        "debtors": sum(s["debtors"] for s in stats),
+        "profit": sum(s["profit"] for s in stats),
+        "expenses": sum(s["expenses"] for s in stats),
+    }
+    summary["margin"] = summary["profit"] / summary["collected"] if summary["collected"] else 0
+    summary["progress"] = min(summary["collected"] / summary["expected"], 1) if summary["expected"] else 0
+    best = max(stats, key=lambda s: s["profit"], default=None)
+    return render_template("pages/programs.html", stats=stats, groups=groups, summary=summary, best=best,
+                           kind=kind, counts=counts, kinds=PROGRAM_KINDS, statuses=PROGRAM_STATUS,
+                           billings=BILLING)
 
 
 @bp.route("/dasturlar/saqlash", methods=["POST"])

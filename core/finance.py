@@ -336,10 +336,12 @@ def program_stats(program, paid_map=None):
     expenses = sum(v or 0 for _, v in exp_rows)
     marketing = sum(v or 0 for g, v in exp_rows if g == "Marketing")
     n = len(enrs)
-    due = sum(enrollment_row(e, paid_map)["due"] for e in enrs)
+    dues = [enrollment_row(e, paid_map)["due"] for e in enrs]
+    due = sum(dues)
     return {
         "program": program, "members": n, "expected": expected, "collected": collected,
-        "due": due, "expenses": expenses, "profit": collected - expenses,
+        "due": due, "debtors": sum(1 for d in dues if d > 0.01),
+        "expenses": expenses, "profit": collected - expenses,
         "margin": (collected - expenses) / collected if collected else 0,
         "cac": marketing / n if n else 0,
         "progress": min(collected / expected, 1) if expected else 0,
