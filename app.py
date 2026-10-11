@@ -70,12 +70,15 @@ def create_app(config_object=Config):
 
     from core.finance import nice_scale
     app.jinja_env.globals["nice_scale"] = nice_scale
+    from core.attendance import member_code, qr_svg
+    app.jinja_env.globals.update(qr_svg=qr_svg, member_code=member_code)
     app.jinja_env.filters.update(
         num=fmt_num, money=fmt_money, short=fmt_short, d=fmt_date,
         hijri=lambda d: hijri.format_hijri(d) if d else "",
         pct=lambda v: f"{(v or 0) * 100:.0f}%",
         # bazada UTC saqlanadi — ekranda server mintaqasi (Toshkent) vaqti
         localdt=lambda dt: dt.replace(tzinfo=timezone.utc).astimezone().strftime("%d.%m.%Y %H:%M") if dt else "",
+        localtm=lambda dt: dt.replace(tzinfo=timezone.utc).astimezone().strftime("%H:%M") if dt else "",
     )
 
     @app.before_request

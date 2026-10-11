@@ -228,6 +228,30 @@ class Lesson(db.Model):
         return LESSON_STATUS.get(self.status, self.status)
 
 
+ATTENDANCE = {"keldi": "Keldi", "kechikdi": "Kechikdi", "kelmadi": "Kelmadi", "sababli": "Sababli"}
+
+
+class Attendance(db.Model):
+    """Darsdagi davomat: kim keldi / kechikdi / kelmadi / sababli. method — qo'lda yoki skaner."""
+
+    __table_args__ = (db.UniqueConstraint("lesson_id", "member_id", name="uq_attendance_lesson_member"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id", ondelete="CASCADE"), nullable=False, index=True)
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=False, index=True)
+    status = db.Column(db.String(10), nullable=False, default="keldi")
+    method = db.Column(db.String(10), nullable=False, default="qolda")  # qolda | skaner | kamera
+    marked_at = db.Column(db.DateTime, default=_now)
+    marked_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+
+    lesson = db.relationship("Lesson", backref=db.backref("attendance", lazy="dynamic", cascade="all, delete-orphan"))
+    member = db.relationship("Member")
+
+    @property
+    def status_name(self):
+        return ATTENDANCE.get(self.status, self.status)
+
+
 class MemberEvent(db.Model):
     """A'zo tarixidagi voqealar (to'lov va yozilish o'z jadvalidan olinadi):
     obuna uzaytirildi, dasturdagi holati o'zgardi, dasturga yozildi."""

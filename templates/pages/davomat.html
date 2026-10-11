@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Davomat · {{ les.title }}{% endblock %}
+{% block content %}
+{% set here = request.full_path.rstrip('?') %}
+{% set ST = [('keldi', 'Keldi', 'check'), ('kechikdi', 'Kechikdi', 'clock'), ('kelmadi', 'Kelmadi', 'x'), ('sababli', 'Sababli', 'info')] %}
+<a class="crumb" href="{{ url_for('kalendar.index', d=les.date.isoformat()) }}">{{ ui.icon('left', 'sm') }} Dars jadvali</a>
+
+<div class="dv" data-dv data-base="{{ url_for('kalendar.index') }}{{ les.id }}/davomat" style="--c:{{ color }}">
+
+  {# ── Dars sarlavhasi ── #}
+  <section class="dv-hero">
+    <div class="dv-hero-t">
+      <span class="dv-eyebrow">{{ ui.icon('check', 'sm') }} Davomat · {{ number }}/{{ of }}-dars</span>
+      <h1>{{ les.title }}</h1>
+      <div class="dv-prog"><a href="{{ url_for('dastur.program', pid=les.program_id) }}">{{ les.program.name }}</a></div>
+      <div class="dv-when">
+        <span>{{ ui.icon('calendar', 'sm') }}{{ wd[les.date.weekday()] }}, {{ les.date.day }} {{ months[les.date.month - 1] }}</span>
+        <span>{{ ui.icon('clock', 'sm') }}{{ les.start.strftime('%H:%M') }}–{{ les.end.strftime('%H:%M') }}</span>
+        {% if les.location %}<span>{{ ui.icon('briefcase', 'sm') }}{{ les.location }}</span>{% endif %}
+        {% if les.teacher %}<span>{{ ui.icon('users', 'sm') }}{{ les.teacher }}</span>{% endif %}
+      </div>
+      <div class="dv-pn">
+        {% if prev_l %}<a href="{{ url_for('kalendar.attendance', lid=prev_l.id) }}">{{ ui.icon('left', 'sm') }} {{ prev_l.date.day }} {{ months[prev_l.date.month - 1][:3] }}</a>{% endif %}
+        {% if next_l %}<a href="{{ url_for('kalendar.attendance', lid=next_l.id) }}">{{ next_l.date.day }} {{ months[next_l.date.month - 1][:3] }} {{ ui.icon('right', 'sm') }}</a>{% endif %}
+      </div>
+    </div>
+    <div class="dv-hero-s">
+      <div class="dv-ring" data-ring style="--p:{{ (st.pct * 100)|round|int }}"><div><b data-stat="present">{{ st.present }}</b><small>/<span data-stat="total">{{ st.total }}</span></small><span data-pct>{{ (st.pct * 100)|round|int }}%</span></div></div>
+      <div class="dv-counts">
+        <span class="ok">{{ ui.icon('check', 'sm') }} Keldi <b data-stat="keldi">{{ st.keldi }}</b></span>
+        <span class="late">{{ ui.icon('clock', 'sm') }} Kechikdi <b data-stat="kechikdi">{{ st.kechikdi }}</b></span>
+        <span class="no">{{ ui.icon('x', 'sm') }} Kelmadi <b data-stat="kelmadi">{{ st.kelmadi }}</b></span>
+        <span class="ex">{{ ui.icon('info', 'sm') }} Sababli <b data-stat="sababli">{{ st.sababli }}</b></span>
+        <span class="un">Belgilanmagan <b data-stat="unmarked">{{ st.unmarked }}</b></span>
+      </div>
+    </div>
+  </section>
+
+  <div class="dv-grid">
+    {# ── Skaner paneli ── #}
+    <aside class="dv-side">
+      <div class="dv-scan" data-scan-box>
+        <div class="dv-scan-h">
+          <span class="dv-led" data-led></span>
+          <b data-led-text>Skaner kutilmoqda</b>
+          <span class="faint">{{ late }} daq. kech — «kechikdi»</span>
+        </div>
+        <label class="dv-input">
+          {{ ui.icon('search', 'sm') }}
+          <input type="text" data-scan-input placeholder="Kartani skaner qiling yoki ism yozing" autocomplete="off" autofocus aria-label="Skaner yoki qidiruv">
+        </label>
+        <div class="dv-last" data-last hidden>
+          <span class="mav av-0" data-last-av>?</span>
+          <div><b data-last-name></b><span data-last-sub></span></div>
+          <span class="dv-last-st" data-last-st></span>
+          <button type="button" class="btn sm solid" data-force hidden>Baribir belgilash</button>
+        </div>
+        <button type="button" class="btn outline block" data-camera hidden>{{ ui.icon('phone-pay', 'sm') }} Telefon kamerasi bilan skaner</button>
+        <ol class="dv-log" data-log></ol>
+      </div>
+      <div class="dv-tip">
+        <b>{{ ui.icon('info', 'sm') }} QR skanerni ulash</b>
+        <p>Skanerni USB yoki Bluetooth orqali kompyuterga ulang — u klaviatura kabi ishlaydi. Shu sahifa ochiq tursa, kartani tutishingiz bilan o'quvchi «keldi» deb belgilanadi.</p>
+        <a class="btn ghost sm" href="{{ url_for('dastur.cards', dastur=les.program_id) }}" target="_blank">{{ ui.icon('download', 'sm') }} QR kartalarni chop etish</a>
+      </div>
+    </aside>
+
+    {# ── Ro'yxat ── #}
+    <section class="card dv-list">
+      <div class="dv-list-h">
+        <h3>Ro'yxat <span class="faint">{{ rows|length }} kishi</span></h3>
+        <div class="seg" data-dv-filter>
+          <a href="#" class="on" data-f="">Hammasi</a>
+          <a href="#" data-f="none">Belgilanmagan</a>
+          <a href="#" data-f="in">Kelganlar</a>
+          <a href="#" data-f="out">Kelmaganlar</a>
+        </div>
+        {% if st.unmarked %}
+        <div class="dv-bulk">
+          <form method="post" action="{{ url_for('kalendar.attendance_bulk', lid=les.id) }}" class="inline"><input type="hidden" name="status" value="keldi"><button class="btn tonal sm">{{ ui.icon('check', 'sm') }} Qolganlar keldi</button></form>
+          <form method="post" action="{{ url_for('kalendar.attendance_bulk', lid=les.id) }}" class="inline" onsubmit="return confirm(this.dataset.msg)" data-msg="Belgilanmagan hammani «kelmadi» deb belgilaysizmi?"><input type="hidden" name="status" value="kelmadi"><button class="btn ghost sm">Qolganlar kelmadi</button></form>
+        </div>
+        {% endif %}
+      </div>
+      <div class="dv-rows" data-rows>
+        {% for r in rows %}
+        {% set m = r.member %}
+        {% set a = r.att %}
+        <div class="dv-row" data-member="{{ m.id }}" data-status="{{ a.status if a else '' }}" data-q="{{ m.full_name|lower }} {{ (m.phone or '')|replace(' ', '') }} {{ (m.business or '')|lower }} {{ code_for(m.id)|lower }}">
+          {{ ui.avatar(m) }}
+          <div class="dv-who">
+            <a href="{{ url_for('dastur.member', mid=m.id) }}">{{ m.full_name }}</a>
+            <span>{{ m.business or m.phone or code_for(m.id) }}
+              {% if r.expired %}<em class="pill warn">obuna tugagan</em>{% endif %}
+              {% if not r.enrollment %}<em class="pill">mehmon</em>{% endif %}</span>
+          </div>
+          <span class="dv-time" data-time>{% if a and a.marked_at %}{{ ui.icon('phone-pay', 'sm') if a.method != 'qolda' }}{{ a.marked_at|localtm }}{% endif %}</span>
+          <div class="dv-st" role="group" aria-label="Holat">
+            {% for k, label, ic in ST %}
+            <button type="button" class="s-{{ k }}" data-set="{{ k }}" aria-pressed="{{ 'true' if a and a.status == k else 'false' }}" title="{{ label }}">{{ ui.icon(ic, 'sm') }}<span>{{ label }}</span></button>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div class="empty">{{ ui.icon('users') }}<b>Bu dasturda a'zo yo'q</b>Dastur sahifasidan a'zo qo'shing.</div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+
+<dialog class="modal dv-cam" id="cam-modal">
+  <div class="modal-h"><h3>Kamera bilan skaner</h3><button type="button" class="icon-btn" data-close>{{ ui.icon('x') }}</button></div>
+  <div class="dv-cam-b">
+    <video data-video playsinline muted></video>
+    <div class="dv-cam-frame"></div>
+    <p class="faint" data-cam-msg>QR kodni ramka ichiga tuting</p>
+  </div>
+</dialog>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/attendance.js') }}?v=1"></script>{% endblock %}

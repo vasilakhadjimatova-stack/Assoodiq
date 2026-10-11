@@ -14,6 +14,7 @@ ichiga qurilgan.
 | **Kassa** | Hamma pul harakati bitta daftarda: kirim, chiqim, hisoblar orasidagi o'tkazma. **Jadval ko'rinishi** Sheets'dagi kassa daftari kabi: Kirim · Chiqim · Qoldiq ustunlari, oy boshi va oxiri qoldig'i, jami qatori. Jadval ostidagi **tez yozish qatori** (Enter — saqlash, `N` — shu qatorga o'tish), avval yozilgan ism tanlansa kategoriya va hisob o'zi to'ladi, qatorni ikki marta bosish — tahrirlash, «Nusxa olish». Oy, tur, hisob, kategoriya va matn bo'yicha filtr |
 | **Sheets'dan ko'chirish** | Google Sheets / Excel'dan qatorlarni nusxa olib qo'yish yoki .xlsx/.csv yuklash. Ustunlar sarlavha bo'yicha taniladi (Sana, Summa yoki Kirim/Chiqim, Hisob, Kategoriya, Kimdan/kimga, Izoh…), har qator tekshiriladi, bazada bor yozuv ikkinchi marta qo'shilmaydi |
 | **Dars jadvali** | «Darslar markazi»: zumrad bannerda keyingi darsgacha jonli sanoq, davr bo'yicha halqa (nechta dars o'tdi, necha soat), hijriy sanalar. Ko'rinishlar: **Hafta** — kunlar kartalarida dars chiptalari (chiptani boshqa kunga sudrab ko'chirish), **Soatlar** — vaqt to'ri (sudrash va cho'zish), **Oy**, **Yo'l xaritasi** — har kurs boshidan oxirigacha: o'tgan / keyingi / bekor darslar va «Bugun» belgisi. Takrorlanuvchi darslar, «N-dars» raqami, zal yoki o'qituvchi to'qnashuvi haqida ogohlantirish, seriyani tahrirlash/o'chirish. Klaviatura: C, T, ←/→, H/S/O/Y |
+| **Davomat va QR skaner** | Har darsda davomat: keldi / kechikdi / kelmadi / sababli, «qolganlar keldi» bir bosishda. Har a'zoga QR kodli karta (A4 da 8 tadan chop etiladi, kod `AQ` + raqam + nazorat raqami). QR skaner USB/Bluetooth orqali klaviatura kabi ulanadi: davomat sahifasi ochiq tursa, karta tutilishi bilan «keldi» (10 daqiqadan kech — «kechikdi») belgilanadi, ovozli signal bilan; telefon kamerasi bilan skaner ham bor. O'quvchi kartasida va dastur sahifasida davomat foizi |
 | **Kurs va klublar** | Har bir potok/klub/tadbir bo'yicha: a'zolar soni, kutilgan va yig'ilgan summa, xarajat, sof foyda, rentabellik, 1 a'zoni jalb qilish narxi |
 | **A'zolar** | O'quvchi va klub a'zolari, kim qancha to'lagan va qancha qarz. Klub obunasini bir tugma bilan uzaytirish, muddati tugayotganlar ro'yxati |
 | **Zakot** | Naqd, undiriladigan haqlar, tovar zaxirasi va qarzlar daftardan avtomatik yig'iladi. Nisob oltin (85 g) yoki kumush (595 g) bo'yicha. Havl sanasi hijriy taqvimda, hisob-kitoblar tarixi saqlanadi |
@@ -84,6 +85,7 @@ core/
   models.py         Ma'lumotlar modeli (Transaction — yagona daftar)
   finance.py        Barcha hisob-kitob: balans, foyda-zarar, dastur iqtisodiyoti, zakot, fondlar
   hijri.py          Hijriy taqvim (jadval usuli) va havl sanasi
+  attendance.py     Davomat: a'zo QR kodi, dars ro'yxati, belgilash va statistika
   calendar.py       Dars jadvali: haftalik takrorlash, kun ichida joylashtirish, to'qnashuvlar
   sheets.py         Google Sheets / Excel'dan import: ustunlarni tanish, summa va sana formatlari, takrorlar
 views/              Bo'limlar: kassa, dastur, qarz, islomiy, hisobot, sozlama, auth
@@ -138,6 +140,7 @@ tushirishdan oldin Assoodiq'ning shariat maslahatchisi bilan ko'rib chiqing:
 | ![Dasturlar](docs/screens/desk-light-dasturlar.jpg) | ![Halollik](docs/screens/desk-light-halollik.jpg) |
 | ![Kirim oynasi](docs/screens/desk-modal-kirim.jpg) | ![Qorong'i mavzu](docs/screens/desk-dark-home.jpg) |
 | ![A'zolar paneli](docs/screens/desk-light-azolar.jpg) | ![O'quvchi kartasi](docs/screens/desk-light-azo-karta.jpg) |
+| ![Davomat](docs/screens/desk-light-davomat.jpg) | |
 | ![Dars jadvali](docs/screens/desk-light-kalendar.jpg) | ![Yo'l xaritasi](docs/screens/desk-light-kalendar-yol.jpg) |
 | ![Kassa daftari](docs/screens/desk-light-kassa.jpg) | ![Sheets'dan ko'chirish](docs/screens/desk-kassa-import.jpg) |
 | ![Mobil](docs/screens/mob-light-home.jpg) | ![Mobil oyna](docs/screens/mob-modal-kirim.jpg) |

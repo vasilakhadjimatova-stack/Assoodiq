@@ -64,6 +64,7 @@
     pop.querySelector('[data-v="color"]').style.background = cur.color;
     pop.style.setProperty('--c', cur.color);
     pop.querySelectorAll('form[data-action]').forEach(function (f) { f.action = base + cur.id + '/' + f.dataset.action; });
+    var al = pop.querySelector('[data-att-link]'); if (al) al.href = base + cur.id + '/davomat';
     pop.querySelectorAll('[data-hide-if]').forEach(function (b) { b.closest('form').hidden = b.dataset.hideIf === cur.status; });
     pop.querySelectorAll('[data-show-if]').forEach(function (b) { b.closest('form').hidden = b.dataset.showIf.split(' ').indexOf(cur.status) < 0; });
     pop.showModal();

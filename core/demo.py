@@ -10,7 +10,7 @@ from core import finance as F
 from core import hijri
 from core.extensions import db
 from core.models import (
-    Account, Category, Debt, Enrollment, Lesson, Member, MemberEvent, Program, Setting, Transaction, User, ZakatSnapshot,
+    Account, Attendance, Category, Debt, Enrollment, Lesson, Member, MemberEvent, Program, Setting, Transaction, User, ZakatSnapshot,
 )
 
 # Namuna uchun boshlang'ich qoldiqlar
@@ -312,6 +312,22 @@ def demo_lessons(today, admin, p6, mur, club, cons, nxt):
     db.session.add(Lesson(program_id=club.id, title="Mehmon spiker: eksport", date=today, start=time(16, 0),
                           end=time(17, 30), location="Konferens zal", teacher="Mehmon ekspert",
                           created_by=admin.id))
+    db.session.flush()
+
+    # O'tgan darslar uchun davomat (asosan kelgan, ozgina kechikkan/kelmagan)
+    rnd = random.Random(11)
+    from datetime import datetime as _dt
+    for les in Lesson.query.filter(Lesson.date < today, Lesson.status == "otdi").all():
+        for e in Enrollment.query.filter(Enrollment.program_id == les.program_id, Enrollment.status != "chiqqan").all():
+            if e.joined_at and e.joined_at > les.date:
+                continue
+            x = rnd.random()
+            st = "keldi" if x < .80 else ("kechikdi" if x < .88 else ("kelmadi" if x < .96 else "sababli"))
+            mins = rnd.randint(-15, 4) if st == "keldi" else rnd.randint(11, 35)
+            at = _dt.combine(les.date, les.start) + timedelta(minutes=mins) - timedelta(hours=5)  # UTC
+            db.session.add(Attendance(lesson_id=les.id, member_id=e.member_id, status=st,
+                                      method="skaner" if st in ("keldi", "kechikdi") and x < .7 else "qolda",
+                                      marked_at=at, marked_by=admin.id))
 
 
 def has_records():
@@ -333,6 +349,7 @@ def clear_data():
     """Barcha moliyaviy yozuvlarni o'chiradi. Xodimlar, hisoblar, kategoriyalar va
     sozlamalar (kurs, nisob narxi) saqlanib qoladi; hisoblar qoldig'i nolga tushadi."""
     Transaction.query.delete()
+    Attendance.query.delete()
     Lesson.query.delete()
     MemberEvent.query.delete()
     Enrollment.query.delete()

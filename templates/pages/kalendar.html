@@ -16,7 +16,9 @@ data-status="{{ les.status }}" data-series="{{ 1 if les.series_id else 0 }}"
 {% macro ticket(les) -%}
 {% set past = les.date < today or (les.date == today and les.end < now.time()) %}
 <div class="tk st-{{ les.status }} {{ 'past' if past }}" data-ev data-drag {{ ev_attrs(les) }} style="--c:{{ color_for(les.program_id) }}">
+  {% set ac = att.get(les.id) %}
   <div class="tk-top"><b>{{ les.start.strftime('%H:%M') }}</b><span>{{ les.end.strftime('%H:%M') }}</span>
+    {% if ac %}<em class="tk-att" title="Davomat: {{ ac[0] }} kishi keldi">{{ ui.icon('users', 'sm') }}{{ ac[0] }}</em>{% endif %}
     {% if les.status == 'otdi' %}<em class="tk-st ok" title="O'tdi">{{ ui.icon('check', 'sm') }}</em>{% elif les.status == 'bekor' %}<em class="tk-st bad">Bekor</em>{% endif %}</div>
   <div class="tk-b">
     <b class="tk-t">{{ les.title }}</b>
@@ -226,6 +228,7 @@ data-status="{{ les.status }}" data-series="{{ 1 if les.series_id else 0 }}"
     <form method="post" data-action="holat" class="inline"><input type="hidden" name="next" value="{{ here }}"><input type="hidden" name="status" value="bekor"><button class="btn ghost sm" data-hide-if="bekor">Bekor qilish</button></form>
     <form method="post" data-action="holat" class="inline"><input type="hidden" name="next" value="{{ here }}"><input type="hidden" name="status" value="rejada"><button class="btn ghost sm" data-show-if="otdi bekor">Rejaga qaytarish</button></form>
     <span style="flex:1"></span>
+    <a class="btn solid sm" data-att-link href="#">{{ ui.icon('check', 'sm') }} Davomat</a>
     <button type="button" class="icon-btn" data-edit-lesson title="Tahrirlash">{{ ui.icon('pencil') }}</button>
     <form method="post" data-action="ochirish" class="inline" data-del>
       <input type="hidden" name="next" value="{{ here }}"><input type="hidden" name="scope" value="one">

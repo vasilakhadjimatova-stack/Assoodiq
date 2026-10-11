@@ -112,6 +112,11 @@ def program(pid):
                                         Lesson.status != "bekor").order_by(Lesson.date, Lesson.start).limit(6).all())
     lesson_stat = {"total": p.lessons.filter(Lesson.status != "bekor").count(),
                    "done": p.lessons.filter_by(status="otdi").count()}
+    from core.attendance import PRESENT
+    from core.models import Attendance
+    marks = (db.session.query(Attendance.status).join(Lesson, Attendance.lesson_id == Lesson.id)
+             .filter(Lesson.program_id == p.id).all())
+    lesson_stat["att"] = (sum(1 for (st,) in marks if st in PRESENT) / len(marks)) if marks else None
     return render_template("pages/program.html", p=p, stat=stat, rows=rows, seg=seg,
                            next_lessons=next_lessons, lesson_stat=lesson_stat, color=color_for(p.id),
                            expenses=expenses, members=members, kinds=PROGRAM_KINDS,
@@ -403,7 +408,10 @@ def member(mid):
     enrolled = {r["enrollment"].program_id for r in enrs if r["enrollment"].status == "faol"}
     open_programs = [p for p in Program.query.filter(Program.status != "yakunlangan").order_by(Program.name).all()
                      if p.id not in enrolled]
+    from core.attendance import member_rate
+    att_rates = {r["enrollment"].id: member_rate(m.id, r["enrollment"].program_id) for r in enrs}
     return render_template("pages/member.html", m=m, enrs=enrs, payments=payments, timeline=timeline,
+                           att_rates=att_rates,
                            since=member_since(m, enrs),
                            pay_count=pay_count, open_programs=open_programs, transfer_targets=transfer_targets(),
                            total_paid=sum(r["paid"] for r in enrs),
@@ -481,3 +489,24 @@ def member_since(m, enrs):
     if m.created_at:
         dates.append(m.created_at.date())
     return min(dates) if dates else None
+
+
+@bp.route("/azolar/kartalar")
+def cards():
+    """QR a'zo kartalari — chop etish uchun (A4 da 8 ta). ?dastur=<id> yoki ?a=<id>,<id>."""
+    pid = form_int(request.args.get("dastur"))
+    ids = [form_int(x) for x in (request.args.get("a") or "").split(",") if form_int(x)]
+    program = db.session.get(Program, pid) if pid else None
+    if program:
+        members = [e.member for e in program.enrollments.filter(Enrollment.status != "chiqqan").all()]
+    elif ids:
+        members = Member.query.filter(Member.id.in_(ids)).all()
+    else:
+        members = Member.query.all()
+    members = sorted({m.id: m for m in members}.values(), key=lambda m: m.full_name.lower())
+    progs = {}
+    for e in Enrollment.query.filter(Enrollment.member_id.in_([m.id for m in members]),
+                                     Enrollment.status == "faol").all():
+        progs.setdefault(e.member_id, []).append(e.program.name)
+    return render_template("pages/cards.html", members=members, program=program, progs=progs)
+

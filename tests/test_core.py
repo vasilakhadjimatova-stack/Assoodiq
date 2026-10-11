@@ -727,3 +727,60 @@ def test_calendar_series_edit_move_delete(app):
         page = client.get(f"/kalendar/?v={v}&d=2026-10-08").get_data(as_text=True)
         assert "Yangi dars" in page, v
     assert "Dars jadvali" in client.get(f"/dasturlar/{p.id}").get_data(as_text=True)
+
+
+# ── Davomat va QR skaner ──
+
+def test_member_code_roundtrip_and_typos():
+    from core.attendance import member_code, parse_code
+    for mid in (1, 23, 4567, 999999):
+        code = member_code(mid)
+        assert len(code) == 9 and parse_code(code) == mid and parse_code(f"  {code.lower()}\n") == mid
+        bad = code[:-1] + str((int(code[-1]) + 1) % 10)
+        assert parse_code(bad) is None  # nazorat raqami xatoni ushlaydi
+    assert parse_code("https://assoodiq.uz/a/" + member_code(5)) == 5 and parse_code("salom") is None
+
+
+def test_attendance_scan_mark_and_stats(app):
+    from datetime import time
+    from core.attendance import member_code
+    from core.models import Attendance, Lesson
+    client = app.test_client()
+    login(client, "300300")  # menejer ham davomat oladi
+    p = Program(name="Kurs D", kind="kurs", price=1)
+    a, b, c = Member(full_name="Ali Valiyev"), Member(full_name="Bobur Sodiqov"), Member(full_name="Mehmon Bek")
+    db.session.add_all([p, a, b, c])
+    db.session.commit()
+    for m in (a, b):
+        db.session.add(Enrollment(member_id=m.id, program_id=p.id, price=1, joined_at=date(2026, 1, 1)))
+    les = Lesson(program_id=p.id, title="1-dars", date=date.today(), start=time(0, 0), end=time(23, 59))
+    db.session.add(les)
+    db.session.commit()
+    page = client.get(f"/kalendar/{les.id}/davomat").get_data(as_text=True)
+    assert "Ali Valiyev" in page and "Bobur Sodiqov" in page and "Skaner" in page
+    # skaner: kod → keldi/kechikdi; ikkinchi marta — takror
+    r = client.post(f"/kalendar/{les.id}/davomat/skaner", json={"code": member_code(a.id)}).get_json()
+    assert r["ok"] and r["status"] in ("keldi", "kechikdi") and not r["already"] and r["stats"]["present"] == 1
+    assert client.post(f"/kalendar/{les.id}/davomat/skaner", json={"code": member_code(a.id)}).get_json()["already"]
+    assert db.session.get(Lesson, les.id).status == "otdi"
+    # noto'g'ri kod va dasturda yo'q a'zo
+    assert not client.post(f"/kalendar/{les.id}/davomat/skaner", json={"code": "AQ0000010"}).get_json()["ok"]
+    r = client.post(f"/kalendar/{les.id}/davomat/skaner", json={"code": member_code(c.id)}).get_json()
+    assert not r["ok"] and r["need_force"]
+    r = client.post(f"/kalendar/{les.id}/davomat/skaner", json={"code": member_code(c.id), "force": True}).get_json()
+    assert r["ok"] and r["stats"]["total"] == 3  # mehmon ham ro'yxatga qo'shildi
+    # qo'lda: kelmadi, keyin belgini olib tashlash
+    r = client.post(f"/kalendar/{les.id}/davomat/belgi", json={"member_id": b.id, "status": "kelmadi"}).get_json()
+    assert r["stats"]["kelmadi"] == 1
+    r = client.post(f"/kalendar/{les.id}/davomat/belgi", json={"member_id": b.id, "status": ""}).get_json()
+    assert r["stats"]["kelmadi"] == 0 and r["stats"]["unmarked"] == 1
+    client.post(f"/kalendar/{les.id}/davomat/hammasi", data={"status": "keldi"})
+    present = Attendance.query.filter(Attendance.lesson_id == les.id, Attendance.status.in_(("keldi", "kechikdi")))
+    assert present.count() == 3  # Ali (skaner), mehmon (skaner) va Bobur («qolganlar keldi»)
+    # kartalar va o'quvchi kartasidagi davomat
+    page = client.get(f"/azolar/kartalar?dastur={p.id}").get_data(as_text=True)
+    assert member_code(a.id) in page and "<svg" in page and "Bobur Sodiqov" in page
+    assert "Davomat:" in client.get(f"/azolar/{a.id}").get_data(as_text=True)
+    # dars o'chirilsa davomati ham o'chadi
+    client.post(f"/kalendar/{les.id}/ochirish")
+    assert Attendance.query.count() == 0

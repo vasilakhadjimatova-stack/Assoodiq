@@ -1,14 +1,15 @@
 """Dars jadvali — Google Calendar uslubida: hafta, kun, oy va ro'yxat ko'rinishlari."""
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, flash, g, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
+from core import attendance as A
 from core import calendar as C
 from core import hijri
 from core.extensions import db
-from core.models import LESSON_STATUS, Lesson, Program
+from core.models import ATTENDANCE, LESSON_STATUS, Attendance, Lesson, Program
 from views import form_date, form_int, safe_next
 
 bp = Blueprint("kalendar", __name__, url_prefix="/kalendar")
@@ -117,6 +118,7 @@ def index():
         statuses=LESSON_STATUS, lessons=lessons, tracks=tracks, nxt=nxt_lesson, period=period,
         hijri_short=_hijri_short, hijri_title=_hijri_short(days[0]) + (" – " + _hijri_short(days[-1]) if len(days) > 1 else "") if days else "",
         now=now, locations=locations, teachers=teachers, today=today,
+        att=A.lesson_counts([x.id for x in lessons]),
         open_program=form_int(request.args.get("yangi")),
     )
 
@@ -242,6 +244,8 @@ def delete(lid):
     if request.form.get("scope") == "series" and les.series_id:
         group = Lesson.query.filter(Lesson.series_id == les.series_id, Lesson.date >= les.date)
         n = group.count()
+        ids = [x.id for x in group.all()]
+        Attendance.query.filter(Attendance.lesson_id.in_(ids)).delete(synchronize_session=False)
         group.delete(synchronize_session=False)
         msg = f"Seriyadagi {n} ta dars o'chirildi (shu kundan boshlab)."
     else:
@@ -255,4 +259,85 @@ def delete(lid):
 def upcoming_for(program_id, limit=6):
     return (Lesson.query.filter(Lesson.program_id == program_id, Lesson.date >= date.today())
             .order_by(Lesson.date, Lesson.start).limit(limit).all())
+
+
+# ── Davomat ─────────────────────────────────────────────────────────────────
+
+@bp.route("/<int:lid>/davomat")
+def attendance(lid):
+    les = db.get_or_404(Lesson, lid)
+    rows = A.roster(les)
+    st = A.stats(les, rows)
+    siblings = (Lesson.query.filter(Lesson.program_id == les.program_id, Lesson.status != "bekor")
+                .order_by(Lesson.date, Lesson.start).all())
+    idx = next((i for i, x in enumerate(siblings) if x.id == les.id), 0)
+    prev_l = siblings[idx - 1] if idx > 0 else None
+    next_l = siblings[idx + 1] if idx + 1 < len(siblings) else None
+    return render_template("pages/davomat.html", les=les, rows=rows, st=st, statuses=ATTENDANCE,
+                           color=C.color_for(les.program_id), code_for=A.member_code, late=A.LATE_MINUTES,
+                           prev_l=prev_l, next_l=next_l, number=idx + 1, of=len(siblings),
+                           wd=C.WEEKDAYS, months=C.MONTHS)
+
+
+def _att_json(les, member_id, extra=None):
+    st = A.stats(les)
+    att = Attendance.query.filter_by(lesson_id=les.id, member_id=member_id).first()
+    data = {"ok": True, "member_id": member_id, "status": att.status if att else "",
+            "time": att.marked_at.replace(tzinfo=timezone.utc).astimezone().strftime("%H:%M") if att and att.marked_at else "",
+            "method": att.method if att else "",
+            "stats": {k: st[k] for k in ("keldi", "kechikdi", "kelmadi", "sababli", "present", "total", "unmarked")},
+            "pct": round(st["pct"] * 100), "lesson_status": les.status}
+    data.update(extra or {})
+    return jsonify(data)
+
+
+@bp.route("/<int:lid>/davomat/belgi", methods=["POST"])
+def attendance_mark(lid):
+    les = db.get_or_404(Lesson, lid)
+    data = request.get_json(silent=True) or {}
+    mid = form_int(data.get("member_id"))
+    status = data.get("status") or ""
+    if not A.find_member(mid) or (status and status not in ATTENDANCE):
+        return jsonify(ok=False, error="Noto'g'ri so'rov"), 400
+    A.mark(les, mid, status, "qolda", g.user.id)
+    db.session.commit()
+    return _att_json(les, mid)
+
+
+@bp.route("/<int:lid>/davomat/skaner", methods=["POST"])
+def attendance_scan(lid):
+    """Skaner (yoki kamera) o'qigan kod: a'zo topilsa — keldi/kechikdi deb belgilanadi."""
+    les = db.get_or_404(Lesson, lid)
+    data = request.get_json(silent=True) or {}
+    method = "kamera" if data.get("via") == "kamera" else "skaner"
+    mid = A.parse_code(data.get("code"))
+    m = A.find_member(mid)
+    if m is None:
+        return jsonify(ok=False, error="Kod tanilmadi — kartani qayta skaner qiling"), 200
+    enrolled = any(r["member"].id == m.id and r["enrollment"] for r in A.roster(les))
+    if not enrolled and not data.get("force"):
+        return jsonify(ok=False, need_force=True, member_id=m.id, name=m.full_name,
+                       error=f"{m.full_name} bu dasturga yozilmagan"), 200
+    prev = Attendance.query.filter_by(lesson_id=les.id, member_id=m.id).first()
+    already = bool(prev and prev.status in A.PRESENT)
+    if not already:
+        A.mark(les, m.id, A.auto_status(les), method, g.user.id)
+        db.session.commit()
+    return _att_json(les, m.id, {"name": m.full_name, "already": already, "business": m.business or ""})
+
+
+@bp.route("/<int:lid>/davomat/hammasi", methods=["POST"])
+def attendance_bulk(lid):
+    """Belgilanmaganlarning hammasini bitta holatga (keldi yoki kelmadi)."""
+    les = db.get_or_404(Lesson, lid)
+    status = request.form.get("status")
+    if status in ("keldi", "kelmadi"):
+        n = 0
+        for r in A.roster(les):
+            if r["att"] is None and r["enrollment"] is not None:
+                A.mark(les, r["member"].id, status, "qolda", g.user.id)
+                n += 1
+        db.session.commit()
+        flash(f"{n} ta a'zo «{ATTENDANCE[status].lower()}» deb belgilandi.", "ok")
+    return redirect(url_for("kalendar.attendance", lid=lid))
 

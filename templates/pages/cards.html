@@ -1,0 +1,74 @@
+{% import "partials/ui.html" as ui with context %}
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QR a'zo kartalari · Assoodiq</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --em: #065A47; --em2: #043A2E; --gold: #C49A3C; --gold2: #E3C47C; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Manrope", system-ui, sans-serif; background: #EEF3F0; color: #10221B; }
+    .bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: #fff; border-bottom: 1px solid #DCE6E1; }
+    .bar b { font-size: 15px; } .bar span { color: #6B7D75; font-size: 13px; font-weight: 600; }
+    .bar button, .bar a { margin-left: auto; height: 40px; padding: 0 18px; border-radius: 11px; border: 0; background: var(--em); color: #fff; font: 700 14px "Manrope", sans-serif; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+    .bar a { margin-left: 0; background: #EEF3F0; color: #10221B; }
+    .sheet { display: grid; grid-template-columns: repeat(2, 85.6mm); gap: 6mm 8mm; justify-content: center; padding: 10mm; }
+    .card { position: relative; width: 85.6mm; height: 54mm; border-radius: 3.5mm; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 30mm; background: #fff;
+            box-shadow: 0 6px 18px -8px rgba(4, 40, 30, .35); break-inside: avoid; border: .2mm solid #CFDDD6; }
+    .card .l { position: relative; min-width: 0; padding: 4.2mm 4mm 3.6mm 4.6mm; display: flex; flex-direction: column; color: #EAF5EF;
+               background: radial-gradient(120% 140% at 100% 0%, rgba(227, 196, 124, .28) 0, transparent 50%), linear-gradient(140deg, #0B6B53, var(--em) 45%, var(--em2)); }
+    .card .l::after { content: ""; position: absolute; left: 4.6mm; right: 0; top: 0; height: .35mm; background: linear-gradient(90deg, transparent, var(--gold2), transparent); }
+    .brand { display: flex; align-items: center; gap: 1.6mm; }
+    .brand svg { width: 6mm; height: 6mm; }
+    .brand b { font-size: 3.1mm; letter-spacing: .5mm; font-weight: 800; color: #fff; }
+    .brand small { display: block; font-size: 1.9mm; letter-spacing: .3mm; color: var(--gold2); font-weight: 700; text-transform: uppercase; }
+    .name { margin-top: auto; font-size: 4.3mm; font-weight: 800; line-height: 1.15; color: #fff; letter-spacing: -.1mm; }
+    .biz { margin-top: .6mm; font-size: 2.5mm; font-weight: 600; color: rgba(234, 245, 239, .78); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .prog { margin-top: 1.6mm; font-size: 2.2mm; font-weight: 700; color: var(--gold2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card .r { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2mm; padding: 2mm; background: #fff; }
+    .r svg.qr { width: 25mm; height: 25mm; }
+    .r svg.qr path { fill: #0E241C; }
+    .code { font: 800 2.6mm "Manrope", monospace; letter-spacing: .35mm; color: #10221B; }
+    .hint { font-size: 1.8mm; font-weight: 600; color: #7A8B84; text-align: center; line-height: 1.2; }
+    .empty { padding: 60px; text-align: center; color: #6B7D75; }
+    @page { size: A4; margin: 8mm; }
+    @media print {
+      body { background: #fff; }
+      .bar { display: none; }
+      .sheet { padding: 0; gap: 5mm 6mm; }
+      .card { box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .card .l { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <div><b>QR a'zo kartalari</b><br><span>{{ program.name ~ ' · ' if program }}{{ members|length }} ta karta · A4 varaqda 8 tadan</span></div>
+    <a href="javascript:history.back()">Orqaga</a>
+    <button onclick="window.print()">Chop etish</button>
+  </div>
+  <div class="sheet">
+    {% for m in members %}
+    {% set code = member_code(m.id) %}
+    <div class="card">
+      <div class="l">
+        <div class="brand">{% include "partials/mark.svg" %}<div><b>ASSOODIQ</b><small>A'zo kartasi</small></div></div>
+        <div class="name">{{ m.full_name }}</div>
+        {% if m.business %}<div class="biz">{{ m.business }}{% if m.city %} · {{ m.city }}{% endif %}</div>{% endif %}
+        {% if progs.get(m.id) %}<div class="prog">{{ progs[m.id]|join(' · ') }}</div>{% endif %}
+      </div>
+      <div class="r">
+        {{ qr_svg(code) }}
+        <div class="code">{{ code }}</div>
+        <div class="hint">Darsga kelganda skanerga tuting</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">Kartalar uchun a'zo topilmadi.</div>
+    {% endfor %}
+  </div>
+</body>
+</html>

@@ -33,8 +33,9 @@
 <div class="p-lessons" style="--c:{{ color }}">
   <div class="p-lessons-h">
     <div><b>{{ ui.icon('calendar', 'sm') }} Dars jadvali</b>
-      <span>{% if lesson_stat.total %}{{ lesson_stat.done }} / {{ lesson_stat.total }} ta dars o'tdi{% else %}hali reja tuzilmagan{% endif %}</span></div>
+      <span>{% if lesson_stat.total %}{{ lesson_stat.done }} / {{ lesson_stat.total }} ta dars o'tdi{% else %}hali reja tuzilmagan{% endif %}{% if lesson_stat.att is not none %} · o'rtacha davomat <b class="{{ 'ok-t' if lesson_stat.att >= 0.8 else 'warn-t' }}">{{ (lesson_stat.att * 100)|round|int }}%</b>{% endif %}</span></div>
     <div class="p-lessons-a">
+      <a class="btn ghost sm" href="{{ url_for('dastur.cards', dastur=p.id) }}" target="_blank" title="A'zolarning QR kartalarini chop etish">{{ ui.icon('sheet', 'sm') }} QR kartalar</a>
       <a class="btn ghost sm" href="{{ url_for('kalendar.index', v='hafta', d=(next_lessons[0].date.isoformat() if next_lessons else none)) }}">Kalendarda ochish</a>
       <a class="btn tonal sm" href="{{ url_for('kalendar.index', yangi=p.id, d=(p.start_date.isoformat() if p.start_date and p.start_date > today else none)) }}">{{ ui.icon('plus', 'sm') }} Darslar rejasini tuzish</a>
     </div>
