@@ -26,33 +26,67 @@ def app_url(path="/app/"):
 
 # ── Ro'yxat va tahrirlash sahifasi ──────────────────────────────────────────
 
+def readiness(x):
+    """Mavzuning tayyorligi: tayyor | jarayon | xato | kerak (video yo'q yoki qo'llanma bo'sh)."""
+    if x.kind == "matn":
+        return "tayyor" if (x.body or "").strip() else "kerak"
+    if not x.video_id:
+        return "kerak"
+    return {"tayyor": "tayyor", "xato": "xato"}.get(x.video_status, "jarayon")
+
+
+def fmt_minutes(m):
+    """Daqiqa → «4 soat 11 daq» (0 bo'lsa — «—»)."""
+    m = int(m or 0)
+    if not m:
+        return "—"
+    h, mm = divmod(m, 60)
+    return f"{h} soat {mm} daq" if h and mm else (f"{h} soat" if h else f"{mm} daq")
+
+
+def program_stats(p, lectures=None):
+    lectures = lectures if lectures is not None else [x for m in p.modules for x in m.lectures]
+    students = p.enrollments.filter(Enrollment.status == "faol").count()
+    pub = [x for x in lectures if x.published]
+    ready = [x for x in lectures if readiness(x) == "tayyor"]
+    done = dict(db.session.query(LectureProgress.lecture_id, db.func.count())
+                .filter(LectureProgress.lecture_id.in_([x.id for x in pub]), LectureProgress.done.is_(True))
+                .group_by(LectureProgress.lecture_id).all()) if pub else {}
+    learn = round(sum(done.values()) / (len(pub) * students) * 100) if pub and students else None
+    return {"modules": p.modules.count(), "lectures": len(lectures), "ready": len(ready),
+            "need": sum(1 for x in lectures if readiness(x) == "kerak"),
+            "errors": sum(1 for x in lectures if readiness(x) == "xato"),
+            "hidden": sum(1 for x in lectures if not x.published),
+            "videos": sum(1 for x in lectures if x.kind == "video"),
+            "minutes": sum(x.duration or 0 for x in lectures) // 60, "students": students, "learn": learn,
+            "done": done, "ready_pct": round(len(ready) / len(lectures) * 100) if lectures else 0}
+
+
 @bp.route("/")
 def index():
-    progs = Program.query.filter(Program.status != "yakunlangan").order_by(Program.name).all()
-    stats = {}
-    for p in progs:
-        lectures = S.published_lectures(p.id)
-        stats[p.id] = {"modules": p.modules.count(), "lectures": len(lectures),
-                       "videos": sum(1 for x in lectures if x.video_id),
-                       "minutes": sum(x.duration or 0 for x in lectures) // 60,
-                       "students": p.enrollments.filter(Enrollment.status == "faol").count()}
+    progs = Program.query.filter(Program.status != "yakunlangan").all()
+    stats = {p.id: program_stats(p) for p in progs}
+    progs.sort(key=lambda p: (not stats[p.id]["lectures"], -stats[p.id]["students"], p.name))
+    total = {k: sum(s[k] for s in stats.values()) for k in ("lectures", "ready", "need", "minutes")}
+    learns = [s["learn"] for s in stats.values() if s["learn"] is not None]
+    total["learn"] = round(sum(learns) / len(learns)) if learns else None
     active = StudentAccess.query.filter(StudentAccess.last_seen.isnot(None)).count()
-    return render_template("pages/oquv_index.html", progs=progs, stats=stats, active=active,
-                           app_link=app_url(), bunny_on=bunny.enabled())
+    return render_template("pages/oquv_index.html", progs=progs, stats=stats, total=total, active=active,
+                           app_link=app_url(), bunny_on=bunny.enabled(), fmt_minutes=fmt_minutes)
 
 
 @bp.route("/<int:pid>")
 def program(pid):
+    from core.models import Transcript
     p = db.get_or_404(Program, pid)
     modules = p.modules.all()
-    lids = [x.id for m in modules for x in m.lectures]
-    done = dict(db.session.query(LectureProgress.lecture_id, db.func.count())
-                .filter(LectureProgress.lecture_id.in_(lids), LectureProgress.done.is_(True))
-                .group_by(LectureProgress.lecture_id).all()) if lids else {}
-    students = p.enrollments.filter(Enrollment.status == "faol").count()
-    return render_template("pages/oquv.html", p=p, modules=modules, done=done, students=students,
-                           kinds=LECTURE_KINDS, vstatus=VIDEO_STATUS, bunny_on=bunny.enabled(),
-                           total_minutes=sum(x.duration or 0 for m in modules for x in m.lectures) // 60)
+    lectures = [x for m in modules for x in m.lectures]
+    st = program_stats(p, lectures)
+    texts = {t.lecture_id: t for t in Transcript.query.filter(
+        Transcript.lecture_id.in_([x.id for x in lectures] or [0])).order_by(Transcript.id)}
+    return render_template("pages/oquv.html", p=p, modules=modules, st=st, done=st["done"], students=st["students"],
+                           kinds=LECTURE_KINDS, vstatus=VIDEO_STATUS, bunny_on=bunny.enabled(), readiness=readiness,
+                           fmt_minutes=fmt_minutes, texts=texts, total_minutes=st["minutes"])
 
 
 def _back(pid, anchor=""):

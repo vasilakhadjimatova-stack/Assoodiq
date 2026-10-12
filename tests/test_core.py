@@ -2127,3 +2127,38 @@ def test_kb_list_filters_pagination_and_origin(app, claude):
     assert "Real holat, hikoya yoki raqamli misol" in e and 'form="kbe-del-f"' in e
     new = client.get("/shartnoma/bilimlar/yangi?tur=misol&mavzu=ijara").get_data(as_text=True)
     assert 'value="misol" checked' in new and "Bazaga qo&#39;shish" in new or "Bazaga qo'shish" in new
+
+
+def test_oquv_readiness_and_overview(app):
+    """O'quv dasturi: tayyorlik (video/qo'llanma), davomiylik «soat daq», o'zlashtirish, e'tibor kerak filtri."""
+    from core.models import Lecture, LectureProgress, Module
+    from views.oquv import fmt_minutes, readiness
+    assert fmt_minutes(0) == "—" and fmt_minutes(251) == "4 soat 11 daq" and fmt_minutes(120) == "2 soat" and fmt_minutes(9) == "9 daq"
+    p = Program(name="Kurs", kind="kurs", price=1)
+    empty = Program(name="Bo'sh klub", kind="klub", price=1)
+    db.session.add_all([p, empty])
+    db.session.flush()
+    m = Module(program_id=p.id, title="1-modul")
+    db.session.add(m)
+    db.session.flush()
+    ready = Lecture(module_id=m.id, title="Tayyor video", kind="video", video_id="g1", video_status="tayyor", duration=600)
+    need = Lecture(module_id=m.id, title="Videosiz", kind="video", duration=900)
+    guide = Lecture(module_id=m.id, title="Qo'llanma", kind="matn", body="Matn")
+    blank = Lecture(module_id=m.id, title="Bo'sh qo'llanma", kind="matn", body="", published=False)
+    db.session.add_all([ready, need, guide, blank])
+    mem = Member(full_name="O'quvchi")
+    db.session.add(mem)
+    db.session.flush()
+    db.session.add(Enrollment(member_id=mem.id, program_id=p.id, status="faol", price=1))
+    db.session.add(LectureProgress(member_id=mem.id, lecture_id=ready.id, done=True))
+    db.session.commit()
+    assert [readiness(x) for x in (ready, need, guide, blank)] == ["tayyor", "kerak", "tayyor", "kerak"]
+    client = app.test_client()
+    login(client, "100100")
+    idx = client.get("/oquv/").get_data(as_text=True)
+    assert "0s" not in idx and "25 daq" in idx and "2 / 4" in idx and "2 ta video/matn kerak" in idx
+    assert "1 ta yashirin" in idx and "Hali mavzu yo" in idx and "33%" in idx           # 1 / 3 ochiq mavzu
+    page = client.get(f"/oquv/{p.id}").get_data(as_text=True)
+    assert "Video kerak" in page and "Qo&#39;llanma bo&#39;sh" in page or "Qo'llanma bo'sh" in page
+    assert "E&#39;tibor kerak" in page or "E'tibor kerak" in page
+    assert page.count('data-attn="1"') == 2 and page.count('data-hidden="1"') == 1 and "1/1 tugatdi" in page

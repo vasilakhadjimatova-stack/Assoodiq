@@ -31,6 +31,40 @@
     });
   }
 
+  // ── «⋯» menyulari: bittasi ochilsa boshqalari yopiladi, tashqariga bosilsa yopiladi
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('.oq-menu[open]').forEach(function (d) { if (!d.contains(e.target)) d.open = false; });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') document.querySelectorAll('.oq-menu[open]').forEach(function (d) { d.open = false; d.querySelector('summary').focus(); });
+  });
+
+  // ── Bo'lim nomi: o'zgartirilsa «Saqlash» tugmasi chiqadi
+  document.querySelectorAll('[data-oq-title]').forEach(function (f) {
+    var inp = f.querySelector('input'), btn = f.querySelector('[data-oq-save]'), orig = inp.value;
+    inp.addEventListener('input', function () { btn.hidden = inp.value.trim() === orig || !inp.value.trim(); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Escape') { inp.value = orig; btn.hidden = true; inp.blur(); } });
+  });
+
+  // ── Saralash: hammasi / e'tibor kerak / yashirin
+  var flt = document.querySelector('[data-oq-filter]');
+  if (flt) flt.addEventListener('click', function (e) {
+    var a = e.target.closest('[data-f]');
+    if (!a) return;
+    e.preventDefault();
+    flt.querySelectorAll('[data-f]').forEach(function (x) { x.classList.toggle('on', x === a); x.setAttribute('aria-selected', x === a); });
+    var f = a.dataset.f;
+    document.querySelectorAll('.oq-mod').forEach(function (mod) {
+      var shown = 0;
+      mod.querySelectorAll('[data-lec]').forEach(function (row) {
+        var ok = f === 'all' || (f === 'attn' && row.dataset.attn === '1') || (f === 'hidden' && row.dataset.hidden === '1');
+        row.hidden = !ok; if (ok) shown++;
+      });
+      mod.hidden = f !== 'all' && !shown;
+      var none = mod.querySelector('[data-oq-none]'); if (none) none.hidden = true;
+    });
+  });
+
   // ── Video yuklash
   var active = 0;
   window.addEventListener('beforeunload', function (e) { if (active) { e.preventDefault(); e.returnValue = ''; } });
@@ -39,7 +73,11 @@
     var pill = row.querySelector('[data-vstatus]');
     if (pill && d.label) {
       pill.textContent = d.label + (d.status === 'ishlanmoqda' && d.progress ? ' · ' + d.progress + '%' : '');
-      pill.className = 'pill ' + ({ tayyor: 'ok', xato: 'bad', yuklanmoqda: 'info', ishlanmoqda: 'warn' }[d.status] || '');
+      pill.className = 'pill ' + ({ tayyor: 'ok', xato: 'bad', yuklanmoqda: 'info', ishlanmoqda: 'info' }[d.status] || '');
+      var r = d.status === 'tayyor' ? 'tayyor' : d.status === 'xato' ? 'xato' : 'jarayon';
+      row.className = row.className.replace(/\br-\w+/, 'r-' + r);
+      var ic = row.querySelector('.oq-li'); if (ic) ic.className = ic.className.replace(/\br-\w+/, 'r-' + r);
+      row.dataset.attn = r === 'xato' ? '1' : '0';
     }
     if (d.minutes) row.querySelector('[data-mins]').textContent = d.minutes + ' daq';
   }

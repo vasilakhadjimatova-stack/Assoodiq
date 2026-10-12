@@ -25,7 +25,7 @@
         <div class="field"><label>Nomi</label><input type="text" name="title" maxlength="200" placeholder="Masalan: Murobaha — 3-dars"></div>
         <div class="field"><label>O'quv dasturidagi mavzu</label>
           <select name="lecture_id"><option value="">— bog'lanmagan —</option>
-            {% for l in lectures %}<option value="{{ l.id }}">{{ l.module.program.name }} · {{ l.title }}</option>{% endfor %}
+            {% for l in lectures %}<option value="{{ l.id }}" {{ 'selected' if l.id == pre_lecture }}>{{ l.module.program.name }} · {{ l.title }}</option>{% endfor %}
           </select></div>
       </div>
       <label class="check"><input type="checkbox" name="cards" {{ 'checked' if ai_on else 'disabled' }}> Matn tayyor bo'lgach, bilim kartochkalarini avtomatik ajratish (Claude)</label>

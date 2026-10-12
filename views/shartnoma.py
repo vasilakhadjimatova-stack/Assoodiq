@@ -348,7 +348,7 @@ def video_list():
     return render_template("pages/video.html", items=items, pending=pending, lectures=_lectures(),
                            stt_on=STT.enabled(), ai_on=ai.enabled(), model=STT.model(), models=STT.MODELS,
                            price=STT.price_per_min(), max_mb=STT.MAX_UPLOAD // 1024 ** 2,
-                           media_ext=",".join(STT.MEDIA_EXT + STT.TEXT_EXT))
+                           media_ext=",".join(STT.MEDIA_EXT + STT.TEXT_EXT), pre_lecture=form_int(request.args.get("dars")))
 
 
 QUEUE_LIMIT = 3   # yuklangan, lekin hali boshlanmagan fayllar (vaqtinchalik diskda turadi)
