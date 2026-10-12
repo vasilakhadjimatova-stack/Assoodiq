@@ -484,6 +484,76 @@ class ContractCheck(db.Model):
         return CONTRACT_VERDICTS.get(self.review_verdict or self.verdict, "")
 
 
+TRANSCRIPT_STATUS = {"navbatda": "Navbatda", "audio": "Audio tayyorlanmoqda", "matn": "Matnga aylantirilmoqda",
+                     "tayyor": "Tayyor", "xato": "Xato"}
+
+
+class Transcript(db.Model):
+    """Video yoki audio darsning matni (vaqt belgilari bilan) — bilim kartochkalari shundan olinadi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    filename = db.Column(db.String(255), default="")
+    lecture_id = db.Column(db.Integer, db.ForeignKey("lecture.id"), index=True)
+    source = db.Column(db.String(10), default="fayl")        # fayl (OpenAI) | srt (tayyor subtitr / matn)
+    model = db.Column(db.String(40), default="")
+    status = db.Column(db.String(10), nullable=False, default="navbatda")
+    error = db.Column(db.String(300), default="")
+    duration = db.Column(db.Integer, default=0)               # soniya
+    chunks_total = db.Column(db.Integer, default=0)
+    chunks_done = db.Column(db.Integer, default=0)
+    segments = db.Column(db.Text, default="[]")               # [{"s": 0.0, "e": 240.0, "t": "..."}]
+    cost_usd = db.Column(db.Float, default=0)
+    cards_status = db.Column(db.String(10), default="")       # "" | navbatda | tayyor | xato
+    cards_error = db.Column(db.String(300), default="")
+    summary = db.Column(db.Text, default="")
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+    created_at = db.Column(db.DateTime, default=_now, index=True)
+    finished_at = db.Column(db.DateTime)
+
+    lecture = db.relationship("Lecture")
+    user = db.relationship("User")
+
+    @property
+    def status_name(self):
+        return TRANSCRIPT_STATUS.get(self.status, self.status)
+
+
+CARD_STATUS = {"taklif": "Ko'rib chiqilmagan", "tasdiq": "Tasdiqlangan", "rad": "Rad etilgan"}
+
+
+class KnowledgeCard(db.Model):
+    """Dars matnidan ajratilgan bilim kartochkasi. Ustoz tasdiqlasa — bilimlar bazasiga (KnowledgeDoc) o'tadi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    transcript_id = db.Column(db.Integer, db.ForeignKey("transcript.id"), nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    kind = db.Column(db.String(12), nullable=False, default="ustoz")
+    topic = db.Column(db.String(16), nullable=False, default="umumiy")
+    body = db.Column(db.Text, default="")
+    quote = db.Column(db.Text, default="")                    # darsdan aynan iqtibos
+    start = db.Column(db.Integer, default=0)                  # soniya
+    end = db.Column(db.Integer, default=0)
+    similar_id = db.Column(db.Integer)                        # bazadagi o'xshash material (takror bo'lishi mumkin)
+    status = db.Column(db.String(8), nullable=False, default="taklif")
+    doc_id = db.Column(db.Integer, db.ForeignKey("knowledge_doc.id"))
+    reviewed_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+    reviewed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=_now)
+
+    transcript = db.relationship("Transcript", backref=db.backref("cards", order_by="KnowledgeCard.start",
+                                                                  cascade="all, delete-orphan"))
+    doc = db.relationship("KnowledgeDoc")
+
+    @property
+    def kind_name(self):
+        return KNOWLEDGE_KINDS.get(self.kind, self.kind)
+
+    @property
+    def topic_name(self):
+        return KNOWLEDGE_TOPICS.get(self.topic, self.topic)
+
+
 class MemberEvent(db.Model):
     """A'zo tarixidagi voqealar (to'lov va yozilish o'z jadvalidan olinadi):
     obuna uzaytirildi, dasturdagi holati o'zgardi, dasturga yozildi."""

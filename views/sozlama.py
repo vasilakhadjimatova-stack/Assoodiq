@@ -48,14 +48,19 @@ def _ai_context():
     from core import ai_report as R
     from core.models import StaffLink, User
     from views.ai import usage_stats
+    from core import transcribe as STT
     key = F.get_setting("ai_key")
+    okey = F.get_setting("openai_key")
+    stt = {"env": bool(os.environ.get("OPENAI_API_KEY")), "on": STT.enabled(), "models": STT.MODELS,
+           "mask": (okey[:7] + "…" + okey[-4:]) if len(okey) > 16 else "", "model": STT.model(),
+           "languages": F.get_setting("stt_languages"), "keywords": F.get_setting("stt_keywords")}
     links = {lk.user_id: lk for lk in StaffLink.query.filter_by(active=True).all()}
     return {"env": bool(os.environ.get("ANTHROPIC_API_KEY")), "on": ai.enabled(),
             "mask": (key[:10] + "…" + key[-4:]) if len(key) > 16 else "", "model": ai.MODEL,
             "opts": {k: F.get_setting(k) for k in ("ai_weekly", "ai_weekly_day", "ai_weekly_hour", "ai_daily_limit",
                                                     "contract_students", "contract_student_daily")},
             "usage": usage_stats(), "staff": User.query.filter_by(active=True).order_by(User.id).all(),
-            "links": links, "recipients": len(R.recipients())}
+            "links": links, "recipients": len(R.recipients()), "stt": stt}
 
 
 def _app_context():

@@ -38,6 +38,10 @@ DEFAULT_SETTINGS = {
     # Sun'iy intellekt (core/ai.py)
     "ai_key": "", "ai_weekly": "1", "ai_weekly_day": "6", "ai_weekly_hour": "9", "ai_daily_limit": "100",
     "contract_students": "1", "contract_student_daily": "3",
+    # Video darslarni matnga aylantirish (OpenAI)
+    "openai_key": "", "stt_model": "gpt-transcribe", "stt_languages": "uz, ru",
+    "stt_keywords": "murobaha, mushoraka, mudoraba, ijara, salam, istisno', ribo, g'arar, maysir, qard, "
+                    "zakot, sadaqa, halol, harom, shariat, fiqh, AAOIFI, sukuk, takaful, vakola, kafolat, garov",
 }
 
 NISOB_GRAMS = {"oltin": 85, "kumush": 595}

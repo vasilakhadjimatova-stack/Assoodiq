@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Darslardan bilim{% endblock %}
+{% block content %}
+<a class="crumb" href="{{ url_for('shartnoma.kb_list') }}">{{ ui.icon('left', 'sm') }} Bilimlar bazasi</a>
+<div class="head">
+  <div>
+    <div class="head-t">Darslardan bilim</div>
+    <div class="head-s">Ustozning video yoki audio darsi → vaqt belgilari bilan matn → bilim kartochkalari → ustoz tasdiqlaganlari bilimlar bazasiga o'tadi.</div>
+  </div>
+</div>
+
+<div class="grid g-2 sh-grid">
+  <form class="card" method="post" action="{{ url_for('shartnoma.video_upload') }}" enctype="multipart/form-data" data-vk-upload>
+    <div class="card-h"><h3>Dars yuklash</h3><span class="sub">{{ models[model].name.split(' — ')[0] }}</span></div>
+    <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+      {% if not stt_on %}<div class="oq-note">{{ ui.icon('info', 'sm') }}<span>OpenAI kaliti kiritilmagan — hozircha faqat tayyor SRT/VTT/TXT yuklash mumkin.{% if can('sozlama') %} <a class="link" href="{{ url_for('sozlama.index', bolim='ai') }}#openai">Sozlamalar → Sun'iy intellekt</a>{% endif %}</span></div>{% endif %}
+      <label class="sh-drop">
+        <input type="file" name="file" required accept="{{ media_ext }},video/*,audio/*" data-cr-files="#vk-file">
+        {{ ui.icon('upload') }}
+        <b>Video yoki audio faylni tanlang</b>
+        <span>MP4, MOV, MKV, MP3, M4A, WAV… {{ max_mb // 1024 }} GB gacha · yoki tayyor SRT / VTT / TXT</span>
+        <em id="vk-file"></em>
+      </label>
+      <div class="form-grid">
+        <div class="field"><label>Nomi</label><input type="text" name="title" maxlength="200" placeholder="Masalan: Murobaha — 3-dars"></div>
+        <div class="field"><label>O'quv dasturidagi mavzu</label>
+          <select name="lecture_id"><option value="">— bog'lanmagan —</option>
+            {% for l in lectures %}<option value="{{ l.id }}">{{ l.module.program.name }} · {{ l.title }}</option>{% endfor %}
+          </select></div>
+      </div>
+      <label class="check"><input type="checkbox" name="cards" {{ 'checked' if ai_on else 'disabled' }}> Matn tayyor bo'lgach, bilim kartochkalarini avtomatik ajratish (Claude)</label>
+      <div class="vk-progress" hidden><div><i></i></div><span></span></div>
+      <button class="btn solid">{{ ui.icon('upload', 'sm') }} Yuklash va matnga aylantirish</button>
+      <p class="vk-note">Video serverda saqlanmaydi: audio ajratiladi, matnga aylantiriladi va o'chiriladi. Katta video o'rniga audio (MP3/M4A) yuklasangiz — tezroq. Taxminiy narx: 1 soat ≈ ${{ '%.2f'|format(price * 60) }}.</p>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="card-h"><h3>Darslar</h3></div>
+    <div class="card-b" style="padding-top:4px">
+      {% for t in items %}
+      <a class="sh-row" href="{{ url_for('shartnoma.video_view', tid=t.id) }}">
+        <span class="sh-ic {{ 'v-mos' if t.status == 'tayyor' else ('v-mos_emas' if t.status == 'xato' else '') }}">{{ ui.icon({'tayyor': 'file', 'xato': 'alert'}.get(t.status, 'clock'), 'sm') }}</span>
+        <div class="sh-b">
+          <b>{{ t.title }}</b>
+          <span>{{ t.created_at|localdt }}{% if t.duration >= 60 %} · {{ (t.duration / 60)|round|int }} daq{% endif %}{% if t.lecture %} · {{ t.lecture.title }}{% endif %}</span>
+        </div>
+        {% if t.status != 'tayyor' %}<span class="pill {{ 'bad' if t.status == 'xato' else 'info' }}">{{ t.status_name|lower }}{% if t.status == 'matn' and t.chunks_total %} {{ t.chunks_done }}/{{ t.chunks_total }}{% endif %}</span>
+        {% elif t.cards_status == 'navbatda' %}<span class="pill info">kartochkalar tayyorlanmoqda</span>
+        {% elif pending.get(t.id) %}<span class="pill warn">{{ pending[t.id] }} ta kartochka kutmoqda</span>
+        {% elif t.cards %}<span class="pill ok">ko'rib chiqilgan</span>
+        {% else %}<span class="pill">matn tayyor</span>{% endif %}
+      </a>
+      {% else %}
+      <div class="empty" style="padding:20px">{{ ui.icon('video') }}<b>Hali dars yuklanmagan</b>Ustozning bitta darsidan boshlang — natijani ko'rib, keyin qolganlarini yuklang.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/contract.js') }}?v=1"></script><script src="{{ url_for('static', filename='js/video.js') }}?v=1"></script>{% endblock %}

@@ -257,7 +257,7 @@
 </div>
 {% elif tab == 'ai' %}
 {% set DAYS = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'] %}
-{% set FEAT = {'kassa': 'Kassaga yozish', 'savol': 'Savollar', 'hisobot': 'Haftalik tahlil', 'shartnoma': 'Shartnoma tekshiruvi'} %}
+{% set FEAT = {'kassa': 'Kassaga yozish', 'savol': 'Savollar', 'hisobot': 'Haftalik tahlil', 'shartnoma': 'Shartnoma tekshiruvi', 'video': 'Darsdan kartochkalar', 'transkripsiya': 'Video → matn (OpenAI)'} %}
 <div class="tg">
   <div class="tg-steps">
     <div class="tg-step {{ 'done' if aic.on }}"><i>1</i><div>
@@ -310,7 +310,7 @@
 
     <div style="display:flex;flex-direction:column;gap:16px">
       <div class="card">
-        <div class="card-h"><h3>Xarajat</h3><span class="sub">taxminiy, Anthropic narxlari bo'yicha</span></div>
+        <div class="card-h"><h3>Xarajat</h3><span class="sub">taxminiy, Anthropic va OpenAI narxlari bo'yicha</span></div>
         <div class="card-b">
           <div class="ai-usage">
             <div><span>Shu oy</span><b>${{ '%.2f'|format(aic.usage.month_cost) }}</b></div>
@@ -320,7 +320,7 @@
           {% for k, b in aic.usage.by.items() %}
           <div class="zrow"><div><label>{{ FEAT.get(k, k) }}</label><small>{{ b.n }} ta so'rov</small></div><b>${{ '%.2f'|format(b.cost) }}</b></div>
           {% endfor %}
-          <p class="hint" style="margin:10px 0 0">Aniq hisob — console.anthropic.com → Billing.</p>
+          <p class="hint" style="margin:10px 0 0">Aniq hisob — console.anthropic.com va platform.openai.com → Billing.</p>
         </div>
       </div>
       <div class="card">
@@ -331,6 +331,44 @@
             {% if aic.links.get(u.id) %}<span class="pill ok">ulangan</span>{% else %}<span class="pill">ulanmagan</span>{% endif %}</div>
           {% endfor %}
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g-2" id="openai" style="margin-top:16px">
+    <form class="card" method="post" action="{{ url_for('ai.configure_openai') }}">
+      <div class="card-h"><h3>Video darslar → matn</h3><span class="sub">OpenAI</span></div>
+      <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+        {% if aic.stt.env %}
+        <div class="hint">Kalit server muhitida (<code>OPENAI_API_KEY</code>) berilgan.</div>
+        {% else %}
+        <div class="field"><label>OpenAI API kaliti</label>
+          <input type="password" name="openai_key" placeholder="{{ aic.stt.mask or 'sk-…' }}" autocomplete="off">
+          <span class="hint">{% if aic.stt.mask %}Saqlangan: {{ aic.stt.mask }} — o'zgartirish uchun yangisini kiriting{% else %}Saqlashdan oldin tekshiriladi{% endif %}</span>
+          {% if aic.stt.mask %}<label class="check" style="font-size:12.5px"><input type="checkbox" name="openai_key_clear"> Kalitni o'chirish</label>{% endif %}
+        </div>
+        {% endif %}
+        <div class="field"><label>Model</label>
+          <select name="stt_model">{% for k, m in aic.stt.models.items() %}<option value="{{ k }}" {{ 'selected' if aic.stt.model == k }}>{{ m.name }} · ${{ '%.4f'|format(m.price) }}/daq</option>{% endfor %}</select>
+        </div>
+        <div class="field"><label>Darslar tili</label>
+          <input type="text" name="stt_languages" value="{{ aic.stt.languages }}" placeholder="uz, ru">
+          <span class="hint">ISO kodlar: uz — o'zbek, ru — rus, ar — arab. Aralash bo'lsa, hammasini yozing.</span>
+        </div>
+        <div class="field"><label>Atamalar lug'ati</label>
+          <textarea name="stt_keywords" rows="3">{{ aic.stt.keywords }}</textarea>
+          <span class="hint">Model shu so'zlarni to'g'ri yozadi: ustoz ismi, arabcha atamalar, kitob nomlari — vergul bilan.</span>
+        </div>
+        <div><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
+      </div>
+    </form>
+    <div class="card">
+      <div class="card-h"><h3>Qanday ishlaydi</h3>{% if aic.stt.on %}<span class="pill ok">{{ ui.icon('check', 'sm') }} ulangan</span>{% endif %}</div>
+      <div class="card-b vk-steps">
+        <p><b>1.</b> <a class="link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> → API keys bo'limida kalit yarating, Billing'da hisobni to'ldiring.</p>
+        <p><b>2.</b> <a class="link" href="{{ url_for('shartnoma.video_list') }}">Shartnoma tekshiruvi → Darslardan bilim</a> sahifasiga video yoki audio yuklang. Matn vaqt belgilari bilan chiqadi.</p>
+        <p><b>3.</b> Claude matndan bilim kartochkalarini ajratadi; ustoz tasdiqlaganlari bilimlar bazasiga «Dars: … · 12:30» manbasi bilan o'tadi.</p>
+        <p class="hint">1 soatlik dars ≈ ${{ '%.2f'|format(aic.stt.models[aic.stt.model].price * 60) }}. Tayyor SRT/VTT subtitr yuklansa — OpenAI ishlatilmaydi.</p>
       </div>
     </div>
   </div>

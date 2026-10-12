@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ t.title }}{% endblock %}
+{% block content %}
+<a class="crumb" href="{{ url_for('shartnoma.video_list') }}">{{ ui.icon('left', 'sm') }} Darslardan bilim</a>
+<div class="head">
+  <div>
+    <div class="head-t">{{ t.title }}</div>
+    <div class="head-s">
+      {% if t.duration %}{{ fmt(t.duration) }} · {% endif %}{{ 'tayyor subtitr' if t.source == 'srt' else t.model }}{% if t.cost_usd %} · ${{ '%.2f'|format(t.cost_usd) }}{% endif %}
+      {% if t.lecture %} · {{ ui.icon('video', 'sm') }} {{ t.lecture.module.program.name }} → {{ t.lecture.title }}{% endif %}
+      · {{ t.created_at|localdt }}{% if t.user %} · {{ t.user.name }}{% endif %}
+    </div>
+  </div>
+  <div class="head-a">
+    {% if segs %}<a class="btn ghost" href="{{ url_for('shartnoma.video_text', tid=t.id) }}">{{ ui.icon('download', 'sm') }} Matn (.txt)</a>{% endif %}
+  </div>
+</div>
+
+<div class="vk cr" {% if busy %}data-vk-poll="{{ url_for('shartnoma.video_status', tid=t.id) }}"{% endif %}>
+  {% if t.status in ('navbatda', 'audio', 'matn') %}
+  <div class="cr-wait"><span class="cr-spin"></span><div>
+    <b>{{ t.status_name }}…</b>
+    <span>{% if t.status == 'matn' and t.chunks_total %}{{ t.chunks_done }} / {{ t.chunks_total }} bo'lak · {% endif %}{% if t.status == 'navbatda' %}oldingi dars tugashini kutmoqda · {% endif %}sahifani yopsangiz ham davom etadi</span>
+    {% if t.status == 'matn' and t.chunks_total %}<div class="vk-bar"><i style="width:{{ (t.chunks_done / t.chunks_total * 100)|round|int }}%"></i></div>{% endif %}
+  </div></div>
+  {% elif t.status == 'xato' %}
+  <div class="cr-err">{{ ui.icon('alert') }}<div><b>Matnga aylantirib bo'lmadi</b><span>{{ t.error }}{% if t.chunks_done %} ({{ t.chunks_done }}/{{ t.chunks_total }} bo'lak tayyor){% endif %}</span></div>
+    {% if can_retry %}<form method="post" action="{{ url_for('shartnoma.video_retry', tid=t.id) }}" style="margin-left:auto"><button class="btn solid sm">Qayta urinish</button></form>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if t.status == 'tayyor' %}
+  {% if t.summary %}
+  <div class="cr-sum"><span class="cr-type">{{ ui.icon('book', 'sm') }} Dars xulosasi</span><p>{{ t.summary }}</p></div>
+  {% endif %}
+
+  <div class="vk-cards-h" id="kartochkalar">
+    <h3 class="cr-h">Bilim kartochkalari</h3>
+    {% if cards %}<div class="cr-counts"><span>Kutmoqda <b>{{ counts.taklif }}</b></span><span class="s-tavsiya">Tasdiqlangan <b>{{ counts.tasdiq }}</b></span><span>Rad etilgan <b>{{ counts.rad }}</b></span></div>{% endif %}
+    {% if t.cards_status != 'navbatda' %}
+    <form method="post" action="{{ url_for('shartnoma.video_cards', tid=t.id) }}" style="margin-left:auto" {% if cards %}onsubmit="return confirm('Ko\'rib chiqilmagan kartochkalar qayta tuziladi. Tasdiqlangan va rad etilganlari qoladi. Davom etilsinmi?')"{% endif %}>
+      <button class="btn {{ 'ghost' if cards else 'solid' }} sm" {{ 'disabled' if not ai_on }}>{{ ui.icon('star', 'sm') }} {{ 'Qayta ajratish' if cards else 'Kartochkalarni ajratish' }}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if t.cards_status == 'navbatda' %}
+  <div class="cr-wait"><span class="cr-spin"></span><div><b>Claude dars matnidan bilim kartochkalarini ajratmoqda…</b><span>1 soatlik dars uchun 1–3 daqiqa</span></div></div>
+  {% elif t.cards_status == 'xato' %}
+  <div class="cr-err">{{ ui.icon('alert') }}<div><b>Kartochkalarni ajratib bo'lmadi</b><span>{{ t.cards_error }}</span></div></div>
+  {% elif not cards %}
+  <div class="oq-note">{{ ui.icon('info', 'sm') }}<span>{% if ai_on %}«Kartochkalarni ajratish» tugmasini bosing — Claude darsdagi qoidalar, ustoz fikrlari va namunalarni alohida kartochkalarga ajratadi.{% else %}Kartochkalar uchun Sun'iy intellekt (Claude) ulanishi kerak.{% endif %}</span></div>
+  {% endif %}
+
+  <div class="vk-cards">
+    {% for c in cards %}
+    <form class="vk-card st-{{ c.status }}" id="k{{ c.id }}" method="post" action="{{ url_for('shartnoma.card_action', cid=c.id) }}">
+      <div class="vk-card-h">
+        {% if timed %}<button type="button" class="vk-time" data-vk-seek="{{ c.start }}">{{ ui.icon('clock', 'sm') }} {{ fmt(c.start) }}{% if c.end > c.start %}–{{ fmt(c.end) }}{% endif %}</button>{% endif %}
+        <span class="pill {{ 'ok' if c.status == 'tasdiq' else ('bad' if c.status == 'rad' else 'warn') }}">{{ card_status[c.status] }}</span>
+        {% if c.similar_id %}<a class="pill info" href="{{ url_for('shartnoma.kb_edit', did=c.similar_id) }}" target="_blank" title="Bilimlar bazasida shunga o'xshash material bor">o'xshash: #{{ c.similar_id }}</a>{% endif %}
+        {% if c.doc_id %}<a class="pill ok" href="{{ url_for('shartnoma.kb_edit', did=c.doc_id) }}">bazada #{{ c.doc_id }}</a>{% endif %}
+      </div>
+      {% if c.status == 'taklif' %}
+      <input class="vk-title" type="text" name="title" value="{{ c.title }}" maxlength="200" required>
+      <div class="vk-sel">
+        <select name="kind">{% for k, v in kinds.items() %}<option value="{{ k }}" {{ 'selected' if c.kind == k }}>{{ v }}</option>{% endfor %}</select>
+        <select name="topic">{% for k, v in topics.items() %}<option value="{{ k }}" {{ 'selected' if c.topic == k }}>{{ v }}</option>{% endfor %}</select>
+      </div>
+      <textarea name="body" rows="{{ [3, (c.body|length // 90) + 2]|max }}">{{ c.body }}</textarea>
+      {% if c.quote %}<blockquote>«{{ c.quote }}»</blockquote>{% endif %}
+      <div class="vk-act">
+        <button class="btn solid sm" name="action" value="tasdiq">{{ ui.icon('check', 'sm') }} Tasdiqlash — bazaga</button>
+        <button class="btn ghost sm" name="action" value="rad" formnovalidate>{{ ui.icon('x', 'sm') }} Rad etish</button>
+      </div>
+      {% else %}
+      <b class="vk-t">{{ c.title }}</b>
+      <div class="vk-meta"><span class="pill k-{{ c.kind }}">{{ c.kind_name }}</span><span class="pill">{{ c.topic_name }}</span></div>
+      <p class="vk-body">{{ c.body }}</p>
+      {% if c.quote %}<blockquote>«{{ c.quote }}»</blockquote>{% endif %}
+      <div class="vk-act"><button class="btn ghost sm" name="action" value="qaytar" formnovalidate {% if c.status == 'tasdiq' %}onclick="return confirm('Material bilimlar bazasidan olib tashlanadi va kartochka qayta ko\'rib chiqishga qaytadi. Davom etilsinmi?')"{% endif %}>Qarorni bekor qilish</button></div>
+      {% endif %}
+    </form>
+    {% endfor %}
+  </div>
+
+  <details class="card vk-text" id="matn" {{ 'open' if not cards }}>
+    <summary><h3>Dars matni</h3><span class="sub">{{ segs|length }} qism{% if timed %} · «≈» — taxminiy vaqt{% endif %}</span></summary>
+    <div class="card-b">
+      {% for s in segs %}
+      <p data-s="{{ s.s }}">{% if timed %}<time>{{ '≈' if s.a }}{{ fmt(s.s) }}</time>{% endif %}<span>{{ s.t }}</span></p>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+
+  <details class="card vk-edit">
+    <summary><h3>Sozlash</h3></summary>
+    <div class="card-b">
+      <form method="post" action="{{ url_for('shartnoma.video_edit', tid=t.id) }}" class="form-grid">
+        <div class="field"><label>Nomi</label><input type="text" name="title" value="{{ t.title }}" maxlength="200" required></div>
+        <div class="field"><label>O'quv dasturidagi mavzu</label>
+          <select name="lecture_id"><option value="">— bog'lanmagan —</option>
+            {% for l in lectures %}<option value="{{ l.id }}" {{ 'selected' if t.lecture_id == l.id }}>{{ l.module.program.name }} · {{ l.title }}</option>{% endfor %}
+          </select></div>
+        <div class="field full" style="display:flex;gap:8px;flex-direction:row"><button class="btn solid sm">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
+      </form>
+      <p class="hint">Tasdiqlangan kartochkalar manbasi: «{{ 'Dars: ' ~ t.lecture.title if t.lecture else 'Video: ' ~ t.title }} · 12:30». Nom o'zgarsa, keyingi tasdiqlarga ta'sir qiladi.</p>
+      {% if not busy %}
+      <form method="post" action="{{ url_for('shartnoma.video_delete', tid=t.id) }}" onsubmit="return confirm('Dars matni va ko\'rib chiqilmagan kartochkalar o\'chirilsinmi? Bazaga o\'tgan materiallar qoladi.')"><button class="btn ghost sm">{{ ui.icon('trash', 'sm') }} O'chirish</button></form>
+      {% endif %}
+    </div>
+  </details>
+</div>
+{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/contract.css') }}?v=1">{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/video.js') }}?v=1"></script>{% endblock %}

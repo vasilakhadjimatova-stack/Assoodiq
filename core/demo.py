@@ -416,7 +416,12 @@ def clear_data():
     AiDraft.query.delete()
     ContractCheck.query.delete()
     from core import demo_knowledge
+    from core.models import KnowledgeCard, Transcript
+    demo_ids = [d.id for d in KnowledgeDoc.query.filter_by(source=demo_knowledge.SRC).all()]
+    if demo_ids:
+        KnowledgeCard.query.filter(KnowledgeCard.doc_id.in_(demo_ids)).update({"doc_id": None}, synchronize_session=False)
     KnowledgeDoc.query.filter_by(source=demo_knowledge.SRC).delete()
+    Transcript.query.update({"lecture_id": None})  # dars matnlari (pullik ish) saqlanadi, faqat mavzudan uziladi
     Transaction.query.delete()
     LectureProgress.query.delete()
     Lecture.query.delete()

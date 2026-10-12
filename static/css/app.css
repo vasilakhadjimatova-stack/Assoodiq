@@ -2280,3 +2280,46 @@ label.check input { width: 18px; height: 18px; accent-color: var(--brand); }
 .pill.k-namuna { background: var(--ok-bg); color: var(--ok); } .pill.k-qoida { background: var(--brand-bg); color: var(--brand-txt); }
 .kb-form { max-width: 900px; }
 @media (max-width: 1100px) { .sh-grid, .sh-view { grid-template-columns: minmax(0, 1fr); } .sh-review { position: static; } }
+
+/* ── Darslardan bilim (video → matn → kartochkalar) ── */
+.vk-progress { display: flex; flex-direction: column; gap: 6px; }
+.vk-progress > div, .vk-bar { height: 8px; border-radius: 4px; background: var(--surface2); overflow: hidden; }
+.vk-progress i, .vk-bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: var(--brand); transition: width .3s; }
+.vk-progress span { font-size: 12.5px; font-weight: 700; color: var(--txt2); }
+.vk-bar { margin-top: 8px; width: min(320px, 100%); }
+.vk-cards-h { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.vk-cards-h .cr-h, .vk-cards-h .cr-counts { margin: 0; }
+.vk-cards { display: flex; flex-direction: column; gap: 12px; }
+.vk-card { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 16px 18px 14px 20px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; scroll-margin-top: 80px; }
+.vk-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--gold); }
+.vk-card.st-tasdiq::before { background: var(--ok); } .vk-card.st-rad::before { background: var(--line2); }
+.vk-card.st-rad { opacity: .65; }
+.vk-card:target { box-shadow: 0 0 0 2px var(--brand); }
+.vk-card-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vk-time { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 13px; border: 0; background: var(--brand-bg); color: var(--brand-txt); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; font-variant-numeric: tabular-nums; }
+.vk-time .ic { width: 14px; height: 14px; }
+.vk-title { font-size: 15px !important; font-weight: 800; }
+.vk-sel { display: flex; gap: 8px; flex-wrap: wrap; }
+.vk-sel select { flex: 1 1 180px; }
+.vk-card textarea { resize: vertical; line-height: 1.55; font-size: 14px; }
+.vk-card blockquote { margin: 0; padding: 10px 12px; border-left: 3px solid var(--gold); border-radius: 0 10px 10px 0; background: var(--surface2); font-size: 13px; font-style: italic; color: var(--txt2); line-height: 1.55; }
+.vk-t { font-size: 15px; font-weight: 800; line-height: 1.4; }
+.vk-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.vk-body { margin: 0; font-size: 14px; line-height: 1.6; color: var(--txt2); white-space: pre-line; }
+.vk-act { display: flex; gap: 8px; flex-wrap: wrap; }
+.vk-text summary, .vk-edit summary { display: flex; align-items: center; gap: 10px; padding: 16px 18px; cursor: pointer; list-style: none; }
+.vk-text summary::-webkit-details-marker, .vk-edit summary::-webkit-details-marker { display: none; }
+.vk-text summary h3, .vk-edit summary h3 { margin: 0; font-size: 15px; }
+.vk-text summary::after, .vk-edit summary::after { content: "▾"; margin-left: auto; color: var(--txt3); transition: transform .2s; }
+.vk-text[open] summary::after, .vk-edit[open] summary::after { transform: rotate(180deg); }
+.vk-text .card-b { max-height: 70vh; overflow-y: auto; padding-top: 0; }
+.vk-text p { display: flex; gap: 12px; margin: 0; padding: 7px 8px; border-radius: 10px; font-size: 14px; line-height: 1.6; color: var(--txt2); }
+.vk-text p.hl { background: var(--gold-bg); color: var(--txt); }
+.vk-text time { flex: none; width: 58px; font-size: 12px; font-weight: 800; color: var(--txt3); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.vk-edit .card-b { display: flex; flex-direction: column; gap: 12px; padding-top: 0; }
+.vk-steps { display: flex; flex-direction: column; gap: 10px; }
+.vk-steps p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--txt2); }
+@media (max-width: 600px) { .vk-card { padding: 14px 14px 12px 16px; } .vk-text time { width: 48px; } .vk-cards-h form { margin-left: 0 !important; } }
+.vk-progress[hidden] { display: none; }
+.vk-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--txt3); font-weight: 600; }
+.vk .cr-sum p { white-space: pre-line; }

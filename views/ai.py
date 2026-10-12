@@ -56,6 +56,31 @@ def configure():
     return redirect(url_for("sozlama.index", bolim="ai"))
 
 
+@bp.route("/openai", methods=["POST"])
+def configure_openai():
+    """Video darslarni matnga aylantirish: OpenAI kaliti, model, tillar va atamalar."""
+    from core import transcribe as STT
+    require_role("rahbar", "buxgalter")
+    f = request.form
+    model = f.get("stt_model") if f.get("stt_model") in STT.MODELS else "gpt-transcribe"
+    key = (f.get("openai_key") or "").strip()
+    if key:
+        ok, msg = STT.check_key(key, model)
+        if not ok:
+            flash(f"OpenAI kaliti saqlanmadi: {msg}", "bad")
+            return redirect(url_for("sozlama.index", bolim="ai") + "#openai")
+        F.set_setting("openai_key", key)
+    elif f.get("openai_key_clear"):
+        F.set_setting("openai_key", "")
+    F.set_setting("stt_model", model)
+    F.set_setting("stt_languages", (f.get("stt_languages") or "").strip()[:40])
+    F.set_setting("stt_keywords", (f.get("stt_keywords") or "").strip()[:3000])
+    audit.log("settings", "OpenAI (video matnga) sozlamalari")
+    db.session.commit()
+    flash("Saqlandi." + (" OpenAI kaliti tekshirildi ✓" if key else ""), "ok")
+    return redirect(url_for("sozlama.index", bolim="ai") + "#openai")
+
+
 @bp.route("/telegram")
 def link_page():
     link = StaffLink.query.filter_by(user_id=g.user.id).first()

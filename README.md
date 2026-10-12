@@ -22,6 +22,7 @@ ichiga qurilgan.
 | **Sun'iy intellekt: Telegram yordamchi** | Xodim botga oddiy so'z bilan yozadi («Akmaldan 1.5 mln naqd kurs to'lovi oldim», «kecha ofis ijarasi 4 mln bankdan») yoki chek / nakladnoy / bank skrinshoti rasmini yuboradi — Claude summa, hisob, kategoriya, sana va o'quvchini aniqlaydi, bot qoralamani ko'rsatadi, «✅ Saqlash» bosilgandagina kassaga yoziladi (o'quvchi to'lovi uning qarziga bog'lanadi). Bir xabarda bir nechta yozuv. Menejer faqat kirim yozadi |
 | **Sun'iy intellekt: moliyaviy tahlil** | Har hafta (kun va soat sozlanadi) rahbar va buxgalterga Telegram'da va bosh sahifada tahlil: asosiy raqamlar, yaxshi tomonlar, xavflar (qarzdorlar ismi bilan), «bu hafta 3 ta qadam». Botga savol ham beriladi: «Bu oy nega zarar?». Raqamlar dasturda hisoblanadi, sun'iy intellekt faqat tushuntiradi. Kunlik so'rov limiti va oylik xarajat Sozlamalarda ko'rinadi |
 | **Shartnoma tekshiruvi** | Shartnoma (PDF, Word, sahifa rasmlari yoki matn) **faqat markazning bilimlar bazasi** asosida tekshiriladi: ustoz qoidalari va fikrlari, standartlar (AAOIFI va b.), namunaviy bandlar, dars materiallari. Har bir topilgan masala — shartnomadan iqtibos, izoh, halol muqobil band va bazadagi aniq materialga havola; bazada asosi yo'q gumonlar «ustozga savol» bo'lib qoladi. Ustoz o'z xulosasini yozadi, o'quvchiga Telegram'da boradi. Xodimlar panelida va o'quvchi ilovasida (kunlik limit bilan). Bilimlar bazasi mavzu va turlar bo'yicha yuritiladi, Word/PDF/TXT fayldan to'ldiriladi |
+| **Darslardan bilim** | Ustozning video/audio darsi OpenAI (gpt-transcribe) orqali vaqt belgilari bilan matnga aylanadi (ffmpeg audio ajratadi, ~4 daqiqalik bo'laklar jimlikda kesiladi). Claude matndan bilim kartochkalarini ajratadi (qoida, ustoz fikri, namuna — darsdagi vaqti va iqtibosi bilan); ustoz tahrirlab tasdiqlaganlari bilimlar bazasiga «Dars: … · 12:30» manbasi bilan o'tadi. Tayyor SRT/VTT/TXT ham qabul qilinadi |
 | **Kurs va klublar** | Har bir potok/klub/tadbir bo'yicha: a'zolar soni, kutilgan va yig'ilgan summa, xarajat, sof foyda, rentabellik, 1 a'zoni jalb qilish narxi |
 | **A'zolar** | O'quvchi va klub a'zolari, kim qancha to'lagan va qancha qarz. Klub obunasini bir tugma bilan uzaytirish, muddati tugayotganlar ro'yxati |
 | **Zakot** | Naqd, undiriladigan haqlar, tovar zaxirasi va qarzlar daftardan avtomatik yig'iladi. Nisob oltin (85 g) yoki kumush (595 g) bo'yicha. Havl sanasi hijriy taqvimda, hisob-kitoblar tarixi saqlanadi |
@@ -81,6 +82,8 @@ kategoriyalar va bitta **rahbar**ni o'zi yaratadi, `seed.py`ni ishga tushirish s
    yarating va Sozlamalar → Sun'iy intellekt'ga kiriting (yoki `ANTHROPIC_API_KEY`). Har bir xodim
    chap menyudagi «Telegram yordamchi» orqali o'z Telegram'ini ulaydi. Telegram bot ilgari ulangan
    bo'lsa, «Botni saytga ulash»ni bir marta qayta bosing (tasdiqlash tugmalari uchun).
+   Darslarni matnga aylantirish uchun — [platform.openai.com](https://platform.openai.com/api-keys)
+   kaliti: Sozlamalar → Sun'iy intellekt → «Video darslar → matn» (yoki `OPENAI_API_KEY`).
 7. *(ixtiyoriy)* **Video darslar.** [bunny.net](https://bunny.net/stream/) da Stream kutubxonasi
    oching. Sozlamalar → O'quvchi ilovasi'ga Library ID, API Key va (Security bo'limidagi)
    Token authentication key'ni kiriting. Bunny'da «Embed view token authentication»ni yoqing.
@@ -113,6 +116,8 @@ core/
   bunny.py          Bunny Stream: video yaratish, TUS yuklash imzosi, himoyalangan ko'rish havolasi
   ai.py             Claude bilan ishlash: so'rov, xarajat hisobi, kunlik limit
   ai_kassa.py       Matn/chek rasmi → tekshirilgan kassa qoralamasi → tasdiqlangach yozuv
+  transcribe.py     Video/audio → matn (ffmpeg + OpenAI), bo'laklash, subtitr o'qish, qayta urinish
+  video_cards.py    Dars matnidan bilim kartochkalari (Claude) va ustoz tasdig'i → bilimlar bazasi
   contract.py       Shartnoma tekshiruvi: bilimlar bazasidan kontekst, tahlil (fon oqimida), natijani tekshirish
   ai_report.py      Moliyaviy raqamlar to'plami, haftalik tahlil va savollarga javob
   staff_bot.py      Telegram botning xodimlar rejimi (ulash, tasdiqlash tugmalari, /balans, /hisobot)

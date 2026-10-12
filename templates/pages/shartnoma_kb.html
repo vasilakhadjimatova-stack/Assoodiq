@@ -7,7 +7,8 @@
     <div class="head-t">Bilimlar bazasi</div>
     <div class="head-s">Shartnomalar <b>faqat</b> shu materiallar asosida tekshiriladi: ustozning qoidalari va fikrlari, standartlar (masalan AAOIFI), namunaviy bandlar, dars materiallari. {{ total }} ta faol material · {{ '%.0f'|format(size / 1000) }} ming belgi{% if size > budget %} <span class="warn-t">(katta — tekshiruvda shartnoma mavzusiga oid qismi ishlatiladi)</span>{% endif %}</div>
   </div>
-  <div class="head-a"><a class="btn solid" href="{{ url_for('shartnoma.kb_edit', mavzu=topic or None) }}">{{ ui.icon('plus', 'sm') }} Material qo'shish</a></div>
+  <div class="head-a"><a class="btn ghost" href="{{ url_for('shartnoma.video_list') }}">{{ ui.icon('video', 'sm') }} Darslardan bilim{% if pending %} <span class="pill warn">{{ pending }}</span>{% endif %}</a>
+    <a class="btn solid" href="{{ url_for('shartnoma.kb_edit', mavzu=topic or None) }}">{{ ui.icon('plus', 'sm') }} Material qo'shish</a></div>
 </div>
 
 <div class="kb-topics">

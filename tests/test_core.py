@@ -1584,3 +1584,226 @@ def test_contract_check_student_app(app, claude):
     db.session.commit()
     assert "hozircha yopiq" in c2.get("/app/shartnoma").get_data(as_text=True)
     assert c2.post("/app/shartnoma", data={"text": "matn"}).status_code == 302 and ContractCheck.query.count() == 1
+
+
+# ── Darslardan bilim: video → matn (OpenAI) → kartochkalar (Claude) → ustoz tasdig'i ──
+
+def test_plan_chunks_cuts_at_silence():
+    from core import transcribe as STT
+    chunks = STT.plan_chunks(1000, [(232, 236), (480, 482), (650, 651)], target=240, window=45)
+    assert chunks[0] == (0.0, 234.0)                     # 240 ga eng yaqin jimlik
+    assert chunks[1] == (234.0, 481.0)
+    assert chunks[2] == (481.0, 721.0)                   # 721 atrofida jimlik yo'q — aniq kesim
+    assert chunks[-1][1] == 1000 and all(b - a <= 285 for a, b in chunks)
+    assert STT.plan_chunks(100, []) == [(0.0, 100)]
+
+
+def test_parse_subtitles_srt_vtt_txt():
+    from core import transcribe as STT
+    srt = ("1\n00:00:01,000 --> 00:00:04,000\nAssalomu alaykum.\n\n2\n00:00:05,000 --> 00:00:09,500\n"
+           "Bugun murobaha haqida.\n\n3\n00:01:10,000 --> 00:01:15,000\nIkkinchi qism.\n")
+    segs = STT.parse_subtitles(srt)
+    assert [s["t"] for s in segs] == ["Assalomu alaykum. Bugun murobaha haqida.", "Ikkinchi qism."]
+    assert segs[0]["s"] == 1.0 and segs[0]["e"] == 9.5 and segs[1]["s"] == 70.0
+    vtt = "WEBVTT\n\n00:02.000 --> 00:04.000\n<v Ustoz>Ribo — harom.\n\n1:00:00.000 --> 1:00:03.000\nOxiri\n"
+    segs = STT.parse_subtitles(vtt)
+    assert segs[0]["t"] == "Ribo — harom." and segs[1]["s"] == 3600.0
+    txt = STT.parse_subtitles("Birinchi paragraf.\n\nIkkinchi paragraf.")
+    assert [s["t"] for s in txt] == ["Birinchi paragraf.", "Ikkinchi paragraf."] and not txt[0]["e"]
+
+
+class _FakeOpenAI:
+    """client.audio.transcriptions.create(...) o'rnini bosadi."""
+
+    def __init__(self):
+        self.calls, self.fail_at = [], None
+        outer = self
+
+        class _Tr:
+            def create(self, file, **kw):
+                n = len(outer.calls)
+                outer.calls.append(dict(kw, size=len(file.read())))
+                if outer.fail_at == n:
+                    from core.transcribe import SttError
+                    raise SttError("OpenAI hisobida mablag' tugagan — platform.openai.com → Billing.")
+                from types import SimpleNamespace as NS
+                return NS(text=f"{n + 1}-bo'lak. " + "Murobahada sotuvchi tovarga avval egalik qiladi. Narx o'zgarmaydi. " * 10)
+
+        from types import SimpleNamespace as NS
+        self.audio = NS(transcriptions=_Tr())
+
+
+@pytest.fixture
+def stt(app, monkeypatch):
+    from core import transcribe as STT
+    fake = _FakeOpenAI()
+    monkeypatch.setattr(STT, "_client", lambda key=None: fake)
+    monkeypatch.setattr(STT, "CHUNK", 9)
+    monkeypatch.setattr(STT, "WINDOW", 3)
+    F.set_setting("openai_key", "sk-test-openai")
+    db.session.commit()
+    return fake
+
+
+def _lesson_audio(tmp_path):
+    """30 soniyalik ovoz: 8–10 va 18–20 soniyalarda jimlik."""
+    import subprocess
+    from core import transcribe as STT
+    out = tmp_path / "dars.mp3"
+    subprocess.run([STT.ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    "sine=frequency=440:duration=30", "-af",
+                    "volume=enable='between(t,8,10)+between(t,18,20)':volume=0", str(out)], check=True)
+    return out.read_bytes()
+
+
+def _cards_reply(start=12):
+    return {"summary": "Dars murobaha shartlari haqida.", "unclear": ["Kafolat masalasi aniq aytilmadi."],
+            "cards": [
+                {"title": "Murobahada sotuvchi avval egalik qiladi", "kind": "qoida", "topic": "murobaha",
+                 "body": "Sotuvchi tovarni sotishdan oldin o'z mulkiga oladi.", "quote": "sotuvchi tovarga avval egalik qiladi",
+                 "start": start, "end": start + 6, "similar_to": 0},
+                {"title": "Narx o'zgarmaydi", "kind": "ustoz", "topic": "noto'g'ri-mavzu",
+                 "body": "Kelishilgan narx muddat uzaysa ham oshmaydi.", "quote": "", "start": 999, "end": 5,
+                 "similar_to": 123456},
+                {"title": "", "kind": "dars", "topic": "umumiy", "body": "bo'sh sarlavha", "quote": "",
+                 "start": 0, "end": 0, "similar_to": 0}]}
+
+
+def test_video_to_knowledge_full_flow(app, claude, stt, tmp_path):
+    from io import BytesIO
+
+    from core.models import AiUsage, KnowledgeCard, KnowledgeDoc, Transcript
+    client = app.test_client()
+    login(client, "100100")
+    claude.replies.append(_cards_reply())
+    r = client.post("/shartnoma/video/yuklash", data={"title": "Murobaha — 3-dars", "cards": "1",
+                                                     "file": (BytesIO(_lesson_audio(tmp_path)), "dars.mp3")},
+                    content_type="multipart/form-data", headers={"X-Requested-With": "XMLHttpRequest"})
+    t = Transcript.query.one()
+    assert r.get_json() == {"url": f"/shartnoma/video/{t.id}"}
+    assert t.status == "tayyor" and t.model == "gpt-transcribe" and 29 <= t.duration <= 31
+    assert t.chunks_total == 3 and t.chunks_done == 3                  # jimlikda kesilgan 3 bo'lak
+    # OpenAI'ga: til, atamalar lug'ati, oldingi bo'lak oxiri
+    first, second = stt.calls[0], stt.calls[1]
+    assert first["model"] == "gpt-transcribe" and first["languages"] == ["uz", "ru"] and "murobaha" in first["keywords"]
+    assert second["prompt"].endswith("Narx o'zgarmaydi.") and len(second["prompt"]) <= 400 and first["size"] > 1000
+    import json
+    segs = json.loads(t.segments)
+    assert segs[0]["s"] == 0 and not segs[0]["a"] and any(s["a"] for s in segs)   # bo'lak boshi aniq, ichi taxminiy
+    starts = sorted({round(s["s"]) for s in segs if not s["a"]})
+    assert starts[0] == 0 and 8 <= starts[1] <= 10 and 18 <= starts[2] <= 20
+    usage = AiUsage.query.filter_by(feature="transkripsiya").one()
+    assert abs(usage.cost_usd - 30 / 60 * 0.0045) < 0.001 and t.cost_usd == usage.cost_usd
+    # Claude kartochkalari: matn vaqt belgilari bilan, bazadagi materiallar ro'yxati bilan
+    content = claude.calls[-1]["messages"][0]["content"]
+    assert "[00:00] 1-bo'lak" in content and "Murobaha — 3-dars" in content
+    cards = KnowledgeCard.query.order_by(KnowledgeCard.start).all()
+    assert len(cards) == 2 and t.cards_status == "tayyor" and "Kafolat masalasi" in t.summary
+    narx = next(c for c in cards if c.title.startswith("Narx"))
+    assert narx.topic == "umumiy" and narx.start == 30 and narx.end == 30 and narx.similar_id is None
+    page = client.get(f"/shartnoma/video/{t.id}").get_data(as_text=True)
+    assert "Murobahada sotuvchi avval egalik qiladi" in page and "Tasdiqlash" in page and "Dars matni" in page
+    # Ustoz tahrirlab tasdiqlaydi → bilimlar bazasiga manba va vaqt bilan
+    card = next(c for c in cards if c.kind == "qoida")
+    r = client.post(f"/shartnoma/kartochka/{card.id}", data={"action": "tasdiq", "title": "Sotuvchi avval egalik qiladi",
+                                                              "body": "Tahrirlangan matn.", "kind": "qoida",
+                                                              "topic": "murobaha"})
+    assert r.headers["Location"].endswith(f"#k{narx.id}")
+    doc = db.session.get(KnowledgeDoc, card.doc_id)
+    assert doc.title == "Sotuvchi avval egalik qiladi" and doc.source == "Video: Murobaha — 3-dars · 00:12"
+    assert "Tahrirlangan matn." in doc.body and "Darsdan: «sotuvchi tovarga" in doc.body and doc.active
+    client.post(f"/shartnoma/kartochka/{narx.id}", data={"action": "rad"})
+    assert db.session.get(KnowledgeCard, narx.id).status == "rad"
+    # Tasdiqlangan material shartnoma tekshiruvida ishlatiladi
+    from core import contract as C
+    kb, ids, _ = C.knowledge()
+    assert doc.id in ids and "00:12" in kb
+    # Qarorni bekor qilish — material bazadan olinadi
+    client.post(f"/shartnoma/kartochka/{card.id}", data={"action": "qaytar"})
+    assert db.session.get(KnowledgeDoc, doc.id) is None and db.session.get(KnowledgeCard, card.id).status == "taklif"
+    # Qayta ajratish: faqat ko'rib chiqilmaganlar yangilanadi
+    claude.replies.append(_cards_reply(start=20))
+    client.post(f"/shartnoma/video/{t.id}/kartochkalar")
+    assert KnowledgeCard.query.filter_by(status="rad").count() == 1
+    assert KnowledgeCard.query.filter_by(status="taklif").count() == 2
+    txt = client.get(f"/shartnoma/video/{t.id}/matn.txt")
+    assert txt.headers["Content-Disposition"].startswith("attachment") and "[00:00] 1-bo'lak" in txt.get_data(as_text=True)
+    assert "Darslardan bilim" in client.get("/shartnoma/bilimlar").get_data(as_text=True)
+    db.session.expire_all()  # kartochkalar fon oqimida (boshqa sessiyada) yangilangan
+    client.post(f"/shartnoma/video/{t.id}/ochirish")
+    assert Transcript.query.count() == 0 and KnowledgeCard.query.count() == 0
+
+
+def test_video_retry_resumes_and_lecture_source(app, claude, stt, tmp_path):
+    from io import BytesIO
+
+    from core import transcribe as STT
+    from core.models import Lecture, Module, Transcript
+    prog = Program(name="Kurs", kind="kurs", price=4_000_000)
+    db.session.add(prog)
+    db.session.flush()
+    mod = Module(program_id=prog.id, title="1-modul")
+    db.session.add(mod)
+    db.session.flush()
+    lec = Lecture(module_id=mod.id, title="Murobaha asoslari")
+    db.session.add(lec)
+    db.session.commit()
+    client = app.test_client()
+    login(client, "100100")
+    stt.fail_at = 1
+    client.post("/shartnoma/video/yuklash", data={"lecture_id": str(lec.id),
+                                                 "file": (BytesIO(_lesson_audio(tmp_path)), "dars.m4a.mp3")},
+                content_type="multipart/form-data")
+    t = Transcript.query.one()
+    assert t.title == "Murobaha asoslari" and t.status == "xato" and "mablag'" in t.error and t.chunks_done == 1
+    assert STT.can_retry(t) and "Qayta urinish" in client.get(f"/shartnoma/video/{t.id}").get_data(as_text=True)
+    assert t.cost_usd > 0                                # bajarilgan bo'lak hisoblangan
+    stt.fail_at = None
+    claude.replies.append(_cards_reply())
+    client.post(f"/shartnoma/video/{t.id}/qayta")
+    db.session.refresh(t)
+    assert t.status == "tayyor" and t.chunks_done == 3 and len(stt.calls) == 4   # 1 + xato + qolgan 2
+    assert not STT.can_retry(t)
+    # cards checkbox yuborilmagan bo'lsa ham qayta urinishda kartochka ajratiladi (standart: ha)
+    card = t.cards[0]
+    from core import video_cards as VC
+    doc = VC.approve(card, None)
+    assert doc.source == "Dars: Murobaha asoslari · 00:12"
+
+
+def test_video_upload_validation_and_subtitles(app, claude):
+    from io import BytesIO
+
+    from core.models import Transcript
+    client = app.test_client()
+    login(client, "100100")
+    # OpenAI kaliti yo'q — video qabul qilinmaydi, SRT esa qabul qilinadi
+    r = client.post("/shartnoma/video/yuklash", data={"file": (BytesIO(b"x" * 100), "dars.mp4")},
+                    content_type="multipart/form-data", headers={"X-Requested-With": "XMLHttpRequest"})
+    assert r.status_code == 400 and "OpenAI kaliti" in r.get_json()["error"]
+    r = client.post("/shartnoma/video/yuklash", data={"file": (BytesIO(b"x"), "dars.exe")},
+                    content_type="multipart/form-data", follow_redirects=True)
+    assert "fayl turini" in r.get_data(as_text=True)
+    srt = "1\n00:00:01,000 --> 00:00:04,000\nRibo — harom.\n".encode()
+    client.post("/shartnoma/video/yuklash", data={"file": (BytesIO(srt), "dars.srt")}, content_type="multipart/form-data")
+    t = Transcript.query.one()
+    assert t.source == "srt" and t.status == "tayyor" and t.cards_status == "" and t.duration == 4
+    page = client.get("/shartnoma/video").get_data(as_text=True)
+    assert "dars" in page and "OpenAI kaliti kiritilmagan" in page
+
+
+def test_openai_settings(app, monkeypatch):
+    from core import transcribe as STT
+    client = app.test_client()
+    login(client, "100100")
+    page = client.get("/sozlamalar/?bolim=ai").get_data(as_text=True)
+    assert "Video darslar → matn" in page and "gpt-transcribe" in page
+    monkeypatch.setattr(STT, "check_key", lambda key, m=None: (False, "kalit noto'g'ri"))
+    r = client.post("/ai/openai", data={"openai_key": "sk-bad", "stt_model": "gpt-transcribe"}, follow_redirects=True)
+    assert "kalit noto&#39;g&#39;ri" in r.get_data(as_text=True) or "kalit noto'g'ri" in r.get_data(as_text=True)
+    assert not STT.enabled()
+    monkeypatch.setattr(STT, "check_key", lambda key, m=None: (True, ""))
+    client.post("/ai/openai", data={"openai_key": "sk-good-1234567890", "stt_model": "whisper-1",
+                                    "stt_languages": "uz", "stt_keywords": "murobaha, ijara"})
+    assert STT.enabled() and STT.model() == "whisper-1" and STT.languages() == ["uz"]
+    assert STT.keywords() == ["murobaha", "ijara"]
