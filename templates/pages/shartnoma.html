@@ -4,58 +4,83 @@
 <div class="head">
   <div>
     <div class="head-t">Shartnoma tekshiruvi</div>
-    <div class="head-s">Shartnoma faqat markazning bilimlar bazasi — ustoz qoidalari, standartlar va namunalar asosida tekshiriladi. Yakuniy xulosa ustozniki.</div>
+    <div class="head-s">Shartnoma faqat markazning bilimlar bazasi asosida tekshiriladi. Yakuniy xulosa — ustozniki.</div>
   </div>
-  <div class="head-a"><a class="btn ghost" href="{{ url_for('shartnoma.kb_list') }}">{{ ui.icon('book', 'sm') }} Bilimlar bazasi <span class="pill">{{ kb_count }}</span></a></div>
+  <div class="head-a"><a class="btn ghost" href="{{ url_for('shartnoma.kb_list') }}">{{ ui.icon('book', 'sm') }} Bilimlar bazasi <span class="pill">{{ kb_count|num }}</span></a></div>
 </div>
 
-<div class="grid g-2 sh-grid">
-  <form class="card sh-new" method="post" action="{{ url_for('shartnoma.create') }}" enctype="multipart/form-data">
-    <div class="card-h"><h3>Yangi tekshiruv</h3></div>
-    <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
-      {% if not ai_on %}<div class="oq-note">{{ ui.icon('info', 'sm') }}<span>Sun'iy intellekt ulanmagan.{% if can('sozlama') %} <a class="link" href="{{ url_for('sozlama.index', bolim='ai') }}">Sozlamalar → Sun'iy intellekt</a>{% endif %}</span></div>{% endif %}
-      {% if not kb_count %}<div class="oq-note">{{ ui.icon('book', 'sm') }}<span>Bilimlar bazasi bo'sh. Avval <a class="link" href="{{ url_for('shartnoma.kb_edit') }}">ustoz qoidalari va namunalarini qo'shing</a> — tekshiruv faqat ular asosida bo'ladi.</span></div>{% endif %}
-      <div class="field"><label>Nomi</label><input type="text" name="title" placeholder="Masalan: Avto ehtiyot qismlar yetkazib berish shartnomasi" maxlength="200"></div>
-      <label class="sh-drop">
-        <input type="file" name="files" multiple accept=".pdf,.docx,.txt,image/*" data-cr-files="#sh-files">
-        {{ ui.icon('upload') }}
-        <b>Shartnoma faylini tanlang</b>
-        <span>PDF, Word (DOCX), rasm (har sahifa alohida, 10 tagacha) yoki TXT</span>
-        <em id="sh-files"></em>
-      </label>
-      <div class="field"><label>yoki matnini qo'ying</label><textarea name="text" rows="5" placeholder="Shartnoma matni…"></textarea></div>
-      <button class="btn solid" {{ 'disabled' if not ai_on or not kb_count }}>{{ ui.icon('shield', 'sm') }} Tekshirish</button>
-      <span class="hint">Fayl serverda saqlanmaydi — faqat tahlil natijasi saqlanadi.</span>
-    </div>
-  </form>
+<form class="card sh-new" method="post" action="{{ url_for('shartnoma.create') }}" enctype="multipart/form-data">
+  {% if not ai_on or not kb_count %}
+  <div class="oq-note sh-new-note">{{ ui.icon('info', 'sm') }}<span>
+    {% if not ai_on %}Sun'iy intellekt ulanmagan.{% if can('sozlama') %} <a class="link" href="{{ url_for('sozlama.index', bolim='ai') }}">Sozlamalar → Sun'iy intellekt</a>{% endif %}{% endif %}
+    {% if not kb_count %} Bilimlar bazasi bo'sh — avval <a class="link" href="{{ url_for('shartnoma.kb_edit') }}">ustoz qoidalarini qo'shing</a>.{% endif %}
+  </span></div>
+  {% endif %}
+  <label class="sh-drop" data-sh-drop>
+    <input type="file" name="files" multiple accept=".pdf,.docx,.txt,image/*" data-cr-files="#sh-files" aria-label="Shartnoma faylini tanlash">
+    <span class="sh-drop-ic">{{ ui.icon('upload') }}</span>
+    <span class="sh-drop-t"><b>Shartnoma faylini tashlang yoki tanlang</b><small>PDF, Word, rasm (har sahifa alohida, 10 tagacha) yoki TXT · fayl serverda saqlanmaydi</small><em id="sh-files"></em></span>
+  </label>
+  <div class="sh-new-side">
+    <div class="field"><label for="sh-title">Nomi <span class="opt">(ixtiyoriy)</span></label><input id="sh-title" type="text" name="title" placeholder="Fayl nomidan olinadi" maxlength="200"></div>
+    <details class="sh-text">
+      <summary>{{ ui.icon('pencil', 'sm') }} yoki matnini qo'yish</summary>
+      <textarea name="text" rows="6" placeholder="Shartnoma matni…" aria-label="Shartnoma matni"></textarea>
+    </details>
+    <button class="btn solid sh-go" {{ 'disabled' if not ai_on or not kb_count }}>{{ ui.icon('shield', 'sm') }} Tekshirish</button>
+  </div>
+</form>
 
-  <div class="card">
-    <div class="card-h"><h3>Tekshiruvlar</h3>
-      <div class="seg" style="margin-left:auto">
-        {% for k, v in (('', 'Hammasi'), ('kutilmoqda', 'Ustoz kutmoqda'), ('oquvchi', "O'quvchilardan")) %}
-        <a href="{{ url_for('shartnoma.index', holat=k or None) }}" class="{{ 'on' if seg == k }}">{{ v }}{% if k == 'kutilmoqda' and waiting %} <span class="n">{{ waiting }}</span>{% endif %}</a>
-        {% endfor %}
+{% if waiting and seg != 'kutmoqda' %}
+<a class="kb-pending" href="{{ url_with(holat='kutmoqda', sahifa=None) }}">
+  <span class="kb-pending-n">{{ waiting }}</span>
+  <span><b>ta tekshiruv ustoz xulosasini kutmoqda</b><small>Sun'iy intellekt tahlili tayyor — ustoz ko'rib, yakuniy xulosa yozadi</small></span>
+  {{ ui.icon('right', 'sm') }}
+</a>
+{% endif %}
+
+<section class="card sh-list">
+  <div class="sh-list-h">
+    <nav class="seg" aria-label="Saralash">
+      {% for k, v in segs %}<a href="{{ url_with(holat=k or None, sahifa=None) }}" class="{{ 'on' if seg == k }}" {{ 'aria-current=page' if seg == k }}>{{ v }} <span class="n">{{ counts[k] }}</span></a>{% endfor %}
+    </nav>
+    <form method="get" class="search sh-q" role="search">
+      {% if seg %}<input type="hidden" name="holat" value="{{ seg }}">{% endif %}
+      {{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Nomi, turi yoki o'quvchi" aria-label="Tekshiruvlardan qidirish">
+    </form>
+  </div>
+  <div class="sh-rows">
+    {% for c in checks %}
+    {% set v = c.review_verdict or c.verdict %}
+    {% set iss = issues[c.id] %}
+    <a class="sh-row" href="{{ url_for('shartnoma.view', cid=c.id) }}">
+      <span class="sh-ic v-{{ v or c.status }}">{{ ui.icon({'mos': 'check', 'shartli': 'pencil', 'mos_emas': 'x', 'xato': 'alert', 'navbatda': 'clock'}.get(v or c.status, 'file'), 'sm') }}</span>
+      <div class="sh-b">
+        <b>{{ c.title }}</b>
+        <span>{{ c.contract_type or {'pdf': 'PDF', 'rasm': 'Rasm', 'docx': 'Word', 'matn': 'Matn'}.get(c.source_kind, '') }} · {{ c.created_at|localdt }} · {{ c.member.full_name if c.member else (c.user.name if c.user else '') }}{% if c.member %} <em class="pill gold">o'quvchi</em>{% endif %}</span>
       </div>
-    </div>
-    <div class="card-b" style="padding-top:4px">
-      {% for c in checks %}
-      {% set v = c.review_verdict or c.verdict %}
-      <a class="sh-row" href="{{ url_for('shartnoma.view', cid=c.id) }}">
-        <span class="sh-ic v-{{ v or c.status }}">{{ ui.icon({'mos': 'check', 'shartli': 'pencil', 'mos_emas': 'x', 'xato': 'alert'}.get(v or c.status, 'file'), 'sm') }}</span>
-        <div class="sh-b">
-          <b>{{ c.title }}</b>
-          <span>{{ c.created_at|localdt }} · {{ c.member.full_name if c.member else (c.user.name if c.user else '') }}{% if c.member %} <em class="pill gold">o'quvchi</em>{% endif %}</span>
-        </div>
+      <div class="sh-iss">
+        {% if iss.jiddiy %}<span class="s-j">{{ iss.jiddiy }} jiddiy</span>{% endif %}
+        {% if iss.orta %}<span class="s-o">{{ iss.orta }} tuzatish</span>{% endif %}
+      </div>
+      <div class="sh-st">
         {% if c.status == 'navbatda' %}<span class="pill info">tahlil qilinmoqda</span>
         {% elif c.status == 'xato' %}<span class="pill bad">xato</span>
         {% elif c.review_verdict %}<span class="pill ok">ustoz: {{ verdicts[c.review_verdict] }}</span>
-        {% else %}<span class="pill warn">{{ verdicts.get(c.verdict, '') }} · ustoz kutmoqda</span>{% endif %}
-      </a>
-      {% else %}
-      <div class="empty" style="padding:20px">{{ ui.icon('shield') }}<b>Hali tekshiruv yo'q</b>Chap tomondan shartnoma yuklang.</div>
-      {% endfor %}
-    </div>
+        {% else %}<span class="pill warn">ustoz kutmoqda</span><small>AI: {{ verdicts.get(c.verdict, '') }}</small>{% endif %}
+      </div>
+    </a>
+    {% else %}
+    <div class="empty" style="padding:28px 16px">{{ ui.icon('shield') }}<b>{{ 'Hech narsa topilmadi' if q or seg else "Hali tekshiruv yo'q" }}</b>{{ "Boshqa so'z bilan qidiring yoki filtrni olib tashlang." if q or seg else "Yuqoridan shartnoma faylini yuklang." }}</div>
+    {% endfor %}
   </div>
-</div>
+  {% if pages > 1 %}
+  <nav class="kb-pager sh-pager" aria-label="Sahifalar">
+    {% if page > 1 %}<a href="{{ url_with(sahifa=page - 1) }}" rel="prev">{{ ui.icon('left', 'sm') }} Oldingi</a>{% else %}<span class="dis">{{ ui.icon('left', 'sm') }} Oldingi</span>{% endif %}
+    <span class="kb-pager-n"><b aria-current="page" data-of="{{ pages }}">{{ page }}</b><i>/ {{ pages }}</i></span>
+    {% if page < pages %}<a href="{{ url_with(sahifa=page + 1) }}" rel="next">Keyingi {{ ui.icon('right', 'sm') }}</a>{% else %}<span class="dis">Keyingi {{ ui.icon('right', 'sm') }}</span>{% endif %}
+  </nav>
+  {% endif %}
+</section>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/contract.js') }}?v=1"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/contract.js') }}?v=2"></script>{% endblock %}

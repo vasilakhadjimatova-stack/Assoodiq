@@ -372,7 +372,7 @@ def _own_check(cid):
 @bp.route("/shartnoma/<int:cid>")
 def contract(cid):
     from views.shartnoma import report_context
-    return render_template("app/contract.html", tab="kurs", **report_context(_own_check(cid)))
+    return render_template("app/contract.html", tab="kurs", **report_context(_own_check(cid), staff=False))
 
 
 @bp.route("/shartnoma/<int:cid>/holat")

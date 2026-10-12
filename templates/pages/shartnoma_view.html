@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ c.title }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/contract.css') }}?v=2">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/contract.css') }}?v=3">{% endblock %}
 {% block content %}
 <a class="crumb no-print" href="{{ url_for('shartnoma.index') }}">{{ ui.icon('left', 'sm') }} Shartnoma tekshiruvi</a>
 <div class="head">
@@ -10,26 +10,44 @@
   </div>
   <div class="head-a no-print">
     {% if c.status == 'tayyor' %}<button class="btn ghost" onclick="window.print()">{{ ui.icon('download', 'sm') }} Chop etish / PDF</button>{% endif %}
-    <form method="post" action="{{ url_for('shartnoma.delete', cid=c.id) }}" class="inline" onsubmit="return confirm('Tekshiruv o\'chirilsinmi?')"><button class="icon-btn" title="O'chirish">{{ ui.icon('trash', 'sm') }}</button></form>
+    <form method="post" action="{{ url_for('shartnoma.delete', cid=c.id) }}" class="inline" onsubmit="return confirm('Tekshiruv o\'chirilsinmi?')"><button class="icon-btn" title="O'chirish" aria-label="Tekshiruvni o'chirish">{{ ui.icon('trash', 'sm') }}</button></form>
   </div>
 </div>
 <div class="sh-view">
   <div class="cr">{% with poll_url = url_for('shartnoma.status', cid=c.id) %}{% include "partials/contract_report.html" %}{% endwith %}</div>
   {% if c.status == 'tayyor' %}
-  <form class="card sh-review no-print" method="post" action="{{ url_for('shartnoma.review', cid=c.id) }}">
-    <div class="card-h"><h3>Ustoz xulosasi</h3></div>
-    <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
-      <div class="sh-verdicts">
-        {% for k, v in verdicts.items() %}
-        <label class="chip"><input type="radio" name="verdict" value="{{ k }}" {{ 'checked' if (c.review_verdict or res.verdict) == k }}><span>{{ v }}</span></label>
-        {% endfor %}
+  <aside class="sh-aside no-print">
+    {% if res.findings %}
+    <nav class="card sh-nav" aria-label="Masalalar">
+      <div class="sh-nav-h"><h3>Masalalar</h3><span data-cr-judged>{{ judged }}/{{ res.findings|length }} baholandi</span></div>
+      <div class="sh-nav-bar"><i data-cr-judged-bar style="width:{{ (judged / res.findings|length * 100)|round|int }}%"></i></div>
+      {% for f in res.findings %}
+      <a href="#f{{ loop.index0 }}" class="s-{{ f.severity }} {{ 'u-' ~ f.ustoz if f.ustoz }}" data-nav="{{ loop.index0 }}">
+        <i class="sh-dot"></i><span>{{ loop.index }}. {{ f.issue }}</span>
+        <em aria-label="Ustoz bahosi">{% if f.ustoz == 'ok' %}{{ ui.icon('check', 'sm') }}{% elif f.ustoz == 'rad' %}{{ ui.icon('x', 'sm') }}{% endif %}</em>
+      </a>
+      {% endfor %}
+      {% if res.findings|selectattr('suggestion')|list %}
+      <button type="button" class="btn tonal sm sh-copyall" data-cr-copy-all>{{ ui.icon('copy', 'sm') }} Barcha takliflarni nusxalash</button>
+      {% endif %}
+    </nav>
+    {% endif %}
+    <form class="card sh-review" method="post" action="{{ url_for('shartnoma.review', cid=c.id) }}">
+      <div class="card-h"><h3>Ustoz xulosasi</h3>{% if c.review_verdict %}<span class="pill ok">yozilgan</span>{% endif %}</div>
+      <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+        <p class="sh-review-h">Sun'iy intellekt: <b>{{ verdicts.get(res.verdict, '') }}</b>. Yakuniy xulosani tanlang:</p>
+        <div class="sh-verdicts" role="radiogroup" aria-label="Yakuniy xulosa">
+          {% for k, v in verdicts.items() %}
+          <label class="sh-v v-{{ k }}"><input type="radio" name="verdict" value="{{ k }}" {{ 'checked' if (c.review_verdict or res.verdict) == k }}><i></i><span>{{ v }}</span></label>
+          {% endfor %}
+        </div>
+        <div class="field"><label for="sh-rt">Izoh{% if c.member %} (o'quvchiga ko'rinadi){% endif %}</label><textarea id="sh-rt" name="text" rows="5" placeholder="Masalan: 5.2-banddagi penyani olib tashlang, o'rniga xayriya sharti yozing…">{{ c.review_text }}</textarea></div>
+        {% if c.member %}<label class="check"><input type="checkbox" name="notify" checked> O'quvchiga Telegram'da xabar yuborish</label>{% endif %}
+        <button class="btn solid">{{ ui.icon('check', 'sm') }} {{ 'Yangilash' if c.review_verdict else 'Xulosani tasdiqlash' }}</button>
       </div>
-      <div class="field"><label>Izoh (o'quvchiga ko'rinadi)</label><textarea name="text" rows="6" placeholder="Masalan: 7-banddagi kechikish jarimasini olib tashlang, o'rniga sadaqa sharti yozing…">{{ c.review_text }}</textarea></div>
-      {% if c.member %}<label class="check"><input type="checkbox" name="notify" checked> O'quvchiga Telegram'da xabar yuborish</label>{% endif %}
-      <button class="btn solid">{{ ui.icon('check', 'sm') }} {{ 'Yangilash' if c.review_verdict else 'Tasdiqlash' }}</button>
-    </div>
-  </form>
+    </form>
+  </aside>
   {% endif %}
 </div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/contract.js') }}?v=1"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/contract.js') }}?v=2"></script>{% endblock %}

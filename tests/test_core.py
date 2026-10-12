@@ -2182,3 +2182,45 @@ def test_members_filter_compact(app):
     tug = client.get("/azolar?holat=tugagan").get_data(as_text=True)
     assert "Obunasi tugagan" in tug and "mf-chip" in tug                       # yorliq yo'q — chip bo'lib ko'rinadi
     assert "mf-chip" not in client.get("/azolar?holat=qarzdor").get_data(as_text=True)  # yorliq tanlangan — chip takrorlanmaydi
+
+
+def test_contract_judge_findings_and_list(app, claude):
+    """Ustoz har bir masalani baholaydi: «noto'g'ri» deganlari o'quvchiga ko'rinmaydi; ro'yxatda qidiruv va sanoqlar."""
+    from core import student as STU
+    from core.models import ContractCheck
+    kb = _kb()
+    m = Member(full_name="Bekzod Aliyev")
+    db.session.add(m)
+    db.session.commit()
+    claude.replies.append(_result([kb.id]))
+    claude.replies[-1]["findings"].append({"severity": "jiddiy", "category": "riba", "clause": "3% foiz", "issue": "Kafolatlangan foiz",
+                                           "explanation": "Ribo.", "sources": [kb.id], "suggestion": "Foyda nisbatda."})
+    stu = app.test_client()
+    stu.get(f"/app/k/{STU.issue_invite(m)}")
+    stu.post("/app/shartnoma", data={"title": "Investitsiya", "text": "Investorga oyiga 3% foiz kafolatlanadi."})
+    check = ContractCheck.query.one()
+    client = app.test_client()
+    login(client, "100100")
+    lst = client.get("/shartnoma/").get_data(as_text=True)
+    assert "ustoz kutmoqda" in lst and "1 jiddiy" in lst and "ta tekshiruv ustoz xulosasini kutmoqda" in lst
+    assert "Investitsiya" in client.get("/shartnoma/?q=Bekzod").get_data(as_text=True)
+    assert "Investitsiya" not in client.get("/shartnoma/?q=yo'qnom").get_data(as_text=True)
+    assert "Investitsiya" in client.get("/shartnoma/?holat=oquvchi").get_data(as_text=True)
+    view = client.get(f"/shartnoma/{check.id}").get_data(as_text=True)
+    assert "0/2 baholandi" in view and "Bu masala to" in view and "Barcha takliflarni nusxalash" in view
+    # masalalar jiddiyligi bo'yicha: 0 — «Kafolatlangan foiz» (jiddiy) noto'g'ri, 1 — kechikish jarimasi to'g'ri
+    r = client.post(f"/shartnoma/{check.id}/masala/0", data={"v": "rad"}, headers={"X-Requested-With": "XMLHttpRequest"})
+    assert r.get_json() == {"ok": True, "v": "rad", "judged": 1, "total": 2}
+    client.post(f"/shartnoma/{check.id}/masala/1", data={"v": "ok"})
+    assert client.post(f"/shartnoma/{check.id}/masala/9", data={"v": "ok"}).status_code == 404
+    view = client.get(f"/shartnoma/{check.id}").get_data(as_text=True)
+    assert "2/2 baholandi" in view and "Ustoz tasdiqladi" in view and "Ustoz rad etdi" in view
+    app_view = stu.get(f"/app/shartnoma/{check.id}").get_data(as_text=True)
+    assert "Kechikish jarimasi sotuvchi foydasiga" in app_view and "Kafolatlangan foiz" not in app_view
+    assert "Ustoz tasdiqladi" in app_view and "Bu masala to" not in app_view and "Ustoz rad etdi" not in app_view
+    lst = client.get("/shartnoma/").get_data(as_text=True)
+    assert "1 jiddiy" not in lst and "1 tuzatish" in lst                       # rad etilgani sanalmaydi
+    # bahoni bekor qilish
+    client.post(f"/shartnoma/{check.id}/masala/0", data={"v": ""})
+    assert "Kafolatlangan foiz" in stu.get(f"/app/shartnoma/{check.id}").get_data(as_text=True)
+    assert "1 jiddiy" in client.get("/shartnoma/").get_data(as_text=True)

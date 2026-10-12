@@ -38,8 +38,9 @@
 <h3 class="cr-h">Topilgan masalalar</h3>
 <div class="cr-list">
   {% for f in res.findings %}
-  <article class="cr-f s-{{ f.severity }}">
-    <div class="cr-f-h"><span class="cr-sev">{{ sev[f.severity] }}</span><span class="cr-cat">{{ cats.get(f.category, f.category) }}</span></div>
+  <article class="cr-f s-{{ f.severity }} {{ 'u-' ~ f.ustoz if f.ustoz }}" id="f{{ loop.index0 }}">
+    <div class="cr-f-h"><span class="cr-num">{{ loop.index }}</span><span class="cr-sev">{{ sev[f.severity] }}</span><span class="cr-cat">{{ cats.get(f.category, f.category) }}</span>
+      {% if f.ustoz == 'ok' %}<span class="cr-uz ok">{{ ui.icon('check', 'sm') }} Ustoz tasdiqladi</span>{% elif f.ustoz == 'rad' and staff %}<span class="cr-uz rad">{{ ui.icon('x', 'sm') }} Ustoz rad etdi — o'quvchiga ko'rinmaydi</span>{% endif %}</div>
     <b class="cr-issue">{{ f.issue }}</b>
     {% if f.clause %}<blockquote>{{ f.clause }}</blockquote>{% endif %}
     <p class="cr-lead">{{ f.explanation }}</p>
@@ -52,6 +53,13 @@
     {% if f.illustration %}<div class="cr-ill"><small>{{ ui.icon('pencil', 'sm') }} Misol uchun hisob</small><p>{{ f.illustration }}</p></div>{% endif %}
     {% if f.suggestion %}
     <div class="cr-sug"><small>{{ ui.icon('pencil', 'sm') }} Taklif etilgan band</small><p data-copy-text>{{ f.suggestion }}</p><button type="button" class="cr-copy" data-cr-copy>{{ ui.icon('copy', 'sm') }} Nusxa</button></div>
+    {% endif %}
+    {% if staff and c.status == 'tayyor' %}
+    <form class="cr-judge no-print" method="post" action="{{ url_for('shartnoma.judge', cid=c.id, idx=loop.index0) }}" data-cr-judge>
+      <span>Bu masala to'g'rimi?</span>
+      <button name="v" value="{{ '' if f.ustoz == 'ok' else 'ok' }}" class="j-ok {{ 'on' if f.ustoz == 'ok' }}" aria-pressed="{{ 'true' if f.ustoz == 'ok' else 'false' }}">{{ ui.icon('check', 'sm') }} To'g'ri</button>
+      <button name="v" value="{{ '' if f.ustoz == 'rad' else 'rad' }}" class="j-rad {{ 'on' if f.ustoz == 'rad' }}" aria-pressed="{{ 'true' if f.ustoz == 'rad' else 'false' }}">{{ ui.icon('x', 'sm') }} Noto'g'ri</button>
+    </form>
     {% endif %}
     <div class="cr-src">
       {% for sid in f.sources %}{% set d = kb.get(sid) %}

@@ -16,7 +16,7 @@ from core import transcribe as STT
 from core import video_cards as VC
 from core.extensions import db
 from core.models import (CARD_STATUS, CONTRACT_VERDICTS, KNOWLEDGE_KINDS, KNOWLEDGE_TOPICS, ContractCheck,
-                         KbPassage, KnowledgeCard, KnowledgeDoc, Lecture, Module, Transcript)
+                         KbPassage, KnowledgeCard, KnowledgeDoc, Lecture, Member, Module, Transcript)
 from views import form_int
 
 bp = Blueprint("shartnoma", __name__, url_prefix="/shartnoma")
@@ -26,19 +26,35 @@ def _now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def report_context(check):
+def report_context(check, staff=True):
     res = C.result_of(check)
-    ids = {s for f in res.get("findings", []) for s in f.get("sources", [])} | \
-        {s for f in res.get("findings", []) for s in (f.get("ustoz_case") or {}).get("sources", [])}
+    findings = res.get("findings", [])
+    if not staff:   # o'quvchiga ustoz «noto'g'ri» degan masalalar ko'rsatilmaydi
+        findings = [f for f in findings if f.get("ustoz") != "rad"]
+        res = dict(res, findings=findings)
+    ids = {s for f in findings for s in f.get("sources", [])} | \
+        {s for f in findings for s in (f.get("ustoz_case") or {}).get("sources", [])}
     kb = {d.id: d for d in KnowledgeDoc.query.filter(KnowledgeDoc.id.in_(ids)).all()} if ids else {}
     pids = [i - S.PASSAGE_BASE for i in ids if i >= S.PASSAGE_BASE]
     for p in (KbPassage.query.filter(KbPassage.id.in_(pids)).all() if pids else []):
         kb[S.PASSAGE_BASE + p.id] = SimpleNamespace(title="Dars parchasi — ustozning so'zi", source=S.passage_source(p),
                                                     kind_name="Dars parchasi", topic_name="avtomatik matn",
                                                     body=p.text)
-    counts = {k: sum(1 for f in res.get("findings", []) if f["severity"] == k) for k in C.SEVERITY}
+    counts = {k: sum(1 for f in findings if f["severity"] == k) for k in C.SEVERITY}
+    judged = sum(1 for f in findings if f.get("ustoz"))
     return {"c": check, "res": res, "kb": kb, "counts": counts, "cats": C.CATEGORIES, "sev": C.SEVERITY,
-            "verdicts": CONTRACT_VERDICTS}
+            "verdicts": CONTRACT_VERDICTS, "staff": staff, "judged": judged}
+
+
+def _issue_counts(check):
+    if check.status != "tayyor":
+        return {}
+    fs = [f for f in C.result_of(check).get("findings", []) if f.get("ustoz") != "rad"]
+    return {k: sum(1 for f in fs if f.get("severity") == k) for k in ("jiddiy", "orta")}
+
+
+SH_SEGS = (("", "Hammasi"), ("kutmoqda", "Ustoz kutmoqda"), ("tasdiqlangan", "Ustoz ko'rgan"), ("oquvchi", "O'quvchilardan"))
+SH_PER_PAGE = 25
 
 
 # ── Tekshiruvlar ────────────────────────────────────────────────────────────
@@ -46,16 +62,35 @@ def report_context(check):
 @bp.route("/")
 def index():
     C.stale_to_error()
-    seg = request.args.get("holat", "")
-    q = ContractCheck.query
-    if seg == "kutilmoqda":
-        q = q.filter(ContractCheck.status == "tayyor", ContractCheck.review_verdict == "")
-    elif seg == "oquvchi":
-        q = q.filter(ContractCheck.member_id.isnot(None))
-    checks = q.order_by(ContractCheck.created_at.desc()).limit(100).all()
-    waiting = ContractCheck.query.filter(ContractCheck.status == "tayyor", ContractCheck.review_verdict == "").count()
-    return render_template("pages/shartnoma.html", checks=checks, seg=seg, waiting=waiting, ai_on=ai.enabled(),
-                           kb_count=KnowledgeDoc.query.filter_by(active=True).count(), verdicts=CONTRACT_VERDICTS)
+    seg = request.args.get("holat", "") if request.args.get("holat") in dict(SH_SEGS) else ""
+    q_text = (request.args.get("q") or "").strip()[:100]
+    page = max(form_int(request.args.get("sahifa")) or 1, 1)
+    base = ContractCheck.query
+    if q_text:
+        base = base.outerjoin(Member, ContractCheck.member_id == Member.id).filter(
+            or_(ContractCheck.title.ilike(f"%{q_text}%"), ContractCheck.contract_type.ilike(f"%{q_text}%"),
+                Member.full_name.ilike(f"%{q_text}%")))
+    waiting_q = (ContractCheck.status == "tayyor") & (ContractCheck.review_verdict == "")
+    seg_filters = {"kutmoqda": waiting_q, "tasdiqlangan": ContractCheck.review_verdict != "",
+                   "oquvchi": ContractCheck.member_id.isnot(None)}
+    counts = {k: (base.filter(seg_filters[k]).count() if k else base.count()) for k, _ in SH_SEGS}
+    q = base.filter(seg_filters[seg]) if seg else base
+    found = counts[seg]
+    pages = max((found + SH_PER_PAGE - 1) // SH_PER_PAGE, 1)
+    checks = q.order_by(ContractCheck.created_at.desc()).offset((page - 1) * SH_PER_PAGE).limit(SH_PER_PAGE).all()
+    waiting = ContractCheck.query.filter(waiting_q).count()
+
+    def url_with(**over):
+        args = {k: v for k, v in {"holat": seg, "q": q_text}.items() if v}
+        args.update({k: v for k, v in over.items() if v})
+        for k, v in over.items():
+            if not v:
+                args.pop(k, None)
+        return url_for("shartnoma.index", **args)
+    return render_template("pages/shartnoma.html", checks=checks, seg=seg, segs=SH_SEGS, counts=counts, q=q_text,
+                           waiting=waiting, ai_on=ai.enabled(), page=page, pages=pages, found=found,
+                           kb_count=KnowledgeDoc.query.filter_by(active=True).count(), verdicts=CONTRACT_VERDICTS,
+                           issues={c.id: _issue_counts(c) for c in checks}, url_with=url_with)
 
 
 @bp.route("/yangi", methods=["POST"])
@@ -110,6 +145,25 @@ def review(cid):
             T.deliver(check.member, msg, "xabar", None, g.user.id)
     flash("Ustoz xulosasi saqlandi.", "ok")
     return redirect(url_for("shartnoma.view", cid=cid))
+
+
+@bp.route("/<int:cid>/masala/<int:idx>", methods=["POST"])
+def judge(cid, idx):
+    """Ustozning har bir masala bo'yicha bahosi: ok — to'g'ri, rad — noto'g'ri (o'quvchiga ko'rsatilmaydi)."""
+    import json
+    check = db.get_or_404(ContractCheck, cid)
+    res = C.result_of(check)
+    findings = res.get("findings", [])
+    if not 0 <= idx < len(findings):
+        return jsonify(ok=False), 404
+    v = request.form.get("v", "")
+    findings[idx]["ustoz"] = v if v in ("ok", "rad") else ""
+    check.result = json.dumps(res, ensure_ascii=False)
+    db.session.commit()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify(ok=True, v=findings[idx]["ustoz"], judged=sum(1 for f in findings if f.get("ustoz")),
+                       total=len(findings))
+    return redirect(url_for("shartnoma.view", cid=cid) + f"#f{idx}")
 
 
 @bp.route("/<int:cid>/ochirish", methods=["POST"])

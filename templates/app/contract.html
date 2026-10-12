@@ -1,6 +1,6 @@
 {% extends "app/base.html" %}
 {% block title %}{{ c.title }} · {{ org_name }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/contract.css') }}?v=2">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/contract.css') }}?v=3">{% endblock %}
 {% block body %}
 <header class="hx slim">
   <div class="hx-bar"><a class="hx-back" href="{{ url_for('ilova.contracts') }}" aria-label="Orqaga">{{ ui.icon('left') }}</a><h1>{{ c.title }}</h1></div>
@@ -10,4 +10,4 @@
   <div class="cr">{% with poll_url = url_for('ilova.contract_status', cid=c.id) %}{% include "partials/contract_report.html" %}{% endwith %}</div>
 </main>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/contract.js') }}?v=1"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/contract.js') }}?v=2"></script>{% endblock %}

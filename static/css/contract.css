@@ -75,3 +75,18 @@
 .cr-case p { color: var(--cr-txt); font-style: italic; }
 .cr-case-src { display: block; margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--cr-gold); }
 .cr-ill { border: 1px dashed var(--cr-line); background: transparent; }
+/* Masala raqami va ustoz bahosi */
+.cr-num { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--cr-txt); color: var(--cr-bg); font-size: 11.5px; font-weight: 800; }
+.cr-f { scroll-margin-top: 84px; }
+.cr-f.u-rad { opacity: .55; }
+.cr-f.u-rad .cr-issue { text-decoration: line-through; }
+.cr-uz { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 11px; font-size: 11.5px; font-weight: 800; }
+.cr-uz .ic { width: 13px; height: 13px; }
+.cr-uz.ok { background: var(--cr-ok-bg); color: var(--cr-ok); } .cr-uz.rad { background: var(--cr-bad-bg); color: var(--cr-bad); }
+.cr-judge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--cr-line); }
+.cr-judge > span { font-size: 12.5px; font-weight: 700; color: var(--cr-txt3); margin-right: 4px; }
+.cr-judge button { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--cr-line); background: var(--cr-bg); font: inherit; font-size: 12.5px; font-weight: 750; color: var(--cr-txt2); cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+.cr-judge button .ic { width: 14px; height: 14px; }
+.cr-judge .j-ok:hover, .cr-judge .j-ok.on { border-color: var(--cr-ok); background: var(--cr-ok-bg); color: var(--cr-ok); }
+.cr-judge .j-rad:hover, .cr-judge .j-rad.on { border-color: var(--cr-bad); background: var(--cr-bad-bg); color: var(--cr-bad); }
+.cr-judge button:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--cr-ok) 25%, transparent); }
