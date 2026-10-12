@@ -2172,7 +2172,10 @@ def test_members_filter_compact(app):
     assert page.count('class="mf-seg"') == 1 and "Obunasi tugagan <span" not in page and "Yangi (30 kun)" not in page
     assert 'value="tur:kurs"' not in page or "Barcha kurslar" in page
     p = Program(name="Kurs A", kind="kurs", price=1)
-    db.session.add(p)
+    m = Member(full_name="Ali")
+    db.session.add_all([p, m])
+    db.session.flush()
+    db.session.add(Enrollment(member_id=m.id, program_id=p.id, status="faol", price=1))
     db.session.commit()
     page = client.get("/azolar?dastur=tur:kurs").get_data(as_text=True)
     assert 'value="tur:kurs" selected' in page and "Barcha kurslar" in page and 'mf-badge">1<' in page
