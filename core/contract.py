@@ -219,10 +219,19 @@ FINDING = {
         "clause": {"type": "string"},
         "issue": {"type": "string"},
         "explanation": {"type": "string"},
+        "reasoning": {"type": "string"},
+        "ustoz_case": {
+            "type": "object",
+            "properties": {"text": {"type": "string"}, "sources": {"type": "array", "items": {"type": "integer"}}},
+            "required": ["text", "sources"],
+            "additionalProperties": False,
+        },
+        "illustration": {"type": "string"},
         "sources": {"type": "array", "items": {"type": "integer"}},
         "suggestion": {"type": "string"},
     },
-    "required": ["severity", "category", "clause", "issue", "explanation", "sources", "suggestion"],
+    "required": ["severity", "category", "clause", "issue", "explanation", "reasoning", "ustoz_case", "illustration",
+                 "sources", "suggestion"],
     "additionalProperties": False,
 }
 SCHEMA = {
@@ -262,7 +271,27 @@ Hard rules:
 - verdict: "mos" - no jiddiy/orta findings; "shartli" - compliant once the listed corrections are made;
   "mos_emas" - the structure itself is non-compliant (e.g. an interest-bearing loan); "aniqlanmadi" - the
   document is unreadable, not a contract, or the knowledge base does not cover its subject.
-- "missing": important terms the knowledge base requires but the contract lacks.
+- "missing": important terms the knowledge base requires but the contract lacks - say concretely what to add.
+
+DEPTH - the reader is a business owner who must UNDERSTAND the problem, not just be told the verdict.
+Think each issue through yourself and connect the rule to this specific contract:
+- "explanation": the direct answer in 1-2 sentences.
+- "reasoning": a thorough explanation (usually 5-12 sentences): the principle from the knowledge base and
+  its reason as the ustoz explains it (why it is forbidden or required, what injustice or risk it prevents);
+  what this clause actually does in economic terms - walk through it with the contract's own figures
+  (amounts, percentages, days, dates); why that makes it riba / gharar / etc.; what can go wrong for each
+  party; and how the suggested wording removes the problem. Do not merely restate the rule.
+- "ustoz_case": if the knowledge base or a lesson excerpt contains a case, story, anecdote, analogy or
+  worked example the ustoz uses for this kind of issue (kind "Keys / hikoya" items are exactly that, lesson
+  excerpts often contain them), retell it faithfully in Uzbek - who, what happened, the point - and put its
+  ids in ustoz_case.sources. Never invent or embellish a story and never attribute to the ustoz anything the
+  sources do not say. If there is none: text "" and sources [].
+- "illustration": optionally your own short example that makes it concrete, usually a calculation with the
+  contract's numbers ("Masalan, 100 mln so'mlik tovar 20 kun kechiksa: ..."). It is your illustration, not
+  the ustoz's words, and it must not introduce any ruling that is not in the knowledge base. "" if it adds
+  nothing.
+- "summary": 3-6 sentences - what the contract is, the overall picture, the main problems and what to do.
+- "verdict_reason": 2-4 sentences grounded in the findings.
 - Items with kind "Dars parchasi" are verbatim excerpts from the ustoz's recorded lessons (automatic
   transcription - may contain recognition errors; never rely on a garbled sentence). They are valid sources.
   When an approved item and a lesson excerpt both apply, cite both, the approved item first.
@@ -297,6 +326,13 @@ def clean(out, kb_ids):
             questions.append(f"{f.get('issue', '').strip()} (bazada asos topilmadi)".strip())
             continue
         f["sources"] = sorted(set(src))
+        case = f.get("ustoz_case") or {}
+        case_src = sorted({x for x in case.get("sources") or [] if x in allowed})
+        # manbasi tasdiqlanmagan «ustoz hikoyasi» ko'rsatilmaydi — o'ylab topilgan bo'lishi mumkin
+        f["ustoz_case"] = {"text": (case.get("text") or "").strip(), "sources": case_src} if case_src else \
+            {"text": "", "sources": []}
+        f["reasoning"] = (f.get("reasoning") or "").strip()
+        f["illustration"] = (f.get("illustration") or "").strip()
         f["severity"] = f.get("severity") if f.get("severity") in SEVERITY else "orta"
         f["category"] = f.get("category") if f.get("category") in CATEGORIES else "boshqa"
         findings.append(f)

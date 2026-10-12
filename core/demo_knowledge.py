@@ -60,6 +60,15 @@ DOCS = [
      "Qarz uchun garovga qo'yilgan mulkdan (masalan, avtomobil, uy) kreditorning bepul foydalanishi qarz "
      "evaziga olingan manfaat bo'lib, ribo hukmida. Garov faqat qarzni ta'minlash uchun saqlanadi; undan "
      "foydalanish bozor narxidagi alohida ijara shartnomasi bilan bo'lishi mumkin."),
+    ("misol", "umumiy", "Keys: penya olgan do'kondor — foyda emas, ribo",
+     "Bir do'kondor qurilish mollarini nasiyaga sotib, shartnomaga «kechikkan har kun uchun 0,5% penya» deb "
+     "yozgan. Xaridor 40 kun kechikdi va 100 mln so'mlik qarzga 20 mln so'm penya yig'ildi. Do'kondor buni "
+     "«yaxshi daromad» deb hisobladi. Aslida bu 20 mln — hech qanday tovar yoki mehnat evaziga emas, faqat "
+     "vaqt evaziga olingan qo'shimcha, ya'ni qarz ustiga ribo. Keyingi shartnomada do'kondor bandni "
+     "o'zgartirdi: kechikkan xaridor kelishilgan summani xayriyaga beradi, do'kondor esa undirish uchun "
+     "qilgan haqiqiy xarajatini (masalan, sud xarajati) alohida talab qiladi.\n\n"
+     "Saboq: kechikish uchun olinadigan har qanday pul sotuvchining daromadi bo'lsa — ribo; intizom uchun "
+     "xayriya majburiyati yoziladi."),
     ("ustoz", "umumiy", "Ustoz fikri: «foiz» so'zini emas, mazmunni tekshiring",
      "Shartnomada «foiz» so'zi ishlatilgani o'zi muammo emas — masalan, «foydaning 30 foizi» ulush "
      "ma'nosida. Tekshirilishi kerak: qo'shimcha to'lov vaqtga (muddat, kechikish) bog'langanmi yoki haqiqiy "

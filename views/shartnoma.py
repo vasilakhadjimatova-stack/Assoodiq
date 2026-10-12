@@ -28,7 +28,8 @@ def _now():
 
 def report_context(check):
     res = C.result_of(check)
-    ids = {s for f in res.get("findings", []) for s in f.get("sources", [])}
+    ids = {s for f in res.get("findings", []) for s in f.get("sources", [])} | \
+        {s for f in res.get("findings", []) for s in (f.get("ustoz_case") or {}).get("sources", [])}
     kb = {d.id: d for d in KnowledgeDoc.query.filter(KnowledgeDoc.id.in_(ids)).all()} if ids else {}
     pids = [i - S.PASSAGE_BASE for i in ids if i >= S.PASSAGE_BASE]
     for p in (KbPassage.query.filter(KbPassage.id.in_(pids)).all() if pids else []):

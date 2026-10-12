@@ -2044,3 +2044,45 @@ def test_video_upload_queue_limit(app, stt, tmp_path):
     r = client.post("/shartnoma/video/yuklash", data={"file": (BytesIO(b"x" * 2000), "dars.mp3")},
                     content_type="multipart/form-data", headers={"X-Requested-With": "XMLHttpRequest"})
     assert r.status_code == 429 and r.get_json()["busy"] and Transcript.query.count() == 3
+
+
+def test_contract_deep_explanation_and_ustoz_case(app, claude):
+    """Har bir masala: qisqa javob + batafsil sabab + ustoz keysi (faqat bazadagi manba bilan) + hisob."""
+    from core import contract as C
+    from core.models import KNOWLEDGE_KINDS, ContractCheck, KnowledgeDoc
+    assert "misol" in KNOWLEDGE_KINDS
+    rule = _kb()
+    case = KnowledgeDoc(title="Keys: penya olgan do'kondor", kind="misol", topic="umumiy",
+                        body="Do'kondor 40 kunlik kechikish uchun 20 mln penya oldi. Saboq: bu ribo.", source="Ustoz, 7-dars")
+    db.session.add(case)
+    db.session.commit()
+    out = _result([rule.id])
+    out["findings"][0].update(
+        reasoning="Penya vaqt evaziga olinadi: 100 mln qarz 20 kun kechiksa 10 mln qo'shimcha bo'ladi — bu qarz ustiga ziyoda.",
+        ustoz_case={"text": "Ustoz do'kondor misolini keltiradi: 40 kunlik kechikish uchun 20 mln penya — foyda emas, ribo.",
+                    "sources": [case.id, 424242]},
+        illustration="Masalan, 50 mln so'm 10 kun kechiksa: 50 mln × 0,5% × 10 = 2,5 mln so'm.")
+    out["findings"][1].update(reasoning="x", illustration="",
+                              ustoz_case={"text": "O'ylab topilgan hikoya", "sources": [999999]})
+    claude.replies.append(out)
+    client = app.test_client()
+    login(client, "100100")
+    client.post("/shartnoma/yangi", data={"title": "Nasiya", "text": "Xaridor kechikkan har kun uchun 0.5% penya to'laydi."})
+    system = claude.calls[-1]["system"][0]["text"]
+    assert "DEPTH" in system and "Never invent or embellish a story" in system
+    schema = claude.calls[-1]["output_config"]["format"]["schema"]["properties"]["findings"]["items"]
+    assert {"reasoning", "ustoz_case", "illustration"} <= set(schema["required"])
+    check = ContractCheck.query.one()
+    f = C.result_of(check)["findings"][0]
+    assert f["ustoz_case"]["sources"] == [case.id]                              # bazada yo'q id tashlandi
+    page = client.get(f"/shartnoma/{check.id}").get_data(as_text=True)
+    assert "Nega shunday — batafsil" in page and "qarz ustiga ziyoda" in page
+    assert "Ustoz shunday tushuntiradi" in page and "Ustoz, 7-dars" in page and "Misol uchun hisob" in page
+    assert "O&#39;ylab topilgan hikoya" not in page and "O'ylab topilgan hikoya" not in page   # manbasiz «hikoya» ko'rsatilmaydi
+
+
+def test_card_extraction_keeps_cases(app, claude):
+    from core import video_cards as VC
+    assert "CASES ARE VALUABLE" in VC.SYSTEM and '"misol"' in VC.SYSTEM
+    assert "misol" in VC.CARD["properties"]["kind"]["enum"]
+    assert "stories" not in VC.SYSTEM.split("Skip")[1].split("\n")[0]          # hikoyalar tashlab yuborilmaydi

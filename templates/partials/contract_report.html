@@ -42,7 +42,14 @@
     <div class="cr-f-h"><span class="cr-sev">{{ sev[f.severity] }}</span><span class="cr-cat">{{ cats.get(f.category, f.category) }}</span></div>
     <b class="cr-issue">{{ f.issue }}</b>
     {% if f.clause %}<blockquote>{{ f.clause }}</blockquote>{% endif %}
-    <p>{{ f.explanation }}</p>
+    <p class="cr-lead">{{ f.explanation }}</p>
+    {% if f.reasoning %}<div class="cr-why"><small>{{ ui.icon('info', 'sm') }} Nega shunday — batafsil</small><p>{{ f.reasoning }}</p></div>{% endif %}
+    {% if f.ustoz_case and f.ustoz_case.text %}
+    <div class="cr-case"><small>{{ ui.icon('book', 'sm') }} Ustoz shunday tushuntiradi</small><p>{{ f.ustoz_case.text }}</p>
+      <span class="cr-case-src">{% for sid in f.ustoz_case.sources %}{% set d = kb.get(sid) %}{{ (d.source or d.title) if d else 'Material #' ~ sid }}{{ '' if loop.last else ' · ' }}{% endfor %}</span>
+    </div>
+    {% endif %}
+    {% if f.illustration %}<div class="cr-ill"><small>{{ ui.icon('pencil', 'sm') }} Misol uchun hisob</small><p>{{ f.illustration }}</p></div>{% endif %}
     {% if f.suggestion %}
     <div class="cr-sug"><small>{{ ui.icon('pencil', 'sm') }} Taklif etilgan band</small><p data-copy-text>{{ f.suggestion }}</p><button type="button" class="cr-copy" data-cr-copy>{{ ui.icon('copy', 'sm') }} Nusxa</button></div>
     {% endif %}

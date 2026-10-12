@@ -65,3 +65,13 @@
   .cr-src details { display: none; }
   .cr-verdict, .cr-f::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+/* Chuqur tushuntirish: sabab, ustoz misoli, hisob */
+.cr-f > p.cr-lead { font-weight: 700; color: var(--cr-txt); }
+.cr-why, .cr-case, .cr-ill { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--cr-bg2); }
+.cr-why small, .cr-case small, .cr-ill small { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 800; color: var(--cr-txt3); }
+.cr-why p, .cr-case p, .cr-ill p { margin: 6px 0 0; font-size: 14px; line-height: 1.65; color: var(--cr-txt2); white-space: pre-line; }
+.cr-case { background: var(--cr-gold-bg); border-left: 3px solid var(--cr-gold); border-radius: 0 12px 12px 0; }
+.cr-case small { color: var(--cr-gold); }
+.cr-case p { color: var(--cr-txt); font-style: italic; }
+.cr-case-src { display: block; margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--cr-gold); }
+.cr-ill { border: 1px dashed var(--cr-line); background: transparent; }

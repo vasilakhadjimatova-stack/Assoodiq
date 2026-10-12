@@ -423,7 +423,7 @@ class AiUsage(db.Model):
 # ── Shartnoma tekshiruvi: bilimlar bazasi va natijalar (core/contract.py) ──────
 
 KNOWLEDGE_KINDS = {"qoida": "Qoida / hukm", "standart": "Standart (AAOIFI va b.)", "ustoz": "Ustoz fikri",
-                   "namuna": "Namuna band", "dars": "Dars materiali"}
+                   "misol": "Keys / hikoya", "namuna": "Namuna band", "dars": "Dars materiali"}
 KNOWLEDGE_TOPICS = {"umumiy": "Umumiy", "savdo": "Savdo (bay')", "murobaha": "Murobaha", "ijara": "Ijara",
                     "mushoraka": "Mushoraka", "mudoraba": "Mudoraba", "salam": "Salam va istisno'",
                     "qarz": "Qarz, kafolat va garov", "vakolat": "Vakolat (vakola)"}
