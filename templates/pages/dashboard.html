@@ -58,8 +58,6 @@
   {% if debts.overdue %}<a class="m-alert bad" href="{{ url_for('qarz.debts', holat='otgan') }}">{{ ui.icon('clock', 'sm') }}<span><b>{{ debts.overdue }}</b> ta qarz muddati o'tgan</span></a>{% endif %}
   {% if member_due > 0 %}<a class="m-alert" href="{{ url_for('dastur.members', holat='qarzdor') }}">{{ ui.icon('users', 'sm') }}<span>Qarzdorlar <b>{{ member_due|short }}</b></span></a>{% endif %}
   {% if expiring %}<a class="m-alert info" href="{{ url_for('dastur.members', holat='tugayapti') }}">{{ ui.icon('renew', 'sm') }}<span><b>{{ expiring|length }}</b> ta obuna tugayapti</span></a>{% endif %}
-  {% if purif.remaining > 0 %}<a class="m-alert warn" href="{{ url_for('islomiy.purity') }}">{{ ui.icon('shield', 'sm') }}<span>Tozalash <b>{{ purif.remaining|short }}</b></span></a>{% endif %}
-  {% if hawl %}<a class="m-alert gold" href="{{ url_for('islomiy.zakat') }}">{{ ui.icon('coins', 'sm') }}<span>Zakot <b>{{ hawl.days }}</b> kunda</span></a>{% endif %}
 </div>
 
 {# ── Bugungi darslar ── #}
@@ -141,29 +139,7 @@
   </div>
 </div>
 
-<div class="grid g-3 mt">
-  <div class="card o-zakot">
-    <div class="card-h"><h3>Zakot</h3><span class="sub">2,5%</span><div class="act"><a class="link" href="{{ url_for('islomiy.zakat') }}">Hisoblash {{ ui.icon('right', 'sm') }}</a></div></div>
-    <div class="card-b" style="display:flex;gap:18px;align-items:center">
-      {% set ratio = (zakat.base / nisob) if nisob else 0 %}
-      <div class="ring" style="--p: {{ ([ratio, 1]|min * 100)|round }}">
-        {% if ratio >= 1 %}<span>{{ ratio|round(1) }}×<small>nisob</small></span>{% else %}<span>{{ (ratio * 100)|round|int }}%<small>nisobdan</small></span>{% endif %}
-      </div>
-      <div>
-        {% if zakat.reached %}
-          <div class="faint" style="font-size:12.5px;font-weight:700">Taxminiy zakot</div>
-          <div style="font-size:19px;font-weight:800">{{ ui.som(zakat.due) }}</div>
-        {% else %}
-          <div style="font-weight:700">Nisobga yetmagan</div>
-        {% endif %}
-        <div class="faint" style="font-size:12.5px;margin-top:6px">
-          {% if hawl %}Havl: <b class="gold-t">{{ hawl.date|hijri }}</b><br>{{ hawl.date|d }} · {{ hawl.days }} kun qoldi
-          {% else %}Havl sanasi belgilanmagan{% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-
+<div class="grid g-2 mt">
   <div class="card o-due">
     <div class="card-h"><h3>Undirilishi kerak</h3><div class="act"><a class="link" href="{{ url_for('dastur.members', holat='qarzdor') }}">Qarzdorlar {{ ui.icon('right', 'sm') }}</a></div></div>
     <div class="card-b">
@@ -176,15 +152,12 @@
   <div class="card o-attn">
     <div class="card-h"><h3>Diqqat talab</h3></div>
     <div class="card-b">
-      {% if purif.remaining > 0 %}
-      <a class="zrow" href="{{ url_for('islomiy.purity') }}"><div><label>Tozalash fondi</label><small>shubhali tushumdan chiqarilishi kerak</small></div><span class="pill warn">{{ purif.remaining|short }}</span></a>
-      {% endif %}
       {% for e in expiring[:4] %}
       <a class="zrow" href="{{ url_for('dastur.member', mid=e.member_id) }}"><div><label>{{ e.member.full_name }}</label><small>{{ e.program.name }}</small></div>
         <span class="pill {{ 'bad' if e.valid_until < today else 'info' }}">{{ 'Tugagan' if e.valid_until < today else e.valid_until|d }}</span></a>
       {% endfor %}
-      {% if not expiring and purif.remaining <= 0 %}
-      <div class="empty" style="padding:16px">{{ ui.icon('check') }}<b>Hammasi joyida</b>Obunalar va fondlar tartibda.</div>
+      {% if not expiring %}
+      <div class="empty" style="padding:16px">{{ ui.icon('check') }}<b>Hammasi joyida</b>Tugayotgan obunalar yo'q.</div>
       {% endif %}
     </div>
   </div>

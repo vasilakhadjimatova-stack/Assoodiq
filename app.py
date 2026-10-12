@@ -12,8 +12,8 @@ from core.models import User
 
 # Rol → kirish mumkin bo'lgan bo'limlar (blueprint nomlari)
 ROLE_SECTIONS = {
-    "rahbar": {"main", "kassa", "dastur", "kalendar", "oquv", "telegram", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
-    "buxgalter": {"main", "kassa", "dastur", "kalendar", "oquv", "telegram", "qarz", "islomiy", "hisobot", "sozlama", "qidiruv"},
+    "rahbar": {"main", "kassa", "dastur", "kalendar", "oquv", "telegram", "qarz", "hisobot", "sozlama", "qidiruv"},
+    "buxgalter": {"main", "kassa", "dastur", "kalendar", "oquv", "telegram", "qarz", "hisobot", "sozlama", "qidiruv"},
     "menejer": {"kassa", "dastur", "kalendar", "oquv", "telegram", "qidiruv"},
 }
 

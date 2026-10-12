@@ -35,10 +35,8 @@
       <a href="{{ url_for('dastur.members') }}" class="{{ 'on' if ep in ('dastur.members', 'dastur.member') }}">{{ ui.icon('users') }} A'zolar</a>
       <a href="{{ url_for('kalendar.index') }}" class="{{ 'on' if ep.startswith('kalendar.') }}">{{ ui.icon('calendar') }} Dars jadvali</a>
       <a href="{{ url_for('oquv.index') }}" class="{{ 'on' if ep.startswith('oquv.') }}">{{ ui.icon('play') }} O'quv dasturi</a>
-      {% if can('islomiy') %}
-      <div class="nav-h">Islomiy moliya</div>
-      <a href="{{ url_for('islomiy.zakat') }}" class="{{ 'on' if ep == 'islomiy.zakat' }}">{{ ui.icon('coins') }} Zakot</a>
-      <a href="{{ url_for('islomiy.purity') }}" class="{{ 'on' if ep == 'islomiy.purity' }}">{{ ui.icon('scale') }} Halollik va sadaqa</a>
+      {% if can('qarz') %}
+      <div class="nav-h">Moliya</div>
       <a href="{{ url_for('qarz.debts') }}" class="{{ 'on' if ep.startswith('qarz.') }}">{{ ui.icon('book') }} Qarz daftari</a>
       {% endif %}
       {% if can('hisobot') %}

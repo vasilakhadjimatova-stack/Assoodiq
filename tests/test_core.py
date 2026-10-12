@@ -212,9 +212,11 @@ def test_all_pages_render_with_demo_data(app):
     login(client, "100100")
     pid, mid, did = Program.query.first().id, Member.query.first().id, Debt.query.first().id
     for url in ["/", "/kassa/", "/kassa/?tur=qarz", "/dasturlar", f"/dasturlar/{pid}", "/azolar",
-                f"/azolar/{mid}", "/qarz/", f"/qarz/{did}", "/zakot", "/halollik", "/hisobot/",
+                f"/azolar/{mid}", "/qarz/", f"/qarz/{did}", "/hisobot/",
                 "/hisobot/excel", "/sozlamalar/", "/sozlamalar/?bolim=xodimlar"]:
         assert client.get(url).status_code == 200, url
+    for url in ("/zakot", "/halollik"):  # bo'limlar menyudan olib tashlangan
+        assert client.get(url).status_code == 302, url
 
 
 def test_new_user_code_shown_once_and_works(app):
