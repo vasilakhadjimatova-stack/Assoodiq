@@ -1428,6 +1428,12 @@ html[data-kview=table] .k-side { display: none; }
   .k-side { position: static; order: -1; max-height: none; overflow: visible; margin: 0; padding: 0; }
   .k-new { display: none; }
   html[data-kview=table] .k-side { display: flex; }
+  /* hisoblar — yonma-yon kichik kartalar, ro'yxatni pastga surib yubormaydi */
+  .k-accs { display: flex; gap: 8px; overflow-x: auto; padding: 0 0 2px; background: none; border: 0; box-shadow: none; scrollbar-width: none; }
+  .k-accs::-webkit-scrollbar { display: none; }
+  .k-accs .k-month-h { display: none; }
+  .k-acc { flex: none; margin: 0; padding: 8px 12px 8px 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+  .k-acc.on { border-color: var(--brand); }
 }
 @media (max-width: 860px) {
   .k-side { gap: 12px; }
@@ -2182,3 +2188,28 @@ label.check input { width: 18px; height: 18px; accent-color: var(--brand); }
   .mf-xls { margin-left: 0; }
 }
 .mcard[hidden] { display: none; }
+
+/* Kassa o'ng paneli — ixcham: forma tepada, «Saqlash» birinchi ekranda ko'rinadi */
+.k-side { gap: 12px; }
+.k-new { padding: 14px; gap: 10px; }
+.k-new-h { gap: 8px; }
+.k-new-h .k-kind { flex: 1; }
+.k-new .k-kind label { height: 34px; }
+.k-swap { flex: none; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface2); color: var(--txt2); }
+.k-swap:hover { color: var(--brand-txt); border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.k-new .k-amount input { height: 50px; font-size: 22px; }
+.k-new .k-amount input::placeholder { font-size: 16px; font-weight: 700; letter-spacing: 0; color: var(--txt3); }
+.k-new .field { gap: 4px; }
+.k-new .field > label { font-size: 11.5px; color: var(--txt3); font-weight: 700; }
+.k-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.k-pair select, .k-pair input { min-width: 0; text-overflow: ellipsis; }
+.k-new input:not([type=radio]), .k-new select { height: 36px; font-size: 13px; padding-left: 10px; }
+.k-new .k-amount input { height: 50px; }
+.k-save { height: 42px; margin-top: 2px; }
+.k-month { padding: 12px 14px; }
+.k-month .k-month-h { margin-bottom: 8px; }
+.k-month .k-mbal { margin-top: 10px; padding: 8px 12px; }
+/* Past ekranlarda panel sahifa bilan birga suriladi — ichki aylantirish yo'q */
+@media (max-height: 760px) and (min-width: 1101px) {
+  .k-side { position: static; max-height: none; overflow: visible; }
+}

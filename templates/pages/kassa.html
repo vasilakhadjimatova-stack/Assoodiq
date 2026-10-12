@@ -208,26 +208,18 @@
 
 {# ── O'ng panel: yozish formasi, oy yakuni, hisoblar ── #}
 <aside class="k-side">
-  <div class="card k-month">
-    <div class="k-month-h"><span>{{ month_name }}</span><span class="faint" title="Foyda-zarar bo'yicha: halol kirim va xarajatlar; o'tkazma, qarz va tozalash fondi kirmaydi">foyda-zarar {{ ui.icon('info', 'sm') }}</span></div>
-    <div class="k-m3">
-      <div><span>Kirim</span><b class="ok-t">{{ totals.income|short }}</b></div>
-      <div><span>Chiqim</span><b>{{ totals.expense|short }}</b></div>
-      <div><span>Sof</span><b class="{{ 'bad-t' if totals.profit < 0 else 'ok-t' }}">{{ totals.profit|short }}</b></div>
-    </div>
-    <div class="k-mbal"><div><span>Oy boshida</span><b>{{ opening|short }}</b></div>{{ ui.icon('right', 'sm') }}<div><span>Hozir{% if account %} · {{ account.name }}{% endif %}</span><b>{{ closing|short }}</b></div></div>
-  </div>
-
   <form class="card k-new tx-form" method="post" action="{{ url_for('kassa.create') }}" data-kind="kirim" data-qe autocomplete="off"{% if f_hints %} data-hints='{{ f_hints|tojson }}'{% endif %}{% if f_members %} data-members='{{ f_members|tojson }}'{% endif %}>
     <input type="hidden" name="next" value="{{ here }}">
     <input type="hidden" name="quick" value="1">
     <input type="hidden" name="program_id" value="">
-    <div class="k-new-h"><h3>Yangi yozuv</h3>{% if can_edit %}<button type="button" class="link" data-open="tx-modal" data-set-kind="otkazma">{{ ui.icon('swap', 'sm') }} O'tkazma</button>{% endif %}</div>
-    <div class="k-kind" role="radiogroup" aria-label="Turi">
-      <label class="in"><input type="radio" name="kind" value="kirim" checked>{{ ui.icon('in', 'sm') }} Kirim</label>
-      {% if can_edit %}<label class="out"><input type="radio" name="kind" value="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</label>{% endif %}
+    <div class="k-new-h">
+      <div class="k-kind" role="radiogroup" aria-label="Yangi yozuv turi">
+        <label class="in"><input type="radio" name="kind" value="kirim" checked>{{ ui.icon('in', 'sm') }} Kirim</label>
+        {% if can_edit %}<label class="out"><input type="radio" name="kind" value="chiqim">{{ ui.icon('out', 'sm') }} Chiqim</label>{% endif %}
+      </div>
+      {% if can_edit %}<button type="button" class="icon-btn k-swap" data-open="tx-modal" data-set-kind="otkazma" title="Hisoblar orasida o'tkazma">{{ ui.icon('swap', 'sm') }}</button>{% endif %}
     </div>
-    <div class="k-amount"><input name="amount" inputmode="decimal" data-money required placeholder="0" aria-label="Summa" autocomplete="off"><span>so'm</span></div>
+    <div class="k-amount"><input name="amount" inputmode="decimal" data-money required placeholder="Summa" aria-label="Summa" autocomplete="off"><span>so'm</span></div>
     <div class="field"><label><span data-show="kirim">Kimdan</span><span data-show="chiqim">Kimga</span></label>
       <input type="text" name="counterparty" list="side-cp" placeholder="Ism yoki tashkilot">
       {% if f_names %}<datalist id="side-cp">{% for n in f_names %}<option value="{{ n }}">{% endfor %}</datalist>{% endif %}
@@ -239,20 +231,30 @@
       <span class="hint">Summa o'quvchining qarzidan ayiriladi.</span>
     </div>
     {% endif %}
-    <div class="field"><label>Kategoriya</label>
-      <select name="category_id">{% for c in f_categories %}<option value="{{ c.id }}" data-kind="{{ c.kind }}">{{ c.name }}</option>{% endfor %}</select>
-    </div>
-    <div class="field"><span class="fl">Hisob</span>
-      <div class="chips">
-        {% for r in f_accounts %}<label class="chip"><input type="radio" name="account_id" value="{{ r.account.id }}" {{ 'checked' if (account and account.id == r.account.id) or (not account and loop.first) }}>{{ ui.icon(ui.ACC_ICON.get(r.account.kind, 'wallet'), 'sm') }}{{ r.account.name }}</label>{% endfor %}
+    <div class="k-pair">
+      <div class="field"><label>Kategoriya</label>
+        <select name="category_id">{% for c in f_categories %}<option value="{{ c.id }}" data-kind="{{ c.kind }}">{{ c.name }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Hisob</label>
+        <select name="account_id">{% for r in f_accounts %}<option value="{{ r.account.id }}" {{ 'selected' if (account and account.id == r.account.id) or (not account and loop.first) }}>{{ r.account.name }}</option>{% endfor %}</select>
       </div>
     </div>
-    <div class="form-grid">
+    <div class="k-pair">
       <div class="field"><label>Sana</label><input type="date" name="date" value="{{ qe_date.isoformat() }}"></div>
       <div class="field"><label>Izoh</label><input type="text" name="note" placeholder="Ixtiyoriy"></div>
     </div>
     <button class="btn solid block k-save">{{ ui.icon('check', 'sm') }} Saqlash <kbd>Enter</kbd></button>
   </form>
+
+  <div class="card k-month">
+    <div class="k-month-h"><span>{{ month_name }}</span><span class="faint" title="Foyda-zarar bo'yicha: halol kirim va xarajatlar; o'tkazma, qarz va tozalash fondi kirmaydi">foyda-zarar {{ ui.icon('info', 'sm') }}</span></div>
+    <div class="k-m3">
+      <div><span>Kirim</span><b class="ok-t">{{ totals.income|short }}</b></div>
+      <div><span>Chiqim</span><b>{{ totals.expense|short }}</b></div>
+      <div><span>Sof</span><b class="{{ 'bad-t' if totals.profit < 0 else 'ok-t' }}">{{ totals.profit|short }}</b></div>
+    </div>
+    <div class="k-mbal"><div><span>Oy boshida</span><b>{{ opening|short }}</b></div>{{ ui.icon('right', 'sm') }}<div><span>Hozir{% if account %} · {{ account.name }}{% endif %}</span><b>{{ closing|short }}</b></div></div>
+  </div>
 
   <div class="card k-accs">
     <div class="k-month-h"><span>Hisoblar</span><span class="faint">bosilsa — faqat shu hisob</span></div>
