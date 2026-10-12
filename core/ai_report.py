@@ -157,6 +157,14 @@ def answer(question, user_id=None, today=None):
     return sanitize(text)
 
 
+def report_day():
+    """Hisobot kuni (0 — dushanba … 6 — yakshanba). Bosh sahifada karta faqat shu kuni chiqadi."""
+    try:
+        return int(F.get_setting("ai_weekly_day") or 6)
+    except ValueError:
+        return 6
+
+
 def latest():
     return AiReport.query.order_by(AiReport.created_at.desc()).first()
 
@@ -176,9 +184,9 @@ def run_due(now=None):
         return None
     now = now or datetime.now()
     try:
-        day, hour = int(F.get_setting("ai_weekly_day") or 0), int(F.get_setting("ai_weekly_hour") or 9)
+        day, hour = int(F.get_setting("ai_weekly_day") or 6), int(F.get_setting("ai_weekly_hour") or 9)
     except ValueError:
-        day, hour = 0, 9
+        day, hour = 6, 9
     if now.weekday() != day or now.hour < hour:
         return None
     y, w, _ = now.isocalendar()

@@ -42,7 +42,8 @@ def dashboard():
     lessons_today = A.today_lessons()
     from core import ai
     from core import ai_report
-    ai_card = {"on": ai.enabled(), "report": ai_report.latest()}
+    # haftalik tahlil kartasi — faqat hisobot kuni (standart: yakshanba)
+    ai_card = {"show": today.weekday() == ai_report.report_day(), "on": ai.enabled(), "report": ai_report.latest()}
     return render_template(
         "pages/dashboard.html", lt=lessons_today, ai_card=ai_card,
         cur=cur, prev=prev,

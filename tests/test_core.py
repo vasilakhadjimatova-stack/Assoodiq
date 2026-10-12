@@ -813,6 +813,12 @@ def test_dashboard_today_lessons_states(app):
     login(client, "100100")
     page = client.get("/").get_data(as_text=True)
     assert "Bugungi darslar" in page and "Davomat" in page
+    # dars bo'lmagan kuni blok chiqmaydi
+    from core.models import Attendance
+    Attendance.query.delete()
+    Lesson.query.delete()
+    db.session.commit()
+    assert "Bugungi darslar" not in client.get("/").get_data(as_text=True)
 
 
 # ── Telegram ──
@@ -1400,14 +1406,20 @@ def test_ai_weekly_report_dashboard_and_settings(app, tg, claude, monkeypatch):
     snap = R.snapshot()
     assert snap["debtors_count"] == 1 and snap["top_debtors"][0]["name"] == "Qarzdor Ali"
     assert snap["this_month_so_far"]["expense"] == 400_000
-    # dushanba 10:00 — hisobot bir marta tuziladi va rahbarga yuboriladi
-    monday = datetime(2026, 10, 12, 10, 5)
+    # yakshanba 10:00 (standart) — hisobot bir marta tuziladi va rahbarga yuboriladi
+    sunday = datetime(2026, 10, 18, 10, 5)
     claude.replies.append("📊 <b>Haftalik hisobot</b>\nQarzdor Ali — 1 mln")
-    rep = R.run_due(monday)
+    rep = R.run_due(sunday)
     assert rep and rep.period == "2026-W42" and "Qarzdor Ali" in claude.calls[-1]["messages"][0]["content"]
     assert _sent(tg)[-1]["chat_id"] == "555" and "Haftalik hisobot" in _sent(tg)[-1]["text"]
-    assert R.run_due(monday) is None and AiReport.query.count() == 1
-    assert R.run_due(datetime(2026, 10, 13, 10, 0)) is None  # boshqa kun
+    assert R.run_due(sunday) is None and AiReport.query.count() == 1
+    assert R.run_due(datetime(2026, 10, 19, 10, 0)) is None  # dushanba — hisobot kuni emas
+    # bosh sahifada karta faqat hisobot kuni chiqadi
+    F.set_setting("ai_weekly_day", str((date.today().weekday() + 1) % 7))
+    db.session.commit()
+    assert "Haftalik tahlil" not in client.get("/").get_data(as_text=True)
+    F.set_setting("ai_weekly_day", str(date.today().weekday()))
+    db.session.commit()
     page = client.get("/").get_data(as_text=True)
     assert "Haftalik tahlil" in page and "Haftalik hisobot" in page
     # qo'lda yangilash
@@ -1423,6 +1435,8 @@ def test_ai_weekly_report_dashboard_and_settings(app, tg, claude, monkeypatch):
                                    "ai_daily_limit": "50"})
     assert F.get_setting("ai_key") == "sk-ant-good" and F.get_setting("ai_weekly") == "0"
     assert F.get_setting("ai_weekly_day") == "4"
+    F.set_setting("ai_weekly_day", "6")
+    db.session.commit()
     page = client.get("/sozlamalar/?bolim=ai").get_data(as_text=True)
     assert "Anthropic API kaliti" in page and "ulangan" in page
     assert "Mening Telegram" in client.get("/ai/telegram").get_data(as_text=True)

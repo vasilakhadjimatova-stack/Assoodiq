@@ -62,6 +62,7 @@
 
 {# ── Bugungi darslar ── #}
 {% set WDN = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba", "Yakshanba"] %}
+{% if lt.lessons %}
 <section class="card td o-today">
   <div class="td-h">
     <div class="td-t">
@@ -78,7 +79,6 @@
     {% endif %}
     <a class="link td-all" href="{{ url_for('kalendar.index') }}">Dars jadvali {{ ui.icon('right', 'sm') }}</a>
   </div>
-  {% if lt.lessons %}
   <div class="td-list">
     {% for it in lt.lessons %}
     {% set les = it.lesson %}
@@ -97,16 +97,11 @@
     </div>
     {% endfor %}
   </div>
-  {% else %}
-  <div class="td-empty">
-    {{ ui.icon('calendar') }}
-    <span>Bugun dars yo'q.{% if lt.next %} Keyingisi: <b>{{ lt.next.title }}</b> — {{ WDN[lt.next.date.weekday()] }}, {{ lt.next.date|d('long') }}, {{ lt.next.start.strftime('%H:%M') }} · {{ lt.next.program.name }}{% else %} Dars jadvalida kurslar rejasini tuzing.{% endif %}</span>
-    <a class="btn tonal sm" href="{{ url_for('kalendar.index', d=(lt.next.date.isoformat() if lt.next else none)) }}">Jadvalni ochish</a>
-  </div>
-  {% endif %}
 </section>
+{% endif %}
 
 {# ── Sun'iy intellekt: haftalik moliyaviy tahlil ── #}
+{% if ai_card.show %}
 <section class="card ai-card" id="ai-report">
   <div class="ai-h">
     <span class="ai-ic">{{ ui.icon('star') }}</span>
@@ -123,11 +118,12 @@
   <div class="ai-body" data-ai-body>{{ ai_card.report.text|safe }}</div>
   <button type="button" class="ai-more" data-ai-more>To'liq o'qish {{ ui.icon('chev-down', 'sm') }}</button>
   {% elif ai_card.on %}
-  <p class="ai-empty">Hali tahlil yo'q. «Tahlil qilish»ni bosing — 20–40 soniyada tayyor bo'ladi. Har dushanba o'zi tayyorlanadi va Telegram'ga ham yuboriladi.</p>
+  <p class="ai-empty">Hali tahlil yo'q. «Tahlil qilish»ni bosing — 20–40 soniyada tayyor bo'ladi. Har hafta (yakshanba) o'zi tayyorlanadi va Telegram'ga ham yuboriladi.</p>
   {% else %}
   <p class="ai-empty">Anthropic kalitini kiriting — har hafta kassa, qarzdorlar va dasturlar bo'yicha tahlil va tavsiyalar shu yerda chiqadi.</p>
   {% endif %}
 </section>
+{% endif %}
 
 <div class="grid g-main">
   <div class="card o-chart">
