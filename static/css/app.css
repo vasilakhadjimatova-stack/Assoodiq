@@ -2328,3 +2328,32 @@ label.check input { width: 18px; height: 18px; accent-color: var(--brand); }
 .vk-diag { border-top: 1px solid var(--line); padding-top: 8px; }
 .vk-diag > small { font-size: 11.5px; color: var(--txt3); font-weight: 700; }
 .vk-diag .zrow small { display: block; max-width: 340px; overflow-wrap: anywhere; }
+/* Bilimlar bazasi: indeks va ma'no bo'yicha qidiruv */
+.kb-idx { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; padding: 14px 18px; margin-bottom: 14px; }
+.kb-idx-n b { display: block; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.kb-idx-n span { font-size: 12px; font-weight: 700; color: var(--txt3); }
+.kb-idx-n em { font-style: normal; color: var(--warn); }
+.kb-idx-t { flex: 1 1 260px; min-width: 0; }
+.kb-idx-t b { display: block; font-size: 13.5px; }
+.kb-idx-t span { font-size: 12.5px; color: var(--txt3); font-weight: 600; line-height: 1.5; }
+.kb-idx-a { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.kb-idx-a .check { font-size: 12.5px; }
+.kb-sem { margin-bottom: 18px; }
+.kb-sem-h { margin: 16px 0 10px; font-size: 14px; font-weight: 800; color: var(--txt2); }
+.kb-pas p { color: var(--txt2); font-style: italic; }
+.kb-more { margin: 14px 0 0; font-size: 13px; font-weight: 700; color: var(--txt3); text-align: center; }
+.vk-queue { margin: 0; padding: 0 0 0 20px; display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; font-size: 12.5px; font-weight: 600; color: var(--txt3); }
+.vk-queue li { overflow-wrap: anywhere; }
+.vk-queue li.run { color: var(--brand-txt); font-weight: 800; }
+.vk-queue li.ok { color: var(--ok); } .vk-queue li.ok::after { content: " ✓"; }
+.vk-queue li.bad { color: var(--bad); } .vk-queue li.bad::after { content: " — " attr(data-err); }
+.vk-queue[hidden] { display: none; }
+.kb-head-a { flex-wrap: wrap; }
+.kb-idx-nums { display: flex; gap: 22px; }
+@media (max-width: 600px) {
+  .kb-head-a { width: 100%; }
+  .kb-head-a .btn { flex: 1 1 auto; justify-content: center; }
+  .kb-idx-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+  .kb-idx-n b { font-size: 18px; }
+  .kb-idx-n span { display: block; font-size: 11.5px; line-height: 1.35; }
+}

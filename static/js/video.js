@@ -1,16 +1,18 @@
 /* Darslardan bilim: katta faylni yuklash jarayoni, holatni kuzatish va matnda vaqtga o'tish */
 (function () {
-  // 1) Yuklash — foiz bilan (katta video bir necha daqiqa yuklanadi)
+  // 1) Yuklash — foiz bilan; bir nechta fayl navbat bilan (server navbati to'lsa kutib, qayta urinadi)
   var form = document.querySelector('[data-vk-upload]');
   if (form && window.XMLHttpRequest && window.FormData) {
-    form.addEventListener('submit', function (e) {
-      var inp = form.querySelector('input[type=file]');
-      if (!inp.files.length) return;
-      e.preventDefault();
-      var box = form.querySelector('.vk-progress'), bar = box.querySelector('i'), txt = box.querySelector('span');
-      var btn = form.querySelector('button.solid');
-      box.hidden = false; btn.disabled = true;
-      var mb = function (b) { return (b / 1048576).toFixed(b < 10485760 ? 1 : 0); };
+    var inp = form.querySelector('input[type=file]');
+    var box = form.querySelector('.vk-progress'), bar = box.querySelector('i'), txt = box.querySelector('span');
+    var queue = form.querySelector('.vk-queue'), btn = form.querySelector('button.solid');
+    var mb = function (b) { return (b / 1048576).toFixed(b < 10485760 ? 1 : 0); };
+
+    function send(file, many, done) {
+      var fd = new FormData(form);
+      fd.delete('file');
+      fd.append('file', file, file.name);
+      if (many) { fd.set('title', ''); fd.set('lecture_id', ''); }
       var xhr = new XMLHttpRequest();
       xhr.open('POST', form.action);
       xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
@@ -18,17 +20,45 @@
         if (!ev.lengthComputable) return;
         var p = Math.round(ev.loaded / ev.total * 100);
         bar.style.width = p + '%';
-        txt.textContent = p < 100 ? 'Yuklanmoqda: ' + p + '% (' + mb(ev.loaded) + ' / ' + mb(ev.total) + ' MB)' : 'Serverda qabul qilinmoqda…';
+        txt.textContent = (many ? file.name + ': ' : '') + (p < 100 ? 'yuklanmoqda ' + p + '% (' + mb(ev.loaded) + ' / ' + mb(ev.total) + ' MB)' : 'serverda qabul qilinmoqda…');
       };
       xhr.onload = function () {
         var d = {};
         try { d = JSON.parse(xhr.responseText); } catch (_) {}
-        if (d.url) { location.href = d.url; return; }
-        txt.textContent = d.error || (xhr.status === 413 ? 'Fayl juda katta.' : 'Yuklab bo\'lmadi (' + xhr.status + ').');
-        bar.style.width = '0'; btn.disabled = false;
+        if (xhr.status === 429 && d.busy) {          // server navbati to'la — 1 daqiqadan keyin qayta
+          txt.textContent = 'Navbat to\'la, oldingi darslar boshlanishi kutilmoqda…';
+          return setTimeout(function () { send(file, many, done); }, 60000);
+        }
+        done(d.url || null, d.error || (xhr.status === 413 ? 'Fayl juda katta.' : (d.url ? '' : 'Yuklab bo\'lmadi (' + xhr.status + ').')));
       };
-      xhr.onerror = function () { txt.textContent = 'Internet uzildi — qayta urinib ko\'ring.'; btn.disabled = false; };
-      xhr.send(new FormData(form));
+      xhr.onerror = function () { setTimeout(function () { send(file, many, done); }, 15000); txt.textContent = 'Internet uzildi — qayta urinilmoqda…'; };
+      xhr.send(fd);
+    }
+
+    form.addEventListener('submit', function (e) {
+      if (!inp.files.length) return;
+      e.preventDefault();
+      var files = Array.prototype.slice.call(inp.files), many = files.length > 1, i = 0;
+      box.hidden = false; btn.disabled = true;
+      if (many) {
+        queue.hidden = false; queue.innerHTML = '';
+        files.forEach(function (f) { var li = document.createElement('li'); li.textContent = f.name; queue.appendChild(li); });
+        window.onbeforeunload = function () { return 'Yuklash davom etmoqda'; };
+      }
+      (function next() {
+        if (i >= files.length) { window.onbeforeunload = null; location.href = form.dataset.vkDone || location.href; return; }
+        var li = many ? queue.children[i] : null;
+        if (li) li.className = 'run';
+        send(files[i], many, function (url, err) {
+          if (!many) {
+            if (url) { location.href = url; return; }
+            txt.textContent = err; bar.style.width = '0'; btn.disabled = false; return;
+          }
+          li.className = url ? 'ok' : 'bad';
+          if (err) li.title = err, li.setAttribute('data-err', err);
+          i++; next();
+        });
+      })();
     });
   }
 

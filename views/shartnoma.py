@@ -2,18 +2,21 @@
 from datetime import datetime, timezone
 
 import os
+from types import SimpleNamespace
 
 from flask import (Blueprint, Response, current_app, flash, g, jsonify, redirect, render_template, request,
                    url_for)
 from sqlalchemy import or_
 
 from core import ai, audit
+from core import finance as F
 from core import contract as C
+from core import kb_search as S
 from core import transcribe as STT
 from core import video_cards as VC
 from core.extensions import db
 from core.models import (CARD_STATUS, CONTRACT_VERDICTS, KNOWLEDGE_KINDS, KNOWLEDGE_TOPICS, ContractCheck,
-                         KnowledgeCard, KnowledgeDoc, Lecture, Module, Transcript)
+                         KbPassage, KnowledgeCard, KnowledgeDoc, Lecture, Module, Transcript)
 from views import form_int
 
 bp = Blueprint("shartnoma", __name__, url_prefix="/shartnoma")
@@ -27,6 +30,11 @@ def report_context(check):
     res = C.result_of(check)
     ids = {s for f in res.get("findings", []) for s in f.get("sources", [])}
     kb = {d.id: d for d in KnowledgeDoc.query.filter(KnowledgeDoc.id.in_(ids)).all()} if ids else {}
+    pids = [i - S.PASSAGE_BASE for i in ids if i >= S.PASSAGE_BASE]
+    for p in (KbPassage.query.filter(KbPassage.id.in_(pids)).all() if pids else []):
+        kb[S.PASSAGE_BASE + p.id] = SimpleNamespace(title="Dars parchasi — ustozning so'zi", source=S.passage_source(p),
+                                                    kind_name="Dars parchasi", topic_name="avtomatik matn",
+                                                    body=p.text)
     counts = {k: sum(1 for f in res.get("findings", []) if f["severity"] == k) for k in C.SEVERITY}
     return {"c": check, "res": res, "kb": kb, "counts": counts, "cats": C.CATEGORIES, "sev": C.SEVERITY,
             "verdicts": CONTRACT_VERDICTS}
@@ -126,14 +134,48 @@ def kb_list():
     if q_text:
         like = f"%{q_text}%"
         q = q.filter(or_(KnowledgeDoc.title.ilike(like), KnowledgeDoc.body.ilike(like), KnowledgeDoc.source.ilike(like)))
-    docs = q.order_by(KnowledgeDoc.topic, KnowledgeDoc.id).all()
+    shown = 200
+    found = q.count()
+    docs = q.order_by(KnowledgeDoc.topic, KnowledgeDoc.id).limit(shown).all()
     pending = KnowledgeCard.query.filter_by(status="taklif").count()
-    allc = KnowledgeDoc.query.filter_by(active=True).all()
-    size = sum(len(d.body or "") for d in allc)
-    by_topic = {t: sum(1 for d in allc if d.topic == t) for t in KNOWLEDGE_TOPICS}
+    by_topic = dict(db.session.query(KnowledgeDoc.topic, db.func.count(KnowledgeDoc.id))
+                    .filter(KnowledgeDoc.active.is_(True)).group_by(KnowledgeDoc.topic).all())
+    sem_docs, sem_passages, sem_error = [], [], ""
+    if q_text and S.enabled():
+        try:
+            listed = {d.id for d in docs}
+            for kind, obj, _ in S.resolve(S.search([q_text], k=40, per_query=40, user_id=g.user.id)):
+                if kind == "doc" and obj.id not in listed and len(sem_docs) < 12:
+                    sem_docs.append(obj)
+                elif kind == "passage" and len(sem_passages) < 12:
+                    sem_passages.append(obj)
+        except ai.AiError as e:
+            sem_error = str(e)
     return render_template("pages/shartnoma_kb.html", docs=docs, topics=KNOWLEDGE_TOPICS, kinds=KNOWLEDGE_KINDS,
-                           topic=topic, kind=kind, q=q_text, size=size, budget=C.KB_CHAR_BUDGET, by_topic=by_topic,
-                           total=len(allc), pending=pending)
+                           topic=topic, kind=kind, q=q_text, size=C.docs_chars(), budget=C.KB_CHAR_BUDGET,
+                           by_topic=by_topic, total=sum(by_topic.values()), pending=pending, found=found, shown=shown,
+                           idx=S.status(), passages_on=S.passages_enabled(), sem_docs=sem_docs,
+                           sem_passages=sem_passages, sem_error=sem_error, source_of=S.passage_source, fmt=STT.fmt_time)
+
+
+@bp.route("/bilimlar/indeks", methods=["POST"])
+def kb_index():
+    if not S.enabled():
+        flash("Indeks uchun OpenAI kaliti kerak — Sozlamalar → Sun'iy intellekt.", "bad")
+    else:
+        S.sync_async(current_app._get_current_object(), g.user.id)
+        flash("Indeks yangilanmoqda — katta bazada bir necha daqiqa olishi mumkin.", "ok")
+    return redirect(url_for("shartnoma.kb_list"))
+
+
+@bp.route("/bilimlar/parchalar", methods=["POST"])
+def kb_passages_toggle():
+    on = request.form.get("on") == "1"
+    F.set_setting("kb_passages", "1" if on else "0")
+    audit.log("settings", "Shartnoma tekshiruvida dars parchalari: " + ("yoqildi" if on else "o'chirildi"))
+    db.session.commit()
+    flash("Dars parchalari tekshiruvda ishlatiladi." if on else "Endi faqat tasdiqlangan materiallar ishlatiladi.", "ok")
+    return redirect(url_for("shartnoma.kb_list"))
 
 
 @bp.route("/bilimlar/yangi")
@@ -203,6 +245,9 @@ def video_list():
                            media_ext=",".join(STT.MEDIA_EXT + STT.TEXT_EXT))
 
 
+QUEUE_LIMIT = 3   # yuklangan, lekin hali boshlanmagan fayllar (vaqtinchalik diskda turadi)
+
+
 def _xhr():
     return request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
@@ -241,6 +286,8 @@ def video_upload():
                        duration=int(max((s["e"] for s in segs), default=0)), finished_at=_now())
         db.session.add(t)
         db.session.commit()
+        S.build_passages(t)
+        S.sync_async(current_app._get_current_object(), g.user.id)
         if want_cards and ai.enabled():
             VC.start(current_app._get_current_object(), t.id, g.user.id)
         return _upload_done(t.id)
@@ -248,6 +295,9 @@ def video_upload():
         return _upload_fail("Bu fayl turini o'qib bo'lmaydi. Video (MP4, MOV…), audio (MP3, M4A…) yoki SRT/VTT/TXT yuklang.")
     if not STT.enabled():
         return _upload_fail("OpenAI kaliti kiritilmagan — Sozlamalar → Sun'iy intellekt.")
+    if Transcript.query.filter_by(status="navbatda").count() >= QUEUE_LIMIT:
+        msg = "Navbatda allaqachon bir nechta dars bor — ular boshlangach keyingisini yuklang."
+        return (jsonify(error=msg, busy=True), 429) if _xhr() else _upload_fail(msg)
     workdir = STT.new_workdir()
     src = os.path.join(workdir, "source" + ext)
     fs.save(src)

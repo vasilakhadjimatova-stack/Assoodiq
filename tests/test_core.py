@@ -1633,8 +1633,25 @@ class _FakeOpenAI:
                 from types import SimpleNamespace as NS
                 return NS(text=f"{n + 1}-bo'lak. " + "Murobahada sotuvchi tovarga avval egalik qiladi. Narx o'zgarmaydi. " * 10)
 
+        class _Emb:
+            def create(self, model, input, dimensions):
+                """So'zlar xeshidan vektor: umumiy so'zlari ko'p matnlar «ma'nosi yaqin» bo'ladi."""
+                import re
+                import zlib
+                from types import SimpleNamespace as NS
+                outer.embed_calls.append(list(input))
+                data = []
+                for i, text in enumerate(input):
+                    v = [0.0] * dimensions
+                    for w in re.findall(r"\w+", text.lower()):
+                        v[zlib.crc32(w[:6].encode()) % dimensions] += 1.0
+                    data.append(NS(index=i, embedding=v))
+                return NS(data=data, usage=NS(total_tokens=sum(len(t) // 4 for t in input)))
+
         from types import SimpleNamespace as NS
+        self.embed_calls = []
         self.audio = NS(transcriptions=_Tr())
+        self.embeddings = _Emb()
 
 
 @pytest.fixture
@@ -1899,3 +1916,131 @@ def test_openai_diagnose(app, stt):
     assert STT.model() == "gpt-4o-transcribe" and "ishlaydi va tanlandi" in page
     assert "must be verified" in page and "ishlamadi" in page and "Til/atamalarsiz ishladi" in page
     assert len(F.get_setting("stt_diag")) <= 500
+
+
+# ── Katta baza: dars parchalari, ma'no bo'yicha qidiruv, shartnomaga mos materiallarni tanlash ──
+
+_LESSON_SRT = (
+    "1\n00:00:01,000 --> 00:00:20,000\nAssalomu alaykum. Bugun ijara shartnomasi haqida gaplashamiz, "
+    "ijara haqi va mulk egasi ta'mirni o'z zimmasiga oladi.\n\n"
+    "2\n00:03:00,000 --> 00:03:30,000\nEndi kechikish masalasi: xaridor kechiksa penya olish ribo bo'ladi, "
+    "kechikkan summa uchun penya emas, xayriya majburiyati yoziladi va bu pul sotuvchi daromadiga kirmaydi.\n")
+
+
+def _lesson(client):
+    from io import BytesIO
+
+    from core.models import Transcript
+    client.post("/shartnoma/video/yuklash", data={"title": "Nasiya savdo — 5-dars",
+                                                 "file": (BytesIO(_LESSON_SRT.encode()), "dars5.srt")},
+                content_type="multipart/form-data")
+    return Transcript.query.order_by(Transcript.id.desc()).first()
+
+
+def test_passages_index_and_semantic_kb_search(app, stt):
+    from core import ai
+    from core import kb_search as S
+    from core.models import AiUsage, KbPassage, KbVector, KnowledgeDoc
+    client = app.test_client()
+    login(client, "100100")
+    t = _lesson(client)
+    passages = KbPassage.query.filter_by(transcript_id=t.id).order_by(KbPassage.start).all()
+    assert len(passages) == 2 and passages[0].start == 1 and passages[1].start == 180   # vaqt oralig'i katta — ikki parcha
+    assert S.passage_source(passages[1]) == "Video: Nasiya savdo — 5-dars · 03:00"
+    assert KbVector.query.filter_by(kind="passage").count() == 2                       # yuklangach indekslandi
+    ijara = _kb("Ijarada asosiy ta'mir egasida", "ijara", "Mulk egasi asosiy ta'mirni o'z zimmasiga oladi.")
+    S.sync()
+    assert KbVector.query.count() == 3
+    usage = AiUsage.query.filter_by(feature="indeks").all()
+    assert usage and ai.used_today() == 0                                              # Claude limitiga kirmaydi
+    # o'zgarmagan narsa qayta hisoblanmaydi; o'zgargani va o'chirilgani yangilanadi
+    calls = len(stt.embed_calls)
+    S.sync()
+    assert len(stt.embed_calls) == calls
+    ijara.body = "Mulk egasi asosiy ta'mir va mulk xavfini zimmasiga oladi."
+    db.session.commit()
+    assert S.sync()["added"] == 1
+    db.session.delete(db.session.get(KnowledgeDoc, ijara.id))
+    db.session.commit()
+    assert S.sync()["removed"] == 1 and KbVector.query.filter_by(kind="doc").count() == 0
+    # Bilimlar bazasi sahifasi: ma'no bo'yicha qidiruv dars parchasini topadi
+    page = client.get("/shartnoma/bilimlar?q=kechikish penya xayriya").get_data(as_text=True)
+    assert "Darslardan — ustozning so&#39;zi" in page or "Darslardan — ustozning so'zi" in page
+    assert "Video: Nasiya savdo — 5-dars · 03:00" in page and "dars parchasi" in page
+
+
+def test_contract_retrieval_uses_relevant_items_and_passages(app, claude, stt, monkeypatch):
+    from core import contract as C
+    from core import kb_search as S
+    from core.models import ContractCheck, KbPassage
+    client = app.test_client()
+    login(client, "100100")
+    core_rule = _kb()                                                    # umumiy qoida — doim kiritiladi
+    murobaha = _kb("Murobahada egalik", "murobaha", "Sotuvchi tovarga avval egalik qiladi, keyin sotadi.")
+    noise = [_kb(f"Mushoraka foyda nisbati {i}", "mushoraka", f"Sheriklar foydani nisbatda taqsimlaydi, {i}-holat. " * 8)
+             for i in range(25)]
+    t = _lesson(client)
+    pas = KbPassage.query.filter_by(transcript_id=t.id, start=180).one()
+    monkeypatch.setattr(C, "RETRIEVAL_BUDGET", 2500)
+    assert C.needs_retrieval()
+    claude.replies.append(_result([core_rule.id, S.PASSAGE_BASE + pas.id]))
+    client.post("/shartnoma/yangi", data={"title": "Nasiya", "text":
+        "1. Sotuvchi tovarni xaridorga nasiyaga sotadi.\n\n2. Xaridor kechiksa har kun uchun 0.5% penya to'laydi, "
+        "kechikkan summa uchun penya hisoblanadi."})
+    check = ContractCheck.query.one()
+    assert check.status == "tayyor"
+    system = claude.calls[-1]["system"][0]["text"]
+    kb_part = system.split("KNOWLEDGE BASE:")[1]
+    assert f'<item id="{core_rule.id}"' in kb_part                                 # asosiy qoida
+    assert f'<item id="{S.PASSAGE_BASE + pas.id}" kind="Dars parchasi"' in kb_part   # mos dars parchasi
+    assert len(kb_part) <= 2600 and sum(f'<item id="{d.id}"' in kb_part for d in noise) < 25
+    assert "cache_control" in claude.calls[-1]["system"][0] and claude.calls[-1]["system"][0]["cache_control"] == {"type": "ephemeral"}
+    res = C.result_of(check)
+    assert res["kb_trimmed"] and S.PASSAGE_BASE + pas.id in res["findings"][0]["sources"]
+    page = client.get(f"/shartnoma/{check.id}").get_data(as_text=True)
+    assert "Dars parchasi" in page and "Video: Nasiya savdo — 5-dars · 03:00" in page and "xayriya majburiyati" in page
+    # Parchalar o'chirilsa va baza kichik bo'lsa — butun baza (eski usul, 1 soatlik kesh)
+    client.post("/shartnoma/bilimlar/parchalar", data={"on": "0"})
+    monkeypatch.setattr(C, "KB_CHAR_BUDGET", 400_000)
+    assert not C.needs_retrieval()
+    claude.replies.append(_result([murobaha.id]))
+    client.post("/shartnoma/yangi", data={"title": "Ikkinchi", "text": "Murobaha shartnomasi."})
+    sys2 = claude.calls[-1]["system"][0]
+    assert sys2["cache_control"].get("ttl") == "1h" and f'<item id="{noise[-1].id}"' in sys2["text"]
+
+
+def test_contract_retrieval_scanned_contract_asks_for_queries(app, claude, stt):
+    """Matni yo'q (rasm) shartnoma: avval Claude bandlarni qisqa so'rov qilib beradi, keyin qidiruv."""
+    from io import BytesIO
+
+    from core import kb_search as S
+    from core.models import ContractCheck, KbPassage
+    client = app.test_client()
+    login(client, "100100")
+    _kb()
+    t = _lesson(client)
+    pas = KbPassage.query.filter_by(transcript_id=t.id, start=180).one()
+    claude.replies.append({"queries": ["kechikish uchun penya", "xayriya majburiyati"]})
+    claude.replies.append(_result([S.PASSAGE_BASE + pas.id]))
+    client.post("/shartnoma/yangi", data={"files": (BytesIO(b"\x89PNG fake"), "bet1.png")},
+                content_type="multipart/form-data")
+    assert ContractCheck.query.one().status == "tayyor"
+    first, second = claude.calls[-2], claude.calls[-1]
+    assert first["output_config"]["format"]["schema"]["required"] == ["queries"]
+    assert first["messages"][0]["content"][0]["type"] == "image"
+    assert f'<item id="{S.PASSAGE_BASE + pas.id}"' in second["system"][0]["text"]
+    assert "kechikish uchun penya" in stt.embed_calls[-1]
+
+
+def test_video_upload_queue_limit(app, stt, tmp_path):
+    from io import BytesIO
+
+    from core.models import Transcript
+    client = app.test_client()
+    login(client, "100100")
+    for i in range(3):
+        db.session.add(Transcript(title=f"Kutmoqda {i}", status="navbatda"))
+    db.session.commit()
+    r = client.post("/shartnoma/video/yuklash", data={"file": (BytesIO(b"x" * 2000), "dars.mp3")},
+                    content_type="multipart/form-data", headers={"X-Requested-With": "XMLHttpRequest"})
+    assert r.status_code == 429 and r.get_json()["busy"] and Transcript.query.count() == 3

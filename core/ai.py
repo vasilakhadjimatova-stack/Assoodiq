@@ -19,6 +19,9 @@ MODEL = "claude-opus-5-5"
 PRICE = {"input": 4.00, "output": 20.00, "cache_read": 0.20, "cache_write": 5.00}
 
 
+OPENAI_FEATURES = ("transkripsiya", "indeks")   # kunlik Claude limitiga kirmaydi
+
+
 class AiError(Exception):
     """Foydalanuvchiga ko'rsatiladigan tushunarli xato."""
 
@@ -42,7 +45,7 @@ def _utcnow():
 
 def used_today():
     start = _utcnow() - timedelta(hours=24)
-    return AiUsage.query.filter(AiUsage.created_at >= start).count()
+    return AiUsage.query.filter(AiUsage.created_at >= start, AiUsage.feature.notin_(OPENAI_FEATURES)).count()
 
 
 def daily_limit():

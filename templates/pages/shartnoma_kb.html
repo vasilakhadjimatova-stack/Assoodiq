@@ -5,15 +5,32 @@
 <div class="head">
   <div>
     <div class="head-t">Bilimlar bazasi</div>
-    <div class="head-s">Shartnomalar <b>faqat</b> shu materiallar asosida tekshiriladi: ustozning qoidalari va fikrlari, standartlar (masalan AAOIFI), namunaviy bandlar, dars materiallari. {{ total }} ta faol material · {{ '%.0f'|format(size / 1000) }} ming belgi{% if size > budget %} <span class="warn-t">(katta — tekshiruvda shartnoma mavzusiga oid qismi ishlatiladi)</span>{% endif %}</div>
+    <div class="head-s">Shartnomalar <b>faqat</b> shu materiallar asosida tekshiriladi: ustozning qoidalari va fikrlari, standartlar (masalan AAOIFI), namunaviy bandlar, dars materiallari. {{ total }} ta faol material · {{ '%.0f'|format(size / 1000) }} ming belgi{% if size > budget %} <span class="warn-t">(katta — tekshiruvda shartnomaga ma'nosi eng yaqin qismi tanlanadi)</span>{% endif %}</div>
   </div>
-  <div class="head-a"><a class="btn ghost" href="{{ url_for('shartnoma.video_list') }}">{{ ui.icon('video', 'sm') }} Darslardan bilim{% if pending %} <span class="pill warn">{{ pending }}</span>{% endif %}</a>
+  <div class="head-a kb-head-a"><a class="btn ghost" href="{{ url_for('shartnoma.video_list') }}">{{ ui.icon('video', 'sm') }} Darslardan bilim{% if pending %} <span class="pill warn">{{ pending }}</span>{% endif %}</a>
     <a class="btn solid" href="{{ url_for('shartnoma.kb_edit', mavzu=topic or None) }}">{{ ui.icon('plus', 'sm') }} Material qo'shish</a></div>
+</div>
+
+<div class="kb-idx card">
+  <div class="kb-idx-nums">
+    <div class="kb-idx-n"><b>{{ idx.docs|num }}</b><span>tasdiqlangan material</span></div>
+    <div class="kb-idx-n"><b>{{ idx.passages|num }}</b><span>dars parchasi</span></div>
+    <div class="kb-idx-n"><b>{{ idx.indexed|num }}</b><span>indeksda{% if idx.behind %} · <em>{{ idx.behind|num }} kutmoqda</em>{% endif %}</span></div>
+  </div>
+  <div class="kb-idx-t">
+    <b>Ma'no bo'yicha qidiruv</b>
+    <span>Shartnoma tekshiruvida butun baza emas, shartnoma bandlariga ma'nosi eng yaqin materiallar{% if passages_on %} va dars parchalari{% endif %} tanlanadi.{% if not idx.ready %} Indeks uchun OpenAI kaliti kerak.{% endif %}</span>
+  </div>
+  <div class="kb-idx-a">
+    <form method="post" action="{{ url_for('shartnoma.kb_index') }}"><button class="btn tonal sm">{{ ui.icon('check', 'sm') }} Indeksni yangilash</button></form>
+    <form method="post" action="{{ url_for('shartnoma.kb_passages_toggle') }}"><input type="hidden" name="on" value="{{ '0' if passages_on else '1' }}">
+      <label class="check" title="Dars parchalari — ustozning aynan so'zi (avtomatik matn, ustoz tasdiqlamagan)"><input type="checkbox" {{ 'checked' if passages_on }} onchange="this.form.submit()"> Dars parchalarini ham manba qilish</label></form>
+  </div>
 </div>
 
 <div class="kb-topics">
   <a href="{{ url_for('shartnoma.kb_list', tur=kind or None, q=q or None) }}" class="{{ 'on' if not topic }}">Hammasi <span>{{ total }}</span></a>
-  {% for k, v in topics.items() %}<a href="{{ url_for('shartnoma.kb_list', mavzu=k, tur=kind or None, q=q or None) }}" class="{{ 'on' if topic == k }}">{{ v }} <span>{{ by_topic[k] }}</span></a>{% endfor %}
+  {% for k, v in topics.items() %}<a href="{{ url_for('shartnoma.kb_list', mavzu=k, tur=kind or None, q=q or None) }}" class="{{ 'on' if topic == k }}">{{ v }} <span>{{ by_topic.get(k, 0) }}</span></a>{% endfor %}
 </div>
 <form class="toolbar" method="get">
   {% if topic %}<input type="hidden" name="mavzu" value="{{ topic }}">{% endif %}
@@ -23,6 +40,37 @@
   </div>
   <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Matn bo'yicha qidirish"></label>
 </form>
+
+{% if q and (sem_docs or sem_passages or sem_error) %}
+<div class="kb-sem">
+  {% if sem_error %}<div class="oq-note">{{ ui.icon('info', 'sm') }}<span>Ma'no bo'yicha qidiruv ishlamadi: {{ sem_error }}</span></div>{% endif %}
+  {% if sem_docs %}
+  <h3 class="kb-sem-h">Ma'nosi yaqin materiallar</h3>
+  <div class="kb-list">
+    {% for d in sem_docs %}
+    <a class="card kb-item" href="{{ url_for('shartnoma.kb_edit', did=d.id) }}">
+      <div class="kb-top"><span class="pill k-{{ d.kind }}">{{ d.kind_name }}</span><span class="pill">{{ d.topic_name }}</span><small>#{{ d.id }}</small></div>
+      <b>{{ d.title }}</b>
+      {% if d.source %}<span class="kb-src">{{ ui.icon('book', 'sm') }} {{ d.source }}</span>{% endif %}
+      <p>{{ d.body|truncate(220) }}</p>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if sem_passages %}
+  <h3 class="kb-sem-h">Darslardan — ustozning so'zi</h3>
+  <div class="kb-list">
+    {% for p in sem_passages %}
+    <a class="card kb-item kb-pas" href="{{ url_for('shartnoma.video_view', tid=p.transcript_id) }}#matn">
+      <span class="kb-src">{{ ui.icon('video', 'sm') }} {{ source_of(p) }}</span>
+      <p>{{ p.text|truncate(320) }}</p>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if docs %}<h3 class="kb-sem-h">Matnida «{{ q }}» bor</h3>{% endif %}
+</div>
+{% endif %}
 
 <div class="kb-list">
   {% for d in docs %}
@@ -36,4 +84,5 @@
   <div class="card empty" style="grid-column:1/-1">{{ ui.icon('book') }}<b>Material yo'q</b>Ustozning qoidalari, standart bandlari va namunaviy shartnoma bandlarini qo'shing. Word/PDF/TXT fayldan ham yuklasa bo'ladi.</div>
   {% endfor %}
 </div>
+{% if found > shown %}<p class="kb-more">Yana {{ (found - shown)|num }} ta material — mavzu, tur yoki qidiruv bilan toraytiring.</p>{% endif %}
 {% endblock %}

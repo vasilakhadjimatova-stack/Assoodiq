@@ -554,6 +554,33 @@ class KnowledgeCard(db.Model):
         return KNOWLEDGE_TOPICS.get(self.topic, self.topic)
 
 
+class KbPassage(db.Model):
+    """Dars matnining ~1–2 daqiqalik parchasi: qidiruvda ustozning aynan so'zi sifatida topiladi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    transcript_id = db.Column(db.Integer, db.ForeignKey("transcript.id"), nullable=False, index=True)
+    start = db.Column(db.Integer, default=0)
+    end = db.Column(db.Integer, default=0)
+    approx = db.Column(db.Boolean, nullable=False, default=False)
+    text = db.Column(db.Text, nullable=False)
+
+    transcript = db.relationship("Transcript", backref=db.backref("passages", cascade="all, delete-orphan",
+                                                                  order_by="KbPassage.start"))
+
+
+class KbVector(db.Model):
+    """Qidiruv indeksi: material yoki dars parchasining ma'no vektori (float32)."""
+
+    __table_args__ = (db.UniqueConstraint("kind", "ref_id"),)
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(8), nullable=False)         # doc | passage
+    ref_id = db.Column(db.Integer, nullable=False)
+    model = db.Column(db.String(40), nullable=False)
+    text_hash = db.Column(db.String(40), nullable=False)
+    vec = db.Column(db.LargeBinary, nullable=False)
+    updated_at = db.Column(db.DateTime, default=_now)
+
+
 class MemberEvent(db.Model):
     """A'zo tarixidagi voqealar (to'lov va yozilish o'z jadvalidan olinadi):
     obuna uzaytirildi, dasturdagi holati o'zgardi, dasturga yozildi."""

@@ -464,6 +464,19 @@ def process(tid, src, workdir, user_id=None):
     db.session.commit()
 
 
+def index_transcript(tid, user_id=None):
+    """Tayyor matn → qidiruv uchun dars parchalari va ularning vektorlari."""
+    from core import kb_search
+    try:
+        kb_search.build_passages(db.session.get(Transcript, tid))
+        kb_search.sync(user_id)
+    except ai.AiError as e:
+        log.warning("Indeks: %s", e)
+    except Exception:  # noqa: BLE001
+        db.session.rollback()
+        log.exception("Dars parchalarini indekslash xatosi")
+
+
 def start(app, tid, src, workdir, user_id=None, cards=True):
     """Fon oqimida: transkripsiya, so'ng (ixtiyoriy) bilim kartochkalari."""
     _RUNNING.add(tid)
@@ -492,6 +505,8 @@ def start(app, tid, src, workdir, user_id=None, cards=True):
                 else:
                     _WORK[tid] = workdir
                 _RUNNING.discard(tid)
+            if ok:
+                index_transcript(tid, user_id)
             if ok and cards and ai.enabled():
                 from core import video_cards
                 video_cards.run(tid, user_id)

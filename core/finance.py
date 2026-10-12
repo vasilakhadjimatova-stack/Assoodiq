@@ -40,6 +40,7 @@ DEFAULT_SETTINGS = {
     "contract_students": "1", "contract_student_daily": "3",
     # Video darslarni matnga aylantirish (OpenAI)
     "openai_key": "", "stt_model": "gpt-transcribe", "stt_languages": "uz, ru",
+    "kb_passages": "1",   # shartnoma tekshiruvida dars parchalari (ustozning aynan so'zi) ham manba bo'ladi
     "stt_keywords": "murobaha, mushoraka, mudoraba, ijara, salam, istisno', ribo, g'arar, maysir, qard, "
                     "zakot, sadaqa, halol, harom, shariat, fiqh, AAOIFI, sukuk, takaful, vakola, kafolat, garov",
 }
