@@ -534,6 +534,18 @@
     });
   }
 
+  // Sun'iy intellekt tahlili: to'liq o'qish; uzoq so'rov paytida tugma band
+  document.querySelectorAll('[data-ai-more]').forEach(function (b) {
+    var body = document.querySelector('[data-ai-body]');
+    if (body.scrollHeight <= body.clientHeight + 4) { b.hidden = true; body.classList.add('open'); return; }
+    b.addEventListener('click', function () { body.classList.add('open'); b.hidden = true; });
+  });
+  document.querySelectorAll('form[data-busy]').forEach(function (f) {
+    f.addEventListener('submit', function () {
+      var b = f.querySelector('button'); b.classList.add('busy'); b.lastChild.textContent = ' Tahlil qilinmoqda…';
+    });
+  });
+
   // Xabarlar o'zi yo'qoladi
   // (ogohlantirishlar uzoqroq turadi; bosilsa darhol yopiladi)
   document.querySelectorAll('.flash').forEach(function (f) {

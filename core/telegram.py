@@ -89,6 +89,22 @@ def send(chat_id, text, keyboard=None):
     return api("sendMessage", payload)
 
 
+FILE_API = "https://api.telegram.org/file/bot{token}/{path}"
+
+
+def download_file(file_id, limit=10_000_000):
+    """Telegram'dagi fayl (chek rasmi) baytlari yoki None."""
+    ok, res = api("getFile", {"file_id": file_id})
+    if not ok or not res.get("file_path") or (res.get("file_size") or 0) > limit:
+        return None
+    try:
+        with urllib.request.urlopen(FILE_API.format(token=token(), path=res["file_path"]), timeout=20) as r:
+            data = r.read(limit + 1)
+    except Exception:  # noqa: BLE001 — tarmoq xatosi
+        return None
+    return data if len(data) <= limit else None
+
+
 def bot_username():
     return F.get_setting("tg_bot") or ""
 
@@ -252,6 +268,12 @@ def start_scheduler(app, interval=60):
                     run_due()
             except Exception:  # noqa: BLE001
                 log.exception("Telegram eslatmalari xatosi")
+            try:
+                with app.app_context():
+                    from core import ai_report
+                    ai_report.run_due()
+            except Exception:  # noqa: BLE001
+                log.exception("Haftalik tahlil xatosi")
             finally:
                 with app.app_context():
                     db.session.remove()
@@ -309,12 +331,30 @@ def dues_text(members):
 
 
 def handle_update(upd):
+    from core import staff_bot
+    if upd.get("callback_query"):
+        staff_bot.handle_callback(upd["callback_query"])
+        return
     msg = upd.get("message") or {}
     chat = msg.get("chat") or {}
     if chat.get("type") != "private" or not chat.get("id"):
         return
     chat_id, user = chat["id"], msg.get("from") or {}
     text = (msg.get("text") or "").strip()
+    # Xodimlar: /start X<token> — ulash; ulangan chat — kassa yordamchisi rejimi
+    param = text[6:].strip() if text.startswith("/start") else ""
+    if param.startswith("X"):
+        link = staff_bot.link_by_token(param[1:], chat_id, user)
+        if link:
+            send(chat_id, f"✅ Ulandi: <b>{html.escape(link.user.name)}</b>\n\n" + staff_bot.HELP,
+                 {"remove_keyboard": True})
+        else:
+            send(chat_id, "Havola eskirgan yoki noto'g'ri. Saytdan yangisini oling.")
+        return
+    staff = staff_bot.for_chat(chat_id)
+    if staff:
+        staff_bot.handle_message(msg, staff)
+        return
     members = chat_members(chat_id)
     org = F.get_setting("org_name") or "Assoodiq"
 

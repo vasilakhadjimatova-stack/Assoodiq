@@ -838,11 +838,14 @@ def tg(app, monkeypatch):
     return calls
 
 
+_UPD_IDS = __import__("itertools").count(1000)
+
+
 def _upd(chat_id, text=None, **msg):
     m = {"chat": {"id": chat_id, "type": "private"}, "from": {"id": chat_id, "username": "ali"}, **msg}
     if text is not None:
         m["text"] = text
-    return {"update_id": 1, "message": m}
+    return {"update_id": next(_UPD_IDS), "message": m}
 
 
 def _sent(calls):
@@ -1232,3 +1235,184 @@ def test_members_filters_sort_and_export(app):
     manager = app.test_client()
     login(manager, "300300")
     assert manager.get("/azolar/excel").status_code == 302
+
+
+# ── Sun'iy intellekt (Claude javobi soxtalashtirilgan) ──
+
+class _FakeClaude:
+    """client.beta.messages.create(...) o'rnini bosadi: navbatdagi javobni qaytaradi, so'rovni yozib qo'yadi."""
+
+    def __init__(self):
+        self.replies, self.calls = [], []
+        outer = self
+
+        class _Msgs:
+            def create(self, **kw):
+                outer.calls.append(kw)
+                from types import SimpleNamespace as NS
+                text = outer.replies.pop(0)
+                if not isinstance(text, str):
+                    import json as _j
+                    text = _j.dumps(text, ensure_ascii=False)
+                return NS(content=[NS(type="thinking", thinking=""), NS(type="text", text=text)],
+                          stop_reason="end_turn",
+                          usage=NS(input_tokens=1200, output_tokens=300, cache_read_input_tokens=0,
+                                   cache_creation_input_tokens=0))
+
+        from types import SimpleNamespace as NS
+        self.beta = NS(messages=_Msgs())
+
+
+@pytest.fixture
+def claude(app, monkeypatch):
+    from core import ai
+    fake = _FakeClaude()
+    monkeypatch.setattr(ai, "_client", lambda: fake)
+    F.set_setting("ai_key", "sk-ant-test")
+    db.session.commit()
+    return fake
+
+
+def _staff_link(client, role_code="100100", chat=555):
+    from core import staff_bot as S
+    from core import telegram as T
+    from core.models import User
+    user = next(u for u in User.query.all() if u.check_code(role_code))
+    tok = S.new_token(user)
+    secret = T.webhook_secret()
+    hdr = {"X-Telegram-Bot-Api-Secret-Token": secret}
+    client.post(f"/telegram/hook/{secret}", json=_upd(chat, f"/start X{tok}"), headers=hdr)
+    return user, hdr, f"/telegram/hook/{secret}"
+
+
+def test_ai_kassa_entry_from_telegram_with_confirmation(app, tg, claude):
+    from core.models import AiDraft, AiUsage, StaffLink
+    client = app.test_client()
+    p = Program(name="Kurs AI", kind="kurs", price=3_000_000)
+    m = Member(full_name="Akmal Karimov")
+    db.session.add_all([p, m])
+    db.session.commit()
+    e = Enrollment(member_id=m.id, program_id=p.id, price=3_000_000, joined_at=date(2026, 1, 1))
+    db.session.add(e)
+    db.session.commit()
+    user, hdr, hook = _staff_link(client)
+    link = StaffLink.query.filter_by(user_id=user.id).one()
+    assert link.active and link.chat_id == "555" and link.token is None
+    assert "Ulandi" in _sent(tg)[-1]["text"]
+    # matndan yozuv: o'quvchi to'lovi, hisob ko'rsatilmagan
+    claude.replies.append({"intent": "yozuv", "reply": "", "entries": [{
+        "kind": "kirim", "amount": 1500000, "currency": "UZS", "account_id": 0, "to_account_id": 0,
+        "category_id": 0, "enrollment_id": e.id, "counterparty": "", "date": date.today().isoformat(),
+        "note": "Kurs to'lovi"}]})
+    client.post(hook, json=_upd(555, "Akmaldan 1.5 mln naqd kurs to'lovi oldim"), headers=hdr)
+    call = claude.calls[-1]
+    assert call["model"] == "claude-opus-5-5" and call["output_config"]["format"]["type"] == "json_schema"
+    assert "Akmal Karimov" in call["system"][0]["text"] and "TODAY:" in call["messages"][0]["content"][-1]["text"]
+    msg = _sent(tg)[-1]
+    assert "1 500 000 so'm" in msg["text"] and "Akmal Karimov" in msg["text"] and "qarzidan" in msg["text"]
+    draft = AiDraft.query.one()
+    assert msg["reply_markup"]["inline_keyboard"][0][0]["callback_data"] == f"ai:ok:{draft.id}"
+    assert Transaction.query.count() == 0  # tasdiqlanmaguncha kassaga tushmaydi
+    # «Saqlash» tugmasi
+    cq = {"update_id": next(_UPD_IDS), "callback_query": {"id": "q1", "data": f"ai:ok:{draft.id}",
+          "message": {"message_id": 7, "chat": {"id": 555, "type": "private"}, "text": msg["text"]}}}
+    client.post(hook, json=cq, headers=hdr)
+    tx = Transaction.query.one()
+    assert (tx.kind, tx.amount, tx.enrollment_id, tx.created_by) == ("kirim", 1_500_000, e.id, user.id)
+    assert tx.category_id is not None  # dastur to'lovi kategoriyasi o'zi qo'yildi
+    assert any(meth == "editMessageText" for meth, _ in tg)
+    cq2 = dict(cq, update_id=next(_UPD_IDS))
+    client.post(hook, json=cq2, headers=hdr)  # ikkinchi bosish — takror yozilmaydi
+    assert Transaction.query.count() == 1
+    assert AiUsage.query.count() == 1 and AiUsage.query.first().cost_usd > 0
+
+
+def test_ai_kassa_receipt_photo_question_and_limits(app, tg, claude, monkeypatch):
+    from core import ai, ai_kassa as K
+    from core import telegram as T
+    from core.models import AiDraft
+    client = app.test_client()
+    user, hdr, hook = _staff_link(client, "300300", chat=777)  # menejer
+    # menejer chiqim yozolmaydi
+    claude.replies.append({"intent": "yozuv", "reply": "", "entries": [{
+        "kind": "chiqim", "amount": 250000, "currency": "UZS", "account_id": acc("Asosiy kassa").id,
+        "to_account_id": 0, "category_id": 0, "enrollment_id": 0, "counterparty": "Korzinka",
+        "date": date.today().isoformat(), "note": "Ofis uchun"}]})
+    monkeypatch.setattr(T, "download_file", lambda fid, limit=10_000_000: b"\xff\xd8fakejpeg")
+    client.post(hook, json=_upd(777, photo=[{"file_id": "s", "file_size": 100}, {"file_id": "big", "file_size": 2000}],
+                                caption="chek"), headers=hdr)
+    img = claude.calls[-1]["messages"][0]["content"][0]
+    assert img["type"] == "image" and img["source"]["media_type"] == "image/jpeg"
+    assert "Menejer faqat kirim" in _sent(tg)[-1]["text"] and AiDraft.query.count() == 0
+    # menejerga moliyaviy savol berilmaydi
+    claude.replies.append({"intent": "savol", "entries": [], "reply": "Bu oy nega zarar?"})
+    client.post(hook, json=_upd(777, "bu oy nega zarar?"), headers=hdr)
+    assert "faqat rahbar va buxgalter" in _sent(tg)[-1]["text"]
+    # rahbar savoli — raqamlar dasturda hisoblanadi, javob xavfsiz HTML
+    boss, hdr2, _ = _staff_link(client, "100100", chat=888)
+    claude.replies += [{"intent": "savol", "entries": [], "reply": "Bu oy nega zarar?"},
+                       "Chunki <b>xarajat</b> oshdi <script>x</script>"]
+    client.post(hook, json=_upd(888, "bu oy nega zarar?"), headers=hdr2)
+    assert "this_month_so_far" in claude.calls[-1]["messages"][0]["content"]
+    assert _sent(tg)[-1]["text"] == "Chunki <b>xarajat</b> oshdi &lt;script&gt;x&lt;/script&gt;"
+    # tozalash: dollar → so'm, noto'g'ri kategoriya, kelajakdagi sana
+    cat_out = Category.query.filter_by(kind="chiqim").first()
+    e = K.clean({"kind": "kirim", "amount": 100, "currency": "USD", "account_id": acc("Asosiy kassa").id,
+                 "to_account_id": 0, "category_id": cat_out.id, "enrollment_id": 0, "counterparty": "X",
+                 "date": "2030-01-01", "note": ""})
+    assert e["amount"] == round(100 * F.usd_rate(), 2) and e["category_id"] is None and e["date"] == date.today().isoformat()
+    assert K.clean({"kind": "kirim", "amount": 0, "currency": "UZS", "account_id": 0}) is None
+    # kunlik limit
+    F.set_setting("ai_daily_limit", "1")
+    db.session.commit()
+    with pytest.raises(ai.AiError):
+        ai.ask("s", "x", feature="test")
+
+
+def test_ai_weekly_report_dashboard_and_settings(app, tg, claude, monkeypatch):
+    from datetime import datetime
+    from core import ai, ai_report as R
+    from core.models import AiReport
+    client = app.test_client()
+    login(client, "100100")
+    user, hdr, hook = _staff_link(client)
+    p = Program(name="Klub R", kind="klub", price=1_000_000)
+    m = Member(full_name="Qarzdor Ali")
+    db.session.add_all([p, m])
+    db.session.commit()
+    db.session.add(Enrollment(member_id=m.id, program_id=p.id, price=1_000_000, joined_at=date(2026, 1, 1)))
+    F.record("chiqim", 400_000, acc("Asosiy kassa"), category_id=Category.query.filter_by(kind="chiqim").first().id)
+    db.session.commit()
+    snap = R.snapshot()
+    assert snap["debtors_count"] == 1 and snap["top_debtors"][0]["name"] == "Qarzdor Ali"
+    assert snap["this_month_so_far"]["expense"] == 400_000
+    # dushanba 10:00 — hisobot bir marta tuziladi va rahbarga yuboriladi
+    monday = datetime(2026, 10, 12, 10, 5)
+    claude.replies.append("📊 <b>Haftalik hisobot</b>\nQarzdor Ali — 1 mln")
+    rep = R.run_due(monday)
+    assert rep and rep.period == "2026-W42" and "Qarzdor Ali" in claude.calls[-1]["messages"][0]["content"]
+    assert _sent(tg)[-1]["chat_id"] == "555" and "Haftalik hisobot" in _sent(tg)[-1]["text"]
+    assert R.run_due(monday) is None and AiReport.query.count() == 1
+    assert R.run_due(datetime(2026, 10, 13, 10, 0)) is None  # boshqa kun
+    page = client.get("/").get_data(as_text=True)
+    assert "Haftalik tahlil" in page and "Haftalik hisobot" in page
+    # qo'lda yangilash
+    claude.replies.append("Yangi tahlil")
+    client.post("/ai/hisobot", data={"next": "/"})
+    assert R.latest().text == "Yangi tahlil"
+    # sozlamalar: kalit tekshiriladi
+    monkeypatch.setattr(ai, "check_key", lambda k: (k == "sk-ant-good", "Kalit noto'g'ri."))
+    client.post("/ai/sozla", data={"ai_key": "bad", "ai_weekly": "on", "ai_weekly_day": "4", "ai_weekly_hour": "8",
+                                   "ai_daily_limit": "50"})
+    assert F.get_setting("ai_key") == "sk-ant-test"
+    client.post("/ai/sozla", data={"ai_key": "sk-ant-good", "ai_weekly_day": "4", "ai_weekly_hour": "8",
+                                   "ai_daily_limit": "50"})
+    assert F.get_setting("ai_key") == "sk-ant-good" and F.get_setting("ai_weekly") == "0"
+    assert F.get_setting("ai_weekly_day") == "4"
+    page = client.get("/sozlamalar/?bolim=ai").get_data(as_text=True)
+    assert "Anthropic API kaliti" in page and "ulangan" in page
+    assert "Mening Telegram" in client.get("/ai/telegram").get_data(as_text=True)
+    manager = app.test_client()
+    login(manager, "300300")
+    assert manager.post("/ai/hisobot").status_code == 403
+    assert manager.get("/ai/telegram").status_code == 200

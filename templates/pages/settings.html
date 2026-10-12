@@ -3,7 +3,7 @@
 {% block content %}
 <div class="head"><div><div class="head-t">Sozlamalar</div><div class="head-s">Kurslar, nisob, hisoblar, kategoriyalar va xodimlar</div></div></div>
 <div class="tabs">
-  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar'), ('telegram', 'Telegram'), ('ilova', "O'quvchi ilovasi"), ('malumotlar', "Ma'lumotlar"), ('tarix', "O'zgarishlar tarixi")) %}
+  {% for k, v in (('umumiy', 'Umumiy'), ('hisoblar', 'Hisoblar'), ('kategoriyalar', 'Kategoriyalar'), ('xodimlar', 'Xodimlar'), ('telegram', 'Telegram'), ('ilova', "O'quvchi ilovasi"), ('ai', "Sun'iy intellekt"), ('malumotlar', "Ma'lumotlar"), ('tarix', "O'zgarishlar tarixi")) %}
   <a href="{{ url_for('sozlama.index', bolim=k) }}" class="{{ 'on' if tab == k }}">{{ v }}</a>
   {% endfor %}
 </div>
@@ -254,6 +254,82 @@
     </div>
     <div style="grid-column:1/-1"><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
   </form>
+</div>
+{% elif tab == 'ai' %}
+{% set DAYS = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'] %}
+{% set FEAT = {'kassa': 'Kassaga yozish', 'savol': 'Savollar', 'hisobot': 'Haftalik tahlil'} %}
+<div class="tg">
+  <div class="tg-steps">
+    <div class="tg-step {{ 'done' if aic.on }}"><i>1</i><div>
+      <b>Anthropic kaliti</b>
+      <p><a class="link" href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> da hisob oching, to'lov kartasini ulang, «API Keys» bo'limida kalit yarating va shu yerga kiriting.</p>
+      {% if aic.on %}<span class="pill ok">{{ ui.icon('check', 'sm') }} ulangan</span>{% endif %}
+    </div></div>
+    <div class="tg-step {{ 'done' if aic.links }}"><i>2</i><div>
+      <b>Telegram'ni ulash</b>
+      <p>Har bir xodim o'z Telegram'ini ulaydi. Shundan keyin botga «Akmaldan 1.5 mln naqd oldim» deb yoki chek rasmini yuborsa — kassaga yozuv tayyorlanadi.</p>
+      <a class="btn tonal sm" href="{{ url_for('ai.link_page') }}">{{ ui.icon('send', 'sm') }} Mening Telegram'im</a>
+    </div></div>
+    <div class="tg-step {{ 'done' if aic.recipients }}"><i>3</i><div>
+      <b>Haftalik tahlil</b>
+      <p>Har hafta tanlangan kuni rahbar va buxgalterga Telegram'da tahlil keladi, bosh sahifada ham chiqadi.</p>
+      <span class="pill {{ 'ok' if aic.recipients }}">{{ aic.recipients }} kishi oladi</span>
+    </div></div>
+  </div>
+
+  <div class="grid g-2">
+    <form class="card" method="post" action="{{ url_for('ai.configure') }}">
+      <div class="card-h"><h3>Sozlamalar</h3><span class="sub">model: {{ aic.model }}</span></div>
+      <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+        {% if aic.env %}
+        <div class="hint">Kalit server muhitida (<code>ANTHROPIC_API_KEY</code>) berilgan.</div>
+        {% else %}
+        <div class="field"><label>Anthropic API kaliti</label>
+          <input type="password" name="ai_key" placeholder="{{ aic.mask or 'sk-ant-…' }}" autocomplete="off">
+          <span class="hint">{% if aic.mask %}Saqlangan: {{ aic.mask }} — o'zgartirish uchun yangisini kiriting{% else %}Saqlashdan oldin tekshiriladi{% endif %}</span>
+          {% if aic.mask %}<label class="check" style="font-size:12.5px"><input type="checkbox" name="ai_key_clear"> Kalitni o'chirish</label>{% endif %}
+        </div>
+        {% endif %}
+        <div class="tg-opt">
+          <label class="tg-sw"><input type="checkbox" name="ai_weekly" {{ 'checked' if aic.opts.ai_weekly == '1' }}><span></span></label>
+          <div><b>Haftalik tahlil</b><span>har
+            <select name="ai_weekly_day" class="tg-num" style="width:auto">{% for d in DAYS %}<option value="{{ loop.index0 }}" {{ 'selected' if aic.opts.ai_weekly_day == loop.index0|string }}>{{ d }}</option>{% endfor %}</select>
+            soat <input class="tg-num" name="ai_weekly_hour" value="{{ aic.opts.ai_weekly_hour }}" inputmode="numeric"> da</span></div>
+        </div>
+        <div class="tg-opt">
+          <span class="tg-ic">{{ ui.icon('shield', 'sm') }}</span>
+          <div><b>Kunlik limit</b><span>sutkada ko'pi bilan <input class="tg-num" name="ai_daily_limit" value="{{ aic.opts.ai_daily_limit }}" inputmode="numeric"> ta so'rov — xarajat nazorati</span></div>
+        </div>
+        <div><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
+      </div>
+    </form>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="card-h"><h3>Xarajat</h3><span class="sub">taxminiy, Anthropic narxlari bo'yicha</span></div>
+        <div class="card-b">
+          <div class="ai-usage">
+            <div><span>Shu oy</span><b>${{ '%.2f'|format(aic.usage.month_cost) }}</b></div>
+            <div><span>Oxirgi 24 soat</span><b>{{ aic.usage.today }} / {{ aic.usage.limit }}</b></div>
+            <div><span>30 kunda</span><b>{{ aic.usage.days30 }} ta</b></div>
+          </div>
+          {% for k, b in aic.usage.by.items() %}
+          <div class="zrow"><div><label>{{ FEAT.get(k, k) }}</label><small>{{ b.n }} ta so'rov</small></div><b>${{ '%.2f'|format(b.cost) }}</b></div>
+          {% endfor %}
+          <p class="hint" style="margin:10px 0 0">Aniq hisob — console.anthropic.com → Billing.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Telegram'ga ulangan xodimlar</h3></div>
+        <div class="card-b" style="padding-top:4px">
+          {% for u in aic.staff %}
+          <div class="zrow"><div><label>{{ u.name }}</label><small>{{ u.role_name }}</small></div>
+            {% if aic.links.get(u.id) %}<span class="pill ok">ulangan</span>{% else %}<span class="pill">ulanmagan</span>{% endif %}</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% elif tab == 'malumotlar' %}
 <div class="stats" style="max-width:900px">

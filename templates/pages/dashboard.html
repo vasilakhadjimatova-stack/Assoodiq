@@ -106,6 +106,29 @@
   {% endif %}
 </section>
 
+{# ── Sun'iy intellekt: haftalik moliyaviy tahlil ── #}
+<section class="card ai-card" id="ai-report">
+  <div class="ai-h">
+    <span class="ai-ic">{{ ui.icon('star') }}</span>
+    <div><h3>Haftalik tahlil</h3><span>{% if ai_card.report %}{{ ai_card.report.created_at|localdt }} · sun'iy intellekt{% else %}Sun'iy intellekt moliyani tahlil qilib, 3 ta aniq qadam taklif qiladi{% endif %}</span></div>
+    <div class="ai-act">
+      {% if ai_card.on %}
+      <form method="post" action="{{ url_for('ai.report_now') }}" class="inline" data-busy><input type="hidden" name="next" value="{{ url_for('main.dashboard') }}"><button class="btn tonal sm">{{ ui.icon('renew', 'sm') }} {{ 'Yangilash' if ai_card.report else 'Tahlil qilish' }}</button></form>
+      {% elif can('sozlama') %}
+      <a class="btn tonal sm" href="{{ url_for('sozlama.index', bolim='ai') }}">Ulash</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if ai_card.report %}
+  <div class="ai-body" data-ai-body>{{ ai_card.report.text|safe }}</div>
+  <button type="button" class="ai-more" data-ai-more>To'liq o'qish {{ ui.icon('chev-down', 'sm') }}</button>
+  {% elif ai_card.on %}
+  <p class="ai-empty">Hali tahlil yo'q. «Tahlil qilish»ni bosing — 20–40 soniyada tayyor bo'ladi. Har dushanba o'zi tayyorlanadi va Telegram'ga ham yuboriladi.</p>
+  {% else %}
+  <p class="ai-empty">Anthropic kalitini kiriting — har hafta kassa, qarzdorlar va dasturlar bo'yicha tahlil va tavsiyalar shu yerda chiqadi.</p>
+  {% endif %}
+</section>
+
 <div class="grid g-main">
   <div class="card o-chart">
     <div class="card-h">

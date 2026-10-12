@@ -1,8 +1,10 @@
 """Telegram: webhook (bot), sozlamalar va qo'lda xabar yuborish."""
 import hmac
+import threading
+from collections import deque
 from html import escape
 
-from flask import Blueprint, abort, flash, g, jsonify, redirect, request, url_for
+from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, request, url_for
 
 from core import audit
 from core import finance as F
@@ -21,12 +23,37 @@ def hook(secret):
     header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
     if not expected or not hmac.compare_digest(secret, expected) or not hmac.compare_digest(header, expected):
         abort(404)
+    upd = request.get_json(silent=True) or {}
+    uid = upd.get("update_id")
+    if uid is not None:
+        if uid in _seen:  # Telegram javobni kutmay qayta yuborgan bo'lsa
+            return jsonify(ok=True)
+        _seen.append(uid)
+    if current_app.testing:
+        _process(upd)
+    else:  # sun'iy intellekt javobi bir necha soniya olishi mumkin — Telegram kutib qolmasin
+        app = current_app._get_current_object()
+        threading.Thread(target=_process_in_app, args=(app, upd), daemon=True).start()
+    return jsonify(ok=True)
+
+
+_seen = deque(maxlen=500)
+
+
+def _process(upd):
     try:
-        T.handle_update(request.get_json(silent=True) or {})
+        T.handle_update(upd)
     except Exception:  # noqa: BLE001 — Telegram qayta-qayta yubormasin
         db.session.rollback()
         T.log.exception("Telegram yangilanishini qayta ishlashda xato")
-    return jsonify(ok=True)
+
+
+def _process_in_app(app, upd):
+    with app.app_context():
+        try:
+            _process(upd)
+        finally:
+            db.session.remove()
 
 
 # ── Sozlamalar (rahbar / buxgalter) ─────────────────────────────────────────
@@ -78,7 +105,7 @@ def connect_webhook():
         base = "https://" + base[len("http://"):]  # Railway proksi ortida — Telegram faqat https qabul qiladi
     url = f"{base}{url_for('telegram.hook', secret=T.webhook_secret())}"
     ok, res = T.api("setWebhook", {"url": url, "secret_token": T.webhook_secret(),
-                                   "allowed_updates": ["message"], "drop_pending_updates": True})
+                                   "allowed_updates": ["message", "callback_query"], "drop_pending_updates": True})
     if ok:
         F.set_setting("tg_webhook", base)
         T.api("setMyCommands", {"commands": [{"command": "jadval", "description": "Yaqin darslar"},

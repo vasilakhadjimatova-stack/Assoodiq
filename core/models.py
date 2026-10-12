@@ -365,6 +365,61 @@ class LoginCode(db.Model):
     created_at = db.Column(db.DateTime, default=_now, index=True)
 
 
+# ── Sun'iy intellekt (core/ai.py): xodimlar uchun Telegram yordamchi va tahlil ─────
+
+class StaffLink(db.Model):
+    """Xodimning Telegram chati (kassaga yozish va hisobot uchun). token — bir martalik ulash kodi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
+    chat_id = db.Column(db.String(32), index=True)
+    token = db.Column(db.String(40), unique=True)
+    active = db.Column(db.Boolean, nullable=False, default=False)
+    linked_at = db.Column(db.DateTime)
+
+    user = db.relationship("User", backref=db.backref("staff_link", uselist=False))
+
+
+class AiDraft(db.Model):
+    """Sun'iy intellekt tayyorlagan, xodim tasdiqlashini kutayotgan kassa yozuvi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    chat_id = db.Column(db.String(32), default="")
+    source = db.Column(db.String(10), default="matn")      # matn | rasm
+    request = db.Column(db.Text, default="")               # xodim yozgan matn
+    payload = db.Column(db.Text, default="{}")             # tekshirilgan maydonlar (JSON)
+    status = db.Column(db.String(10), nullable=False, default="pending")  # pending | saved | cancelled
+    transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"))
+    created_at = db.Column(db.DateTime, default=_now, index=True)
+
+    user = db.relationship("User")
+
+
+class AiReport(db.Model):
+    """Haftalik moliyaviy tahlil (period — masalan 2026-W42; qo'lda so'ralgani — vaqt bilan)."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    period = db.Column(db.String(32), unique=True, nullable=False)
+    text = db.Column(db.Text, default="")
+    data = db.Column(db.Text, default="{}")   # tahlilga berilgan raqamlar (tekshirish uchun)
+    created_at = db.Column(db.DateTime, default=_now, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+
+
+class AiUsage(db.Model):
+    """Har bir sun'iy intellekt so'rovi: tokenlar va taxminiy narx (xarajat nazorati)."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=_now, index=True)
+    feature = db.Column(db.String(20), default="")   # kassa | savol | hisobot
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    input_tokens = db.Column(db.Integer, default=0)
+    output_tokens = db.Column(db.Integer, default=0)
+    cost_usd = db.Column(db.Float, default=0)
+    ok = db.Column(db.Boolean, default=True)
+
+
 class MemberEvent(db.Model):
     """A'zo tarixidagi voqealar (to'lov va yozilish o'z jadvalidan olinadi):
     obuna uzaytirildi, dasturdagi holati o'zgardi, dasturga yozildi."""

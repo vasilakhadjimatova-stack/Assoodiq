@@ -2213,3 +2213,29 @@ label.check input { width: 18px; height: 18px; accent-color: var(--brand); }
 @media (max-height: 760px) and (min-width: 1101px) {
   .k-side { position: static; max-height: none; overflow: visible; }
 }
+
+/* ── Sun'iy intellekt ── */
+.ai-card { margin-top: 18px; padding: 18px 20px; position: relative; overflow: hidden;
+           background: radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 55%), var(--surface); }
+.ai-h { display: flex; align-items: center; gap: 12px; }
+.ai-h h3 { margin: 0; font-size: 16px; font-weight: 800; }
+.ai-h > div > span { font-size: 12.5px; color: var(--txt3); font-weight: 600; }
+.ai-ic { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; color: #fff; background: linear-gradient(140deg, var(--gold-soft), var(--gold)); }
+.ai-act { margin-left: auto; }
+.ai-body { margin-top: 14px; font-size: 14px; line-height: 1.65; color: var(--txt2); white-space: pre-line; max-height: 230px; overflow: hidden; position: relative; }
+.ai-body b { color: var(--txt); }
+.ai-body:not(.open)::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 60px; background: linear-gradient(transparent, var(--surface)); }
+.ai-body.open { max-height: none; }
+.ai-more { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 0; font: 700 13px var(--font); color: var(--brand-txt); cursor: pointer; }
+.ai-empty { margin: 12px 0 0; font-size: 13.5px; color: var(--txt3); font-weight: 600; }
+.ai-usage { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.ai-usage div { padding: 10px 12px; border-radius: 12px; background: var(--surface2); }
+.ai-usage span { display: block; font-size: 11.5px; font-weight: 700; color: var(--txt3); }
+.ai-usage b { font-size: 17px; font-weight: 800; }
+.tg-ic { width: 42px; height: 24px; flex: none; display: grid; place-items: center; color: var(--txt3); }
+.ai-examples { display: flex; flex-direction: column; gap: 12px; }
+.ai-examples div { display: grid; grid-template-columns: 96px 1fr; gap: 10px; font-size: 13.5px; }
+.ai-examples b { font-weight: 800; }
+.ai-examples span { color: var(--txt2); line-height: 1.5; }
+.btn.busy { opacity: .7; pointer-events: none; }
+@media (max-width: 860px) { .ai-card { padding: 14px; } .ai-h { flex-wrap: wrap; } .ai-act { margin-left: 52px; } .ai-examples div { grid-template-columns: 1fr; gap: 2px; } }

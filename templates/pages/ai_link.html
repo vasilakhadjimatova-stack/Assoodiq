@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Telegram yordamchi{% endblock %}
+{% block content %}
+<div class="head"><div><div class="head-t">Telegram yordamchi</div><div class="head-s">Kassaga oddiy so'z yoki chek rasmi bilan yozing — sun'iy intellekt tayyorlaydi, siz tasdiqlaysiz</div></div></div>
+<div class="grid g-2" style="max-width:1100px">
+  <div class="card">
+    <div class="card-h"><h3>Mening Telegram'im</h3>{% if link and link.active %}<span class="pill ok">{{ ui.icon('check', 'sm') }} ulangan</span>{% endif %}</div>
+    <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+      {% if not tg_on %}
+      <div class="oq-note">{{ ui.icon('info', 'sm') }}<span>Telegram bot hali ulanmagan.{% if can('sozlama') %} <a class="link" href="{{ url_for('sozlama.index', bolim='telegram') }}">Sozlamalar → Telegram</a>{% else %} Rahbarga murojaat qiling.{% endif %}</span></div>
+      {% elif link and link.active %}
+      <p style="margin:0">Botga yozing yoki chek rasmini yuboring. Har bir yozuv «✅ Saqlash» bosilgandan keyingina kassaga tushadi.</p>
+      <form method="post" action="{{ url_for('ai.link_off') }}" onsubmit="return confirm('Telegram uzilsinmi?')"><button class="btn ghost sm">Uzish</button></form>
+      {% elif deep %}
+      <div class="tg-join" style="align-items:flex-start;text-align:left">
+        <p>Telefoningizda QR kodni skaner qiling yoki havolani oching va «Start»ni bosing. Havola faqat bir marta ishlaydi.</p>
+        <div class="tg-qr">{{ qr }}</div>
+        <div class="tg-copy"><input type="text" value="{{ deep }}" readonly data-copy-src><button type="button" class="btn tonal sm" data-copy>{{ ui.icon('copy', 'sm') }} Nusxa</button></div>
+        <a class="btn solid" href="{{ deep }}" target="_blank" rel="noopener">{{ ui.icon('send', 'sm') }} Telegram'da ochish</a>
+      </div>
+      {% else %}
+      <form method="post" action="{{ url_for('ai.link_new') }}"><button class="btn solid">{{ ui.icon('send', 'sm') }} Ulash havolasini olish</button></form>
+      {% endif %}
+      {% if tg_on and not hooked %}<span class="hint">Eslatma: «Botni saytga ulash» (Sozlamalar → Telegram) bosilmagan bo'lsa, bot xabarlarni qabul qilmaydi.</span>{% endif %}
+      {% if not ai_on %}<span class="hint warn-t">Sun'iy intellekt kaliti hali kiritilmagan — bot faqat /balans buyrug'iga javob beradi.</span>{% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h3>Qanday yozish mumkin</h3></div>
+    <div class="card-b ai-examples">
+      <div><b>Kirim</b><span>«Akmal Karimovdan 1.5 mln naqd kurs to'lovi oldim» — o'quvchining qarzidan avtomatik ayiriladi</span></div>
+      <div><b>Chiqim</b><span>«Kecha ofis ijarasi 4 mln bank orqali»</span></div>
+      <div><b>Bir nechta</b><span>«Bugun: Bobur 2 mln Payme, Sardor 500 ming naqd»</span></div>
+      <div><b>O'tkazma</b><span>«Payme'dan bank hisobiga 10 mln o'tkazdim»</span></div>
+      <div><b>Chek rasmi</b><span>📷 Chek, nakladnoy yoki bank skrinshotini yuboring — summa, sana va kimga to'langani o'qiladi</span></div>
+      <div><b>Savol</b><span>«Bu oy nega zarar?», «Eng ko'p qarzi kimda?» (rahbar va buxgalter)</span></div>
+      <div><b>Buyruqlar</b><span>/balans — hisoblar qoldig'i · /hisobot — haftalik tahlil hozir</span></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

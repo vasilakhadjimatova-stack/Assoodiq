@@ -40,8 +40,11 @@ def dashboard():
     zakat = F.zakat_compute(nisob=nisob, **defaults)
 
     lessons_today = A.today_lessons()
+    from core import ai
+    from core import ai_report
+    ai_card = {"on": ai.enabled(), "report": ai_report.latest()}
     return render_template(
-        "pages/dashboard.html", lt=lessons_today,
+        "pages/dashboard.html", lt=lessons_today, ai_card=ai_card,
         cur=cur, prev=prev,
         d_income=delta(cur["income"], prev["income"]),
         d_expense=delta(cur["expense"], prev["expense"]),
