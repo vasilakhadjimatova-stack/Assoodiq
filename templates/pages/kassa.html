@@ -15,6 +15,7 @@
     <button type="button" data-kview="list" title="Ro'yxat va yozish paneli">{{ ui.icon('list', 'sm') }} Ro'yxat</button>
     <button type="button" data-kview="table" title="Jadval — Sheets'dagidek">{{ ui.icon('table', 'sm') }} Jadval</button>
   </div>
+    <a class="btn ghost desk-only" href="{{ url_for('ai.link_page') }}" title="Kassaga Telegram orqali yozish — matn yoki chek rasmi">{{ ui.icon('send', 'sm') }} Telegram</a>
     {% if can_edit %}
     <a class="btn ghost desk-only" href="{{ url_for('kassa.import_rows') }}" title="Google Sheets yoki Excel'dan yozuvlarni ko'chirish">{{ ui.icon('sheet', 'sm') }} Sheets'dan ko'chirish</a>
     <a class="btn ghost" href="{{ url_for('kassa.export', **request.args) }}" title="Ko'rsatilgan yozuvlarni Excel'ga">{{ ui.icon('download', 'sm') }} Excel</a>
