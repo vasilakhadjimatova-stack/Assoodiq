@@ -30,6 +30,7 @@
   {% endif %}
 
   {% if t.status == 'tayyor' %}
+  {% if t.error %}<div class="oq-note" style="margin:0">{{ ui.icon('info', 'sm') }}<span>{{ t.error }}</span></div>{% endif %}
   {% if t.summary %}
   <div class="cr-sum"><span class="cr-type">{{ ui.icon('book', 'sm') }} Dars xulosasi</span><p>{{ t.summary }}</p></div>
   {% endif %}

@@ -356,8 +356,8 @@
           <span class="hint">ISO kodlar: uz — o'zbek, ru — rus, ar — arab. Aralash bo'lsa, hammasini yozing.</span>
         </div>
         <div class="field"><label>Atamalar lug'ati</label>
-          <textarea name="stt_keywords" rows="3">{{ aic.stt.keywords }}</textarea>
-          <span class="hint">Model shu so'zlarni to'g'ri yozadi: ustoz ismi, arabcha atamalar, kitob nomlari — vergul bilan.</span>
+          <textarea name="stt_keywords" rows="3" maxlength="500">{{ aic.stt.keywords }}</textarea>
+          <span class="hint">Model shu so'zlarni to'g'ri yozadi: ustoz ismi, arabcha atamalar, kitob nomlari — vergul bilan (500 belgigacha).</span>
         </div>
         <div><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
       </div>
@@ -368,7 +368,23 @@
         <p><b>1.</b> <a class="link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> → API keys bo'limida kalit yarating, Billing'da hisobni to'ldiring.</p>
         <p><b>2.</b> <a class="link" href="{{ url_for('shartnoma.video_list') }}">Shartnoma tekshiruvi → Darslardan bilim</a> sahifasiga video yoki audio yuklang. Matn vaqt belgilari bilan chiqadi.</p>
         <p><b>3.</b> Claude matndan bilim kartochkalarini ajratadi; ustoz tasdiqlaganlari bilimlar bazasiga «Dars: … · 12:30» manbasi bilan o'tadi.</p>
-        <p class="hint">1 soatlik dars ≈ ${{ '%.2f'|format(aic.stt.models[aic.stt.model].price * 60) }}. Tayyor SRT/VTT subtitr yuklansa — OpenAI ishlatilmaydi.</p>
+        <p class="hint">1 soatlik dars ≈ ${{ '%.2f'|format(aic.stt.models[aic.stt.model].price * 60) }}. Tayyor SRT/VTT subtitr yuklansa — OpenAI ishlatilmaydi. Tanlangan model ishlamasa, keyingisi avtomatik ishlatiladi.</p>
+        {% if aic.stt.on %}
+        <form method="post" action="{{ url_for('ai.test_openai') }}" class="vk-diag-f">
+          <button class="btn tonal sm">{{ ui.icon('check', 'sm') }} Modellarni sinash</button>
+          <span>2 soniyalik sinov ovozi, ~$0.001</span>
+        </form>
+        {% endif %}
+        {% if aic.stt.diag and aic.stt.diag.rows %}
+        <div class="vk-diag">
+          <small>Sinov: {{ aic.stt.diag.at }}</small>
+          {% for m, ok, variant, err in aic.stt.diag.rows %}
+          <div class="zrow"><div><label>{{ m }}{% if m == aic.stt.model %} <span class="pill brand">tanlangan</span>{% endif %}</label>
+            {% if err %}<small>{{ 'Til/atamalarsiz ishladi. ' if ok }}{{ err }}</small>{% endif %}</div>
+            {% if ok %}<span class="pill ok">ishlaydi</span>{% else %}<span class="pill bad">ishlamadi</span>{% endif %}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>

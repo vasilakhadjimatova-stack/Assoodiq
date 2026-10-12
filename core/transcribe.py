@@ -84,22 +84,33 @@ def _client(key=None):
     return openai.OpenAI(api_key=key or api_key(), timeout=300, max_retries=3)
 
 
+FALLBACK = ["gpt-transcribe", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"]
+
+
+def error_text(e):
+    """OpenAI xatosining asl matni (foydalanuvchiga ko'rsatish va tashxis uchun)."""
+    body = getattr(e, "body", None)
+    if isinstance(body, dict):
+        err = body.get("error", body)
+        if isinstance(err, dict) and err.get("message"):
+            return str(err["message"])[:220]
+    return (getattr(e, "message", None) or str(e) or e.__class__.__name__)[:220]
+
+
 def check_key(key, model_name=None):
-    """(ok, xabar): kalit ishlaydimi va tanlangan model hisobda bormi."""
+    """(ok, xabar, hisobdagi transkripsiya modellari — sifat tartibida)."""
     import openai
     try:
-        _client(key).models.retrieve(model_name or model())
-        return True, ""
+        ids = {m.id for m in _client(key).models.list()}
     except openai.AuthenticationError:
-        return False, "kalit noto'g'ri"
-    except openai.NotFoundError:
-        return False, "bu model hisobingizda yo'q — boshqa modelni tanlang"
-    except openai.PermissionDeniedError:
-        return False, "kalitga ruxsat yo'q (loyiha ruxsatlarini tekshiring)"
+        return False, "kalit noto'g'ri", []
+    except openai.PermissionDeniedError as e:
+        return False, f"kalitga ruxsat yo'q: {error_text(e)}", []
     except openai.APIConnectionError:
-        return False, "OpenAI bilan aloqa yo'q (internet)"
+        return False, "OpenAI bilan aloqa yo'q (internet)", []
     except openai.APIStatusError as e:
-        return False, f"OpenAI xatosi ({e.status_code})"
+        return False, f"OpenAI xatosi ({e.status_code}): {error_text(e)}", []
+    return True, "", [m for m in FALLBACK if m in ids]
 
 
 def fmt_time(sec):
@@ -216,51 +227,118 @@ def _context(prev_text):
     return tail.split(" ", 1)[1] if " " in tail else tail   # kesilgan yarim so'zsiz
 
 
-def transcribe_chunk(client, path, start, end, prev_text="", model_name=None):
-    """Bitta bo'lak → segmentlar (vaqti butun fayl bo'yicha)."""
-    import openai
-    m = model_name or model()
+_GOOD = {}   # model -> ishlagan parametrlar varianti ("full" | "plain"), jarayon davomida eslab qolinadi
+
+
+def _params(m, variant, prev_text):
+    """variant: full — til, atamalar va vaqt belgilari bilan; plain — eng oddiy so'rov (faqat prompt)."""
     langs, kws = languages(), keywords()
-    kw = {"model": m}
+    kw = {"model": m, "response_format": "json"}
     if m == "gpt-transcribe":
-        kw.update(response_format="json", prompt=_context(prev_text) or "Islom moliyasi darsi.")
-        if langs:
-            kw["languages"] = langs
-        if kws:
-            kw["keywords"] = kws
-    else:
-        glossary = ("Islom moliyasi darsi. Atamalar: " + ", ".join(kws[:40]) + ". ") if kws else ""
-        kw["prompt"] = (glossary + _context(prev_text))[-900:]
+        kw["prompt"] = _context(prev_text) or "Islom moliyasi darsi."
+        if variant == "full":
+            if langs:
+                kw["languages"] = langs
+            if kws:
+                kw["keywords"] = kws
+        return kw
+    glossary = ("Islom moliyasi darsi. Atamalar: " + ", ".join(kws[:40]) + ". ") if kws else ""
+    kw["prompt"] = (glossary + _context(prev_text))[-900:]
+    if variant == "full":
         if len(langs) == 1:
             kw["language"] = langs[0]
         if m == "whisper-1":
             kw.update(response_format="verbose_json", timestamp_granularities=["segment"])
-        else:
-            kw["response_format"] = "json"
-    try:
-        with open(path, "rb") as f:
-            resp = client.audio.transcriptions.create(file=f, **kw)
-    except openai.AuthenticationError:
-        raise SttError("OpenAI kaliti noto'g'ri — Sozlamalar → Sun'iy intellekt.")
-    except openai.PermissionDeniedError:
-        raise SttError("OpenAI kalitiga ruxsat yo'q (loyiha ruxsatlarini tekshiring).")
-    except openai.RateLimitError as e:
-        if "quota" in str(e).lower():
-            raise SttError("OpenAI hisobida mablag' tugagan — platform.openai.com → Billing.")
-        raise SttError("OpenAI: juda ko'p so'rov. Birozdan keyin «Qayta urinish»ni bosing.")
-    except openai.BadRequestError as e:
-        log.warning("OpenAI 400: %s", e)
-        raise SttError(f"OpenAI so'rovni qabul qilmadi ({m}). Boshqa modelni tanlab ko'ring.")
-    except openai.APIStatusError as e:
-        log.warning("OpenAI xatosi %s: %s", e.status_code, e)
-        raise SttError("OpenAI vaqtincha javob bermadi. Birozdan keyin «Qayta urinish»ni bosing.")
-    except openai.APIConnectionError:
-        raise SttError("OpenAI bilan aloqa yo'q. Birozdan keyin «Qayta urinish»ni bosing.")
+    return kw
+
+
+def _call(client, path, m, variant, prev_text=""):
+    with open(path, "rb") as f:
+        return client.audio.transcriptions.create(file=f, **_params(m, variant, prev_text))
+
+
+def transcribe_chunk(client, path, start, end, prev_text="", model_name=None):
+    """Bitta bo'lak → (segmentlar, ishlatilgan model, izoh).
+
+    Tanlangan model so'rovni qabul qilmasa (parametr yoki modelga ruxsat yo'q) — avval oddiyroq so'rov,
+    keyin keyingi model sinab ko'riladi. Kalit, mablag' yoki tarmoq xatosida — darhol to'xtaydi.
+    """
+    import openai
+    first = model_name or model()
+    order = [first] + [m for m in FALLBACK if m != first]
+    failed, resp, used = [], None, None
+    for m in order:
+        variants = ["full", "plain"]
+        if _GOOD.get(m) == "plain":
+            variants = ["plain"]
+        for v in variants:
+            try:
+                resp = _call(client, path, m, v, prev_text)
+                _GOOD[m], used = v, m
+                break
+            except openai.AuthenticationError:
+                raise SttError("OpenAI kaliti noto'g'ri — Sozlamalar → Sun'iy intellekt.")
+            except openai.RateLimitError as e:
+                if "quota" in str(e).lower():
+                    raise SttError("OpenAI hisobida mablag' tugagan — platform.openai.com → Billing.")
+                raise SttError("OpenAI: juda ko'p so'rov. Birozdan keyin «Qayta urinish»ni bosing.")
+            except openai.BadRequestError as e:            # parametr yoki format — oddiyroq so'rov / boshqa model
+                log.warning("OpenAI 400 (%s, %s): %s", m, v, e)
+                failed.append(f"{m}: {error_text(e)}")
+            except (openai.NotFoundError, openai.PermissionDeniedError) as e:   # modelga ruxsat yo'q
+                log.warning("OpenAI model %s: %s", m, e)
+                failed.append(f"{m}: {error_text(e)}")
+                break
+            except openai.APIStatusError as e:
+                log.warning("OpenAI xatosi %s: %s", e.status_code, e)
+                raise SttError(f"OpenAI vaqtincha javob bermadi ({e.status_code}). Birozdan keyin «Qayta urinish»ni bosing.")
+            except openai.APIConnectionError:
+                raise SttError("OpenAI bilan aloqa yo'q. Birozdan keyin «Qayta urinish»ni bosing.")
+        if used:
+            break
+    if not used:
+        raise SttError("Hech bir model ishlamadi. " + " · ".join(failed)[:260])
+    note = f"{first} ishlamadi ({failed[0].split(': ', 1)[-1]}) — {used} ishlatildi." if used != first and failed else ""
     segs = getattr(resp, "segments", None)
     if segs:
-        return [{"s": round(start + float(getattr(s, "start", 0)), 1), "e": round(start + float(getattr(s, "end", 0)), 1),
-                 "t": (getattr(s, "text", "") or "").strip(), "a": False} for s in segs if (getattr(s, "text", "") or "").strip()]
-    return _split(getattr(resp, "text", "") or "", start, end)
+        out = [{"s": round(start + float(getattr(x, "start", 0)), 1), "e": round(start + float(getattr(x, "end", 0)), 1),
+                "t": (getattr(x, "text", "") or "").strip(), "a": False} for x in segs if (getattr(x, "text", "") or "").strip()]
+    else:
+        out = _split(getattr(resp, "text", "") or "", start, end)
+    return out, used, note[:300]
+
+
+def diagnose():
+    """2 soniyalik sinov ovozi bilan har bir modelni tekshiradi: [{"model", "ok", "variant", "error"}]."""
+    import openai
+    workdir = tempfile.mkdtemp(prefix="aq-stt-test-")
+    path = os.path.join(workdir, "sinov.mp3")
+    try:
+        subprocess.run([ffmpeg(), "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi", "-i",
+                        "sine=frequency=440:duration=2", "-ac", "1", "-ar", "16000", "-b:a", "48k", path],
+                       check=True, timeout=60)
+        client, out = _client(), []
+        for m in FALLBACK:
+            row = {"model": m, "ok": False, "variant": "", "error": ""}
+            for v in ("full", "plain"):
+                try:
+                    _call(client, path, m, v)
+                    row.update(ok=True, variant=v, error="" if v == "full" else row["error"])
+                    _GOOD[m] = v
+                    break
+                except openai.BadRequestError as e:
+                    row["error"] = error_text(e)
+                except (openai.AuthenticationError, openai.RateLimitError, openai.APIConnectionError) as e:
+                    row["error"] = error_text(e) if not isinstance(e, openai.APIConnectionError) else "aloqa yo'q"
+                    out.append(row)
+                    return out                              # kalit/mablag'/tarmoq — boshqalarini sinashdan foyda yo'q
+                except openai.APIStatusError as e:
+                    row["error"] = f"{e.status_code}: {error_text(e)}"
+                    break
+            out.append(row)
+        return out
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
 
 
 # ── Tayyor subtitr / matn ──
@@ -368,7 +446,10 @@ def process(tid, src, workdir, user_id=None):
             start, end = chunks[i]
             part = cut(audio, start, end, os.path.join(workdir, f"part{i:03d}.mp3"))
             prev = " ".join(s["t"] for s in segs[-3:])
-            segs += transcribe_chunk(client, part, start, end, prev, t.model)
+            new, used, note = transcribe_chunk(client, part, start, end, prev, t.model)
+            if used != t.model:                                 # keyingi bo'laklar ham ishlagan model bilan
+                t.model, t.error = used, note
+            segs += new
             os.remove(part)
             billed += end - start
             t.chunks_done, t.segments = i + 1, json.dumps(segs, ensure_ascii=False)
@@ -379,7 +460,7 @@ def process(tid, src, workdir, user_id=None):
             db.session.commit()
     if not any(s["t"] for s in segs):
         raise SttError("Matn chiqmadi — audioda nutq topilmadi.")
-    t.status, t.error, t.finished_at = "tayyor", "", _utcnow()
+    t.status, t.finished_at = "tayyor", _utcnow()      # error — model almashgan bo'lsa izoh sifatida qoladi
     db.session.commit()
 
 

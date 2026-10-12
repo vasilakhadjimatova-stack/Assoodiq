@@ -64,20 +64,64 @@ def configure_openai():
     f = request.form
     model = f.get("stt_model") if f.get("stt_model") in STT.MODELS else "gpt-transcribe"
     key = (f.get("openai_key") or "").strip()
+    note = ""
     if key:
-        ok, msg = STT.check_key(key, model)
+        ok, msg, avail = STT.check_key(key, model)
         if not ok:
             flash(f"OpenAI kaliti saqlanmadi: {msg}", "bad")
             return redirect(url_for("sozlama.index", bolim="ai") + "#openai")
         F.set_setting("openai_key", key)
+        if avail and model not in avail:
+            note = f" {model} hisobingizda ko'rinmadi — {avail[0]} tanlandi."
+            model = avail[0]
+        elif not avail:
+            note = " Hisobda transkripsiya modellari ro'yxati ko'rinmadi — «Modellarni sinash»ni bosing."
     elif f.get("openai_key_clear"):
         F.set_setting("openai_key", "")
     F.set_setting("stt_model", model)
     F.set_setting("stt_languages", (f.get("stt_languages") or "").strip()[:40])
-    F.set_setting("stt_keywords", (f.get("stt_keywords") or "").strip()[:3000])
+    F.set_setting("stt_keywords", (f.get("stt_keywords") or "").strip()[:500])  # Setting.value — 500 belgi
     audit.log("settings", "OpenAI (video matnga) sozlamalari")
     db.session.commit()
-    flash("Saqlandi." + (" OpenAI kaliti tekshirildi ✓" if key else ""), "ok")
+    flash("Saqlandi." + (" OpenAI kaliti tekshirildi ✓" if key else "") + note, "bad" if note else "ok")
+    return redirect(url_for("sozlama.index", bolim="ai") + "#openai")
+
+
+def _diag_json(rows):
+    """Sinov natijasi sozlamaga sig'sin (500 belgi): xato matnlari kerak bo'lsa qisqartiriladi."""
+    import json
+    at = datetime.now().strftime("%d.%m.%Y %H:%M")
+    for limit in (120, 80, 50, 25, 0):
+        raw = json.dumps({"at": at, "rows": [[r["model"], int(r["ok"]), r["variant"], r["error"][:limit]] for r in rows]},
+                         ensure_ascii=False)
+        if len(raw) <= 500:
+            return raw
+    return json.dumps({"at": at, "rows": []})
+
+
+@bp.route("/openai/sinash", methods=["POST"])
+def test_openai():
+    """Har bir modelni 2 soniyalik sinov ovozi bilan tekshiradi; ishlagan eng yaxshisini tanlaydi."""
+    from core import transcribe as STT
+    require_role("rahbar", "buxgalter")
+    if not STT.enabled():
+        flash("Avval OpenAI kalitini kiriting.", "bad")
+        return redirect(url_for("sozlama.index", bolim="ai") + "#openai")
+    try:
+        rows = STT.diagnose()
+    except ai.AiError as e:
+        flash(str(e), "bad")
+        return redirect(url_for("sozlama.index", bolim="ai") + "#openai")
+    F.set_setting("stt_diag", _diag_json(rows))
+    good = [r["model"] for r in rows if r["ok"]]
+    if good and STT.model() not in good:
+        F.set_setting("stt_model", good[0])
+        flash(f"{STT.MODELS[good[0]]['name'].split(' — ')[0]} ishlaydi va tanlandi.", "ok")
+    elif good:
+        flash(f"Tanlangan model ishlaydi ✓ ({len(good)} ta model ishlaydi).", "ok")
+    else:
+        flash("Hech bir model ishlamadi — pastdagi sabablarni ko'ring.", "bad")
+    db.session.commit()
     return redirect(url_for("sozlama.index", bolim="ai") + "#openai")
 
 

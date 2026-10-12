@@ -41,6 +41,14 @@ def index():
     )
 
 
+def _json_or_none(raw):
+    import json
+    try:
+        return json.loads(raw) if raw else None
+    except ValueError:
+        return None
+
+
 def _ai_context():
     import os
 
@@ -53,7 +61,8 @@ def _ai_context():
     okey = F.get_setting("openai_key")
     stt = {"env": bool(os.environ.get("OPENAI_API_KEY")), "on": STT.enabled(), "models": STT.MODELS,
            "mask": (okey[:7] + "…" + okey[-4:]) if len(okey) > 16 else "", "model": STT.model(),
-           "languages": F.get_setting("stt_languages"), "keywords": F.get_setting("stt_keywords")}
+           "languages": F.get_setting("stt_languages"), "keywords": F.get_setting("stt_keywords"),
+           "diag": _json_or_none(F.get_setting("stt_diag"))}
     links = {lk.user_id: lk for lk in StaffLink.query.filter_by(active=True).all()}
     return {"env": bool(os.environ.get("ANTHROPIC_API_KEY")), "on": ai.enabled(),
             "mask": (key[:10] + "…" + key[-4:]) if len(key) > 16 else "", "model": ai.MODEL,

@@ -1616,13 +1616,17 @@ class _FakeOpenAI:
     """client.audio.transcriptions.create(...) o'rnini bosadi."""
 
     def __init__(self):
-        self.calls, self.fail_at = [], None
+        self.calls, self.fail_at, self.reject = [], None, None
         outer = self
 
         class _Tr:
             def create(self, file, **kw):
                 n = len(outer.calls)
                 outer.calls.append(dict(kw, size=len(file.read())))
+                if outer.reject:
+                    err = outer.reject(kw)
+                    if err:
+                        raise err
                 if outer.fail_at == n:
                     from core.transcribe import SttError
                     raise SttError("OpenAI hisobida mablag' tugagan — platform.openai.com → Billing.")
@@ -1798,12 +1802,100 @@ def test_openai_settings(app, monkeypatch):
     login(client, "100100")
     page = client.get("/sozlamalar/?bolim=ai").get_data(as_text=True)
     assert "Video darslar → matn" in page and "gpt-transcribe" in page
-    monkeypatch.setattr(STT, "check_key", lambda key, m=None: (False, "kalit noto'g'ri"))
+    monkeypatch.setattr(STT, "check_key", lambda key, m=None: (False, "kalit noto'g'ri", []))
     r = client.post("/ai/openai", data={"openai_key": "sk-bad", "stt_model": "gpt-transcribe"}, follow_redirects=True)
     assert "kalit noto&#39;g&#39;ri" in r.get_data(as_text=True) or "kalit noto'g'ri" in r.get_data(as_text=True)
     assert not STT.enabled()
-    monkeypatch.setattr(STT, "check_key", lambda key, m=None: (True, ""))
+    monkeypatch.setattr(STT, "check_key", lambda key, m=None: (True, "", ["whisper-1"]))
     client.post("/ai/openai", data={"openai_key": "sk-good-1234567890", "stt_model": "whisper-1",
                                     "stt_languages": "uz", "stt_keywords": "murobaha, ijara"})
     assert STT.enabled() and STT.model() == "whisper-1" and STT.languages() == ["uz"]
     assert STT.keywords() == ["murobaha", "ijara"]
+    # tanlangan model hisobda yo'q — kalit baribir saqlanadi, mavjud eng yaxshisi tanlanadi
+    monkeypatch.setattr(STT, "check_key", lambda key, m=None: (True, "", ["gpt-4o-transcribe", "whisper-1"]))
+    r = client.post("/ai/openai", data={"openai_key": "sk-other-1234567890", "stt_model": "gpt-transcribe",
+                                        "stt_keywords": "x" * 900}, follow_redirects=True)
+    assert STT.model() == "gpt-4o-transcribe" and "ko&#39;rinmadi" in r.get_data(as_text=True)
+    assert F.get_setting("openai_key") == "sk-other-1234567890" and len(F.get_setting("stt_keywords")) == 500
+
+
+def _openai_error(cls, status, message):
+    import httpx2
+    req = httpx2.Request("POST", "https://api.openai.com/v1/audio/transcriptions")
+    return cls(message, response=httpx2.Response(status, request=req), body={"error": {"message": message}})
+
+
+def test_video_model_fallback(app, stt, tmp_path):
+    """gpt-transcribe hisobda yo'q — gpt-4o-transcribe avtomatik ishlatiladi va bu sahifada aytiladi."""
+    import openai
+    from io import BytesIO
+
+    from core import transcribe as STT
+    from core.models import Transcript
+    STT._GOOD.clear()
+    stt.reject = lambda kw: _openai_error(openai.NotFoundError, 404, "The model `gpt-transcribe` does not exist") \
+        if kw["model"] == "gpt-transcribe" else None
+    client = app.test_client()
+    login(client, "100100")
+    client.post("/shartnoma/video/yuklash", data={"file": (BytesIO(_lesson_audio(tmp_path)), "dars.mp3")},
+                content_type="multipart/form-data")
+    db.session.expire_all()  # ish fon oqimida (boshqa sessiyada) bajarilgan
+    t = Transcript.query.one()
+    assert t.status == "tayyor" and t.model == "gpt-4o-transcribe" and t.chunks_done == 3
+    assert [c["model"] for c in stt.calls] == ["gpt-transcribe", "gpt-4o-transcribe", "gpt-4o-transcribe", "gpt-4o-transcribe"]
+    assert "does not exist" in t.error and "gpt-4o-transcribe ishlatildi" in t.error
+    assert "gpt-4o-transcribe ishlatildi" in client.get(f"/shartnoma/video/{t.id}").get_data(as_text=True)
+
+
+def test_video_unsupported_params_retry_plain(app, stt, tmp_path):
+    """Model «keywords»ni qabul qilmasa — o'sha model oddiy so'rov bilan ishlatiladi."""
+    import openai
+    from io import BytesIO
+
+    from core import transcribe as STT
+    from core.models import Transcript
+    STT._GOOD.clear()
+    stt.reject = lambda kw: _openai_error(openai.BadRequestError, 400, "Unknown parameter: 'keywords'.") \
+        if "keywords" in kw else None
+    client = app.test_client()
+    login(client, "100100")
+    client.post("/shartnoma/video/yuklash", data={"file": (BytesIO(_lesson_audio(tmp_path)), "dars.mp3")},
+                content_type="multipart/form-data")
+    db.session.expire_all()  # ish fon oqimida (boshqa sessiyada) bajarilgan
+    t = Transcript.query.one()
+    assert t.status == "tayyor" and t.model == "gpt-transcribe" and not t.error
+    assert len(stt.calls) == 4 and "keywords" in stt.calls[0] and all("keywords" not in c for c in stt.calls[1:])
+    # hamma model rad etsa — aniq sabab bilan xato
+    STT._GOOD.clear()
+    stt.calls.clear()
+    stt.reject = lambda kw: _openai_error(openai.BadRequestError, 400, "Audio file might be corrupted")
+    client.post("/shartnoma/video/yuklash", data={"file": (BytesIO(_lesson_audio(tmp_path)), "dars2.mp3")},
+                content_type="multipart/form-data")
+    db.session.expire_all()
+    t2 = Transcript.query.order_by(Transcript.id.desc()).first()
+    assert t2.status == "xato" and "Hech bir model ishlamadi" in t2.error and "corrupted" in t2.error
+    assert len(stt.calls) == 8                               # 4 model × (to'liq + oddiy)
+
+
+def test_openai_diagnose(app, stt):
+    import openai
+
+    from core import transcribe as STT
+    STT._GOOD.clear()
+
+    def reject(kw):
+        if kw["model"] == "gpt-transcribe":
+            return _openai_error(openai.PermissionDeniedError, 403, "Your organization must be verified to use gpt-transcribe. " * 3)
+        if kw["model"] == "gpt-4o-transcribe" and "language" in kw:
+            return _openai_error(openai.BadRequestError, 400, "Unsupported language")
+        return None
+    stt.reject = reject
+    F.set_setting("stt_languages", "uz")
+    db.session.commit()
+    client = app.test_client()
+    login(client, "100100")
+    r = client.post("/ai/openai/sinash", follow_redirects=True)
+    page = r.get_data(as_text=True)
+    assert STT.model() == "gpt-4o-transcribe" and "ishlaydi va tanlandi" in page
+    assert "must be verified" in page and "ishlamadi" in page and "Til/atamalarsiz ishladi" in page
+    assert len(F.get_setting("stt_diag")) <= 500
