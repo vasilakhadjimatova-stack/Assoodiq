@@ -1,29 +1,113 @@
 {% extends "base.html" %}
 {% block title %}{{ doc.title if doc else 'Yangi material' }}{% endblock %}
+{% set cur_kind = doc.kind if doc else preset_kind %}
+{% set BODY_HINTS = {
+  'qoida': "Nima joiz, nima joiz emas — va NEGA (qanday zarar yoki adolatsizlikning oldini oladi). Shartlar, istisnolar va to'g'ri band namunasini ham yozing.",
+  'ustoz': "Ustozning pozitsiyasi va uning asosi. Amaliy maslahat bo'lsa — qachon va qanday qo'llanadi.",
+  'misol': "Kim, nima bo'ldi, raqamlar, nima xato yoki to'g'ri edi. Oxirida «Saboq: …» — bu keys qaysi qoidani tushuntiradi.",
+  'standart': "Standart nomi va bandi (masalan, AAOIFI 8-standart, 4/1/3), bandning matni va qisqa izohi.",
+  'namuna': "Shartnomaga aynan qo'yiladigan band matni. Qaysi holatda ishlatilishini ham qo'shing.",
+  'dars': "Tushuncha yoki ta'rif — sodda tilda, misol bilan."} %}
 {% block content %}
 <a class="crumb" href="{{ url_for('shartnoma.kb_list', mavzu=doc.topic if doc else None) }}">{{ ui.icon('left', 'sm') }} Bilimlar bazasi</a>
-<div class="head"><div><div class="head-t">{{ 'Materialni tahrirlash' if doc else 'Yangi material' }}</div>
-  <div class="head-s">Bitta material — bitta aniq qoida yoki mavzu bo'lsin: tekshiruvda aynan shu materialga havola qilinadi.</div></div></div>
-<form class="card kb-form" method="post" action="{{ url_for('shartnoma.kb_save') }}" enctype="multipart/form-data">
+<div class="head">
+  <div>
+    <div class="head-t">{{ 'Materialni tahrirlash' if doc else 'Yangi material' }}</div>
+    <div class="head-s">Bitta material — bitta aniq qoida, keys yoki band. Shartnoma tekshiruvida aynan shu materialga havola qilinadi.</div>
+  </div>
+</div>
+
+<form class="kbe" method="post" action="{{ url_for('shartnoma.kb_save') }}" enctype="multipart/form-data">
   {% if doc %}<input type="hidden" name="id" value="{{ doc.id }}">{% endif %}
-  <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
-    <div class="field"><label>Sarlavha</label><input type="text" name="title" required maxlength="200" value="{{ doc.title if doc }}" placeholder="Masalan: Kechikish uchun jarima — ribo hisoblanadi"></div>
-    <div class="form-grid">
-      <div class="field"><label>Turi</label><select name="kind">{% for k, v in kinds.items() %}<option value="{{ k }}" {{ 'selected' if (doc.kind if doc else 'qoida') == k }}>{{ v }}</option>{% endfor %}</select></div>
-      <div class="field"><label>Mavzu</label><select name="topic">{% for k, v in topics.items() %}<option value="{{ k }}" {{ 'selected' if (doc.topic if doc else preset_topic) == k }}>{{ v }}</option>{% endfor %}</select></div>
-      <div class="field full"><label>Manba</label><input type="text" name="source" maxlength="200" value="{{ doc.source if doc }}" placeholder="Masalan: AAOIFI 8-standart, 5/1 · yoki: Ustoz Abdulloh, 4-dars"></div>
+
+  <div class="kbe-main card">
+    <div class="field">
+      <label for="kbe-title">Sarlavha <span class="req" aria-hidden="true">*</span></label>
+      <input id="kbe-title" class="kbe-title" type="text" name="title" required maxlength="200" value="{{ doc.title if doc }}" placeholder="Masalan: Kechikish jarimasi sotuvchi daromadiga kirmaydi" aria-describedby="kbe-title-h">
+      <span class="hint" id="kbe-title-h">Qoidaning o'zini yozing — sarlavhani o'qigan odam mazmunni tushunsin.</span>
     </div>
-    <div class="field"><label>Matn</label><textarea name="body" rows="14" placeholder="Qoida, dalil, istisnolar va to'g'ri band namunasini yozing…">{{ doc.body if doc }}</textarea>
-      <span class="hint">Aniqroq yozilsa — tekshiruv aniqroq. To'g'ri (halol) band namunasini ham qo'shing: tuzatish takliflari shundan olinadi.</span></div>
-    <div class="field"><label>yoki fayldan qo'shish</label><input type="file" name="file" accept=".docx,.pdf,.txt,.md"><span class="hint">Word, PDF (matnli) yoki TXT — matni yuqoridagiga qo'shiladi</span></div>
-    {% if doc %}<label class="check"><input type="checkbox" name="active" {{ 'checked' if doc.active }}> Faol — tekshiruvda ishlatiladi</label>{% endif %}
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button>
+    <div class="field">
+      <div class="kbe-lbl"><label for="kbe-body">Matn <span class="req" aria-hidden="true">*</span></label><span class="kbe-count" data-kbe-count>0 belgi</span></div>
+      <p class="kbe-guide" data-kbe-guide>{{ BODY_HINTS[cur_kind] }}</p>
+      <textarea id="kbe-body" name="body" rows="14" data-kbe-body placeholder="Matnni shu yerga yozing…">{{ doc.body if doc }}</textarea>
+    </div>
+    <details class="kbe-file">
+      <summary>{{ ui.icon('upload', 'sm') }} Fayldan qo'shish <span>Word, PDF (matnli) yoki TXT</span></summary>
+      <div class="kbe-file-b">
+        <input type="file" name="file" accept=".docx,.pdf,.txt,.md" aria-label="Fayl tanlash">
+        <span class="hint">Fayl matni yuqoridagi matnning oxiriga qo'shiladi. Skaner qilingan PDF o'qilmaydi.</span>
+      </div>
+    </details>
+  </div>
+
+  <aside class="kbe-side">
+    <fieldset class="card kbe-box">
+      <legend>Turi</legend>
+      <div class="kbe-kinds">
+        {% for k, v in kinds.items() %}
+        <label class="kbe-kind k-{{ k }}">
+          <input type="radio" name="kind" value="{{ k }}" {{ 'checked' if cur_kind == k }} data-hint="{{ BODY_HINTS[k] }}">
+          <i class="kb-dot k-{{ k }}"></i>
+          <span><b>{{ v }}</b><small>{{ kind_hints[k] }}</small></span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="card kbe-box">
+      <div class="field"><label for="kbe-topic">Mavzu</label>
+        <select id="kbe-topic" name="topic">{% for k, v in topics.items() %}<option value="{{ k }}" {{ 'selected' if (doc.topic if doc else preset_topic) == k }}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="kbe-src">Manba</label>
+        <input id="kbe-src" type="text" name="source" maxlength="200" value="{{ doc.source if doc }}" placeholder="AAOIFI 8-standart, 5/1 · Ustoz, 4-dars">
+        <span class="hint">Tekshiruv natijasida ko'rsatiladi.</span></div>
+      {% if doc %}
+      <div class="kbe-active">
+        <label class="tg-sw"><input type="checkbox" name="active" id="kbe-active" {{ 'checked' if doc.active }}><span></span></label>
+        <label for="kbe-active"><b>Faol</b><small>Shartnoma tekshiruvida ishlatiladi</small></label>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if card %}
+    <div class="card kbe-box kbe-origin">
+      <h4>{{ ui.icon('video', 'sm') }} Darsdan olingan</h4>
+      {% set tr = card.transcript %}
+      <a class="kbe-origin-l" href="{{ url_for('shartnoma.video_view', tid=tr.id, t=card.start) }}#matn">
+        <b>{{ tr.lecture.title if tr.lecture else tr.title }}</b>
+        {% if card.start or card.end %}<span>{{ ui.icon('play', 'sm') }} {{ fmt(card.start) }}{% if card.end > card.start %}–{{ fmt(card.end) }}{% endif %} — matnda ochish</span>{% endif %}
+      </a>
+      {% if card.quote %}<blockquote>«{{ card.quote }}»</blockquote>{% endif %}
+      <small class="kbe-meta">Tasdiqlagan: {{ card.reviewed_at|localdt if card.reviewed_at else '—' }}</small>
+    </div>
+    {% endif %}
+
+    <div class="kbe-act">
+      <button class="btn solid">{{ ui.icon('check', 'sm') }} {{ 'Saqlash' if doc else "Bazaga qo'shish" }}</button>
       <a class="btn ghost" href="{{ url_for('shartnoma.kb_list') }}">Bekor qilish</a>
     </div>
-  </div>
+    {% if doc %}
+    <div class="kbe-foot">
+      <small class="kbe-meta">#{{ doc.id }} · qo'shilgan {{ doc.created_at|localdt if doc.created_at else '—' }}{% if doc.updated_at and doc.updated_at != doc.created_at %} · o'zgartirilgan {{ doc.updated_at|localdt }}{% endif %}</small>
+      <button class="kbe-del" form="kbe-del-f">{{ ui.icon('trash', 'sm') }} O'chirish</button>
+    </div>
+    {% endif %}
+  </aside>
 </form>
 {% if doc %}
-<form method="post" action="{{ url_for('shartnoma.kb_delete', did=doc.id) }}" onsubmit="return confirm('Material o\'chirilsinmi?')" style="margin-top:12px"><button class="btn ghost sm">{{ ui.icon('trash', 'sm') }} O'chirish</button></form>
+<form id="kbe-del-f" method="post" action="{{ url_for('shartnoma.kb_delete', did=doc.id) }}" onsubmit="return confirm('Material bilimlar bazasidan butunlay o\'chirilsinmi? Faqat vaqtincha ishlatmaslik kerak bo\'lsa — «Faol»ni o\'chiring.')"></form>
 {% endif %}
 {% endblock %}
+{% block scripts %}<script>
+/* Turga mos yo'riqnoma, belgilar soni va matn maydonining o'z-o'zidan kattalashishi */
+(function () {
+  var body = document.querySelector('[data-kbe-body]'), cnt = document.querySelector('[data-kbe-count]'),
+      guide = document.querySelector('[data-kbe-guide]');
+  function grow() { body.style.height = 'auto'; body.style.height = Math.max(body.scrollHeight + 2, 280) + 'px'; }
+  function count() { cnt.textContent = body.value.length.toLocaleString('ru-RU') + ' belgi'; }
+  body.addEventListener('input', function () { grow(); count(); });
+  grow(); count();
+  document.querySelectorAll('input[name=kind]').forEach(function (r) {
+    r.addEventListener('change', function () { if (r.checked) guide.textContent = r.dataset.hint; });
+  });
+})();
+</script>{% endblock %}

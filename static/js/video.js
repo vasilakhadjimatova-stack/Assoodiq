@@ -77,15 +77,19 @@
     })();
   }
 
-  // 3) Kartochka vaqti → dars matnidagi joy
-  document.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-vk-seek]');
-    if (!b) return;
-    var t = parseFloat(b.dataset.vkSeek), box = document.getElementById('matn');
+  // 3) Kartochka vaqti yoki ?t=… → dars matnidagi joy
+  function seek(t) {
+    var box = document.getElementById('matn');
     if (!box) return;
     box.open = true;
     var rows = box.querySelectorAll('p[data-s]'), hit = rows[0];
     rows.forEach(function (p) { if (parseFloat(p.dataset.s) <= t + 1) hit = p; p.classList.remove('hl'); });
     if (hit) { hit.classList.add('hl'); hit.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-vk-seek]');
+    if (b) seek(parseFloat(b.dataset.vkSeek));
   });
+  var t0 = new URLSearchParams(location.search).get('t');
+  if (t0 !== null && !isNaN(parseFloat(t0))) setTimeout(function () { seek(parseFloat(t0)); }, 250);
 })();

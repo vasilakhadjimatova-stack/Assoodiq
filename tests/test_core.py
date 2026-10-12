@@ -1965,8 +1965,9 @@ def test_passages_index_and_semantic_kb_search(app, stt):
     assert S.sync()["removed"] == 1 and KbVector.query.filter_by(kind="doc").count() == 0
     # Bilimlar bazasi sahifasi: ma'no bo'yicha qidiruv dars parchasini topadi
     page = client.get("/shartnoma/bilimlar?q=kechikish penya xayriya").get_data(as_text=True)
-    assert "Darslardan — ustozning so&#39;zi" in page or "Darslardan — ustozning so'zi" in page
-    assert "Video: Nasiya savdo — 5-dars · 03:00" in page and "dars parchasi" in page
+    assert "Ustoz darslarida" in page and "Video: Nasiya savdo — 5-dars · 03:00" in page
+    assert "<mark>kechikish</mark>" in page.lower() or "<mark>Kechikish</mark>" in page   # so'zlar ajratib ko'rsatiladi
+    assert f"/shartnoma/video/{t.id}?t=180#matn" in page and "dars parchasi" in page
 
 
 def test_contract_retrieval_uses_relevant_items_and_passages(app, claude, stt, monkeypatch):
@@ -2086,3 +2087,43 @@ def test_card_extraction_keeps_cases(app, claude):
     assert "CASES ARE VALUABLE" in VC.SYSTEM and '"misol"' in VC.SYSTEM
     assert "misol" in VC.CARD["properties"]["kind"]["enum"]
     assert "stories" not in VC.SYSTEM.split("Skip")[1].split("\n")[0]          # hikoyalar tashlab yuborilmaydi
+
+
+def test_kb_list_filters_pagination_and_origin(app, claude):
+    """Bilimlar bazasi: filtrlar (mavzu/tur/manba/holat), sahifalash, qidiruv so'zini ajratish, darsdan kelib chiqish."""
+    from core import video_cards as VC
+    from core.models import KnowledgeCard, KnowledgeDoc, Transcript
+    for i in range(35):
+        db.session.add(KnowledgeDoc(title=f"Ijara qoidasi {i}", kind="qoida", topic="ijara", body=f"Ijara haqi {i}.",
+                                    active=i != 0))
+    case = KnowledgeDoc(title="Keys: penya olgan do'kondor", kind="misol", topic="umumiy", body="Saboq: penya — ribo.")
+    db.session.add(case)
+    t = Transcript(title="Nasiya — 5-dars", status="tayyor", segments="[]")
+    db.session.add(t)
+    db.session.flush()
+    card = KnowledgeCard(transcript_id=t.id, title="Kechikish jarimasi joiz emas", kind="qoida", topic="umumiy",
+                         body="Kreditor foydasiga jarima — ribo.", quote="penya olish ribo bo'ladi", start=754, end=800)
+    db.session.add(card)
+    db.session.commit()
+    lesson_doc = VC.approve(card, None)
+    client = app.test_client()
+    login(client, "100100")
+    page = client.get("/shartnoma/bilimlar").get_data(as_text=True)
+    assert "37</b> ta material · 1–30" in page and 'rel="next"' in page and "ta kartochka ustoz" not in page
+    assert "Nasiya — 5-dars · 12:34" in page                                    # darsdan kelgan material
+    p2 = client.get("/shartnoma/bilimlar?sahifa=2").get_data(as_text=True)
+    assert "31–37" in p2 and 'rel="prev"' in p2
+    f = client.get("/shartnoma/bilimlar?mavzu=ijara&tur=qoida&holat=faol").get_data(as_text=True)
+    assert "34</b> ta material" in f and "Hammasini tozalash" in f and f.count("kb-chip\" href") == 3
+    assert client.get("/shartnoma/bilimlar?manba=dars").get_data(as_text=True).count('class="kb-row ') == 1
+    assert "1</b> ta material" in client.get("/shartnoma/bilimlar?tur=misol").get_data(as_text=True)
+    q = client.get("/shartnoma/bilimlar?q=penya").get_data(as_text=True)
+    assert "<mark>penya</mark>" in q.lower() and "«penya»" in q
+    empty = client.get("/shartnoma/bilimlar?q=yo'qbunday").get_data(as_text=True)
+    assert "Hech narsa topilmadi" in empty and "Filtrlarni tozalash" in empty
+    # Material sahifasi: tur tavsiflari, darsdan kelib chiqishi va videodagi joyga havola
+    e = client.get(f"/shartnoma/bilimlar/{lesson_doc.id}").get_data(as_text=True)
+    assert "Darsdan olingan" in e and f"/shartnoma/video/{t.id}?t=754#matn" in e and "12:34–13:20" in e
+    assert "Real holat, hikoya yoki raqamli misol" in e and 'form="kbe-del-f"' in e
+    new = client.get("/shartnoma/bilimlar/yangi?tur=misol&mavzu=ijara").get_data(as_text=True)
+    assert 'value="misol" checked' in new and "Bazaga qo&#39;shish" in new or "Bazaga qo'shish" in new

@@ -124,39 +124,141 @@ def delete(cid):
 
 # ── Bilimlar bazasi ─────────────────────────────────────────────────────────
 
+KB_PER_PAGE = 30
+KB_SORTS = {"yangi": "Avval yangilari", "mavzu": "Mavzu bo'yicha", "nom": "Nomi bo'yicha"}
+KB_ORIGINS = {"dars": "Darslardan", "qolda": "Qo'lda kiritilgan"}
+KIND_HINTS = {
+    "qoida": "Umumiy hukm: nima joiz, nima joiz emas va nega",
+    "ustoz": "Ustozning shaxsiy pozitsiyasi yoki amaliy maslahati",
+    "misol": "Real holat, hikoya yoki raqamli misol — tushuntirish uchun",
+    "standart": "AAOIFI va boshqa standartlardan aniq band",
+    "namuna": "Shartnomaga qo'yiladigan tayyor, to'g'ri band",
+    "dars": "Tushuncha, ta'rif yoki umumiy tushuntirish",
+}
+
+
+def _terms(q):
+    import re
+    return [w for w in re.findall(r"[\w'ʻ‘’]+", (q or "").lower()) if len(w) >= 3][:8]
+
+
+def kb_highlight(text, q):
+    """Matnni xavfsiz qilib, qidiruv so'zlarini <mark> bilan ajratadi."""
+    import re
+
+    from markupsafe import Markup, escape
+    out = str(escape(text or ""))
+    terms = _terms(q)
+    if terms:
+        rx = re.compile("(" + "|".join(re.escape(str(escape(t))) for t in sorted(terms, key=len, reverse=True)) + ")",
+                        re.IGNORECASE)
+        out = rx.sub(r"<mark>\1</mark>", out)
+    return Markup(out)
+
+
+def kb_snippet(text, q, size=230):
+    """Qidiruv so'zi atrofidagi parcha (bo'lmasa — boshidan)."""
+    text = " ".join((text or "").split())
+    low, pos = text.lower(), -1
+    for t in _terms(q):
+        pos = low.find(t)
+        if pos >= 0:
+            break
+    if pos < 0 or len(text) <= size:
+        return text[:size] + ("…" if len(text) > size else "")
+    start = max(pos - size // 3, 0)
+    return ("…" if start else "") + text[start:start + size] + ("…" if start + size < len(text) else "")
+
+
+def _lesson_docs():
+    """Darsdan (kartochkadan) kelgan materiallar: doc_id → (transkript, soniya)."""
+    rows = (db.session.query(KnowledgeCard.doc_id, KnowledgeCard.transcript_id, KnowledgeCard.start)
+            .filter(KnowledgeCard.doc_id.isnot(None)).all())
+    return {d: (t, s) for d, t, s in rows}
+
+
+def _kb_args(**over):
+    """Joriy filtrlar + o'zgartirish (None — olib tashlash) → url_for argumentlari."""
+    keys = ("q", "mavzu", "tur", "manba", "holat", "tartib")
+    args = {k: request.args.get(k) for k in keys if request.args.get(k)}
+    for k, v in over.items():
+        if v is None:
+            args.pop(k, None)
+        else:
+            args[k] = v
+    return args
+
+
 @bp.route("/bilimlar")
 def kb_list():
-    topic, kind, q_text = request.args.get("mavzu", ""), request.args.get("tur", ""), (request.args.get("q") or "").strip()
-    q = KnowledgeDoc.query
-    if topic in KNOWLEDGE_TOPICS:
-        q = q.filter(KnowledgeDoc.topic == topic)
-    if kind in KNOWLEDGE_KINDS:
-        q = q.filter(KnowledgeDoc.kind == kind)
+    a = request.args
+    q_text = (a.get("q") or "").strip()[:200]
+    topic = a.get("mavzu") if a.get("mavzu") in KNOWLEDGE_TOPICS else ""
+    kind = a.get("tur") if a.get("tur") in KNOWLEDGE_KINDS else ""
+    origin = a.get("manba") if a.get("manba") in KB_ORIGINS else ""
+    state = a.get("holat") if a.get("holat") in ("faol", "ochiq") else ""
+    sort = a.get("tartib") if a.get("tartib") in KB_SORTS else "yangi"
+    page = max(form_int(a.get("sahifa")) or 1, 1)
+
+    lesson = _lesson_docs()
+    base = KnowledgeDoc.query
+    if topic:
+        base = base.filter(KnowledgeDoc.topic == topic)
+    if kind:
+        base = base.filter(KnowledgeDoc.kind == kind)
+    if state:
+        base = base.filter(KnowledgeDoc.active.is_(state == "faol"))
+    if origin == "dars":
+        base = base.filter(KnowledgeDoc.id.in_(list(lesson) or [0]))
+    elif origin == "qolda":
+        base = base.filter(KnowledgeDoc.id.notin_(list(lesson) or [0]))
+    order = {"yangi": [KnowledgeDoc.updated_at.desc(), KnowledgeDoc.id.desc()],
+             "mavzu": [KnowledgeDoc.topic, KnowledgeDoc.id], "nom": [KnowledgeDoc.title]}[sort]
+
+    sem_ids, passages, sem_error = [], [], ""
     if q_text:
         like = f"%{q_text}%"
-        q = q.filter(or_(KnowledgeDoc.title.ilike(like), KnowledgeDoc.body.ilike(like), KnowledgeDoc.source.ilike(like)))
-    shown = 200
-    found = q.count()
-    docs = q.order_by(KnowledgeDoc.topic, KnowledgeDoc.id).limit(shown).all()
-    pending = KnowledgeCard.query.filter_by(status="taklif").count()
-    by_topic = dict(db.session.query(KnowledgeDoc.topic, db.func.count(KnowledgeDoc.id))
-                    .filter(KnowledgeDoc.active.is_(True)).group_by(KnowledgeDoc.topic).all())
-    sem_docs, sem_passages, sem_error = [], [], ""
-    if q_text and S.enabled():
-        try:
-            listed = {d.id for d in docs}
-            for kind, obj, _ in S.resolve(S.search([q_text], k=40, per_query=40, user_id=g.user.id)):
-                if kind == "doc" and obj.id not in listed and len(sem_docs) < 12:
-                    sem_docs.append(obj)
-                elif kind == "passage" and len(sem_passages) < 12:
-                    sem_passages.append(obj)
-        except ai.AiError as e:
-            sem_error = str(e)
-    return render_template("pages/shartnoma_kb.html", docs=docs, topics=KNOWLEDGE_TOPICS, kinds=KNOWLEDGE_KINDS,
-                           topic=topic, kind=kind, q=q_text, size=C.docs_chars(), budget=C.KB_CHAR_BUDGET,
-                           by_topic=by_topic, total=sum(by_topic.values()), pending=pending, found=found, shown=shown,
-                           idx=S.status(), passages_on=S.passages_enabled(), sem_docs=sem_docs,
-                           sem_passages=sem_passages, sem_error=sem_error, source_of=S.passage_source, fmt=STT.fmt_time)
+        text_q = base.filter(or_(KnowledgeDoc.title.ilike(like), KnowledgeDoc.body.ilike(like),
+                                 KnowledgeDoc.source.ilike(like)))
+        if S.enabled():
+            try:
+                hits = S.resolve(S.search([q_text], k=60, per_query=60, user_id=g.user.id))
+                allowed = {d.id for d in base.with_entities(KnowledgeDoc.id)} if (topic or kind or state or origin) else None
+                sem_ids = [o.id for k, o, _ in hits if k == "doc" and (allowed is None or o.id in allowed)][:30]
+                passages = [o for k, o, _ in hits if k == "passage"][:6]
+            except ai.AiError as e:
+                sem_error = str(e)
+        text_ids = [d.id for d in text_q.order_by(*order).with_entities(KnowledgeDoc.id).limit(500)]
+        ids = sem_ids + [i for i in text_ids if i not in set(sem_ids)]
+        found = len(ids)
+        page_ids = ids[(page - 1) * KB_PER_PAGE: page * KB_PER_PAGE]
+        by_id = {d.id: d for d in KnowledgeDoc.query.filter(KnowledgeDoc.id.in_(page_ids or [0]))}
+        docs = [by_id[i] for i in page_ids if i in by_id]
+    else:
+        found = base.count()
+        docs = base.order_by(*order).offset((page - 1) * KB_PER_PAGE).limit(KB_PER_PAGE).all()
+    pages = max((found + KB_PER_PAGE - 1) // KB_PER_PAGE, 1)
+
+    def counts(col):
+        return dict(db.session.query(col, db.func.count(KnowledgeDoc.id)).group_by(col).all())
+    total_all = KnowledgeDoc.query.count()
+    active_n = KnowledgeDoc.query.filter_by(active=True).count()
+    transcripts = {t.id: t for t in Transcript.query.filter(
+        Transcript.id.in_({lesson[d.id][0] for d in docs if d.id in lesson} or {0}))}
+    origin_of = {d.id: (transcripts.get(lesson[d.id][0]), lesson[d.id][1]) for d in docs if d.id in lesson}
+    chips = [(f"«{q_text}»", _kb_args(q=None))] if q_text else []
+    chips += [(lbl, _kb_args(**{key: None})) for key, lbl in (
+        ("mavzu", KNOWLEDGE_TOPICS.get(topic)), ("tur", KNOWLEDGE_KINDS.get(kind)), ("manba", KB_ORIGINS.get(origin)),
+        ("holat", {"faol": "Faol", "ochiq": "O'chirilgan"}.get(state))) if lbl]
+    return render_template(
+        "pages/shartnoma_kb.html", docs=docs, topics=KNOWLEDGE_TOPICS, kinds=KNOWLEDGE_KINDS, kind_hints=KIND_HINTS,
+        origins=KB_ORIGINS, sorts=KB_SORTS, topic=topic, kind=kind, origin=origin, state=state, sort=sort, q=q_text,
+        page=page, pages=pages, found=found, per_page=KB_PER_PAGE, sem_ids=set(sem_ids), passages=passages,
+        sem_error=sem_error, chips=chips, kb_args=_kb_args, hl=kb_highlight, snippet=kb_snippet, origin_of=origin_of,
+        by_topic=counts(KnowledgeDoc.topic), by_kind=counts(KnowledgeDoc.kind), total_all=total_all, active_n=active_n,
+        from_lessons=len(lesson), pending=KnowledgeCard.query.filter_by(status="taklif").count(),
+        size=C.docs_chars(), budget=C.KB_CHAR_BUDGET, idx=S.status(), passages_on=S.passages_enabled(),
+        source_of=S.passage_source, fmt=STT.fmt_time)
 
 
 @bp.route("/bilimlar/indeks", methods=["POST"])
@@ -183,8 +285,11 @@ def kb_passages_toggle():
 @bp.route("/bilimlar/<int:did>")
 def kb_edit(did=None):
     doc = db.get_or_404(KnowledgeDoc, did) if did else None
+    card = KnowledgeCard.query.filter_by(doc_id=doc.id).first() if doc else None
     return render_template("pages/shartnoma_kb_edit.html", doc=doc, topics=KNOWLEDGE_TOPICS, kinds=KNOWLEDGE_KINDS,
-                           preset_topic=request.args.get("mavzu", "umumiy"))
+                           kind_hints=KIND_HINTS, card=card, fmt=STT.fmt_time,
+                           preset_topic=request.args.get("mavzu", "umumiy"),
+                           preset_kind=request.args.get("tur") if request.args.get("tur") in KNOWLEDGE_KINDS else "qoida")
 
 
 @bp.route("/bilimlar/saqlash", methods=["POST"])

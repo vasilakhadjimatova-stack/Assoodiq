@@ -5,84 +5,178 @@
 <div class="head">
   <div>
     <div class="head-t">Bilimlar bazasi</div>
-    <div class="head-s">Shartnomalar <b>faqat</b> shu materiallar asosida tekshiriladi: ustozning qoidalari va fikrlari, standartlar (masalan AAOIFI), namunaviy bandlar, dars materiallari. {{ total }} ta faol material · {{ '%.0f'|format(size / 1000) }} ming belgi{% if size > budget %} <span class="warn-t">(katta — tekshiruvda shartnomaga ma'nosi eng yaqin qismi tanlanadi)</span>{% endif %}</div>
+    <div class="head-s">Shartnomalar <b>faqat</b> shu bilimlar asosida tekshiriladi — ustoz qoidalari, keyslari, standartlar va namunaviy bandlar.</div>
   </div>
-  <div class="head-a kb-head-a"><a class="btn ghost" href="{{ url_for('shartnoma.video_list') }}">{{ ui.icon('video', 'sm') }} Darslardan bilim{% if pending %} <span class="pill warn">{{ pending }}</span>{% endif %}</a>
-    <a class="btn solid" href="{{ url_for('shartnoma.kb_edit', mavzu=topic or None) }}">{{ ui.icon('plus', 'sm') }} Material qo'shish</a></div>
-</div>
-
-<div class="kb-idx card">
-  <div class="kb-idx-nums">
-    <div class="kb-idx-n"><b>{{ idx.docs|num }}</b><span>tasdiqlangan material</span></div>
-    <div class="kb-idx-n"><b>{{ idx.passages|num }}</b><span>dars parchasi</span></div>
-    <div class="kb-idx-n"><b>{{ idx.indexed|num }}</b><span>indeksda{% if idx.behind %} · <em>{{ idx.behind|num }} kutmoqda</em>{% endif %}</span></div>
-  </div>
-  <div class="kb-idx-t">
-    <b>Ma'no bo'yicha qidiruv</b>
-    <span>Shartnoma tekshiruvida butun baza emas, shartnoma bandlariga ma'nosi eng yaqin materiallar{% if passages_on %} va dars parchalari{% endif %} tanlanadi.{% if not idx.ready %} Indeks uchun OpenAI kaliti kerak.{% endif %}</span>
-  </div>
-  <div class="kb-idx-a">
-    <form method="post" action="{{ url_for('shartnoma.kb_index') }}"><button class="btn tonal sm">{{ ui.icon('check', 'sm') }} Indeksni yangilash</button></form>
-    <form method="post" action="{{ url_for('shartnoma.kb_passages_toggle') }}"><input type="hidden" name="on" value="{{ '0' if passages_on else '1' }}">
-      <label class="check" title="Dars parchalari — ustozning aynan so'zi (avtomatik matn, ustoz tasdiqlamagan)"><input type="checkbox" {{ 'checked' if passages_on }} onchange="this.form.submit()"> Dars parchalarini ham manba qilish</label></form>
+  <div class="head-a kb-head-a">
+    <a class="btn ghost" href="{{ url_for('shartnoma.video_list') }}">{{ ui.icon('video', 'sm') }} Darslardan bilim</a>
+    <a class="btn solid" href="{{ url_for('shartnoma.kb_edit', mavzu=topic or None, tur=kind or None) }}">{{ ui.icon('plus', 'sm') }} Material qo'shish</a>
   </div>
 </div>
 
-<div class="kb-topics">
-  <a href="{{ url_for('shartnoma.kb_list', tur=kind or None, q=q or None) }}" class="{{ 'on' if not topic }}">Hammasi <span>{{ total }}</span></a>
-  {% for k, v in topics.items() %}<a href="{{ url_for('shartnoma.kb_list', mavzu=k, tur=kind or None, q=q or None) }}" class="{{ 'on' if topic == k }}">{{ v }} <span>{{ by_topic.get(k, 0) }}</span></a>{% endfor %}
-</div>
-<form class="toolbar" method="get">
-  {% if topic %}<input type="hidden" name="mavzu" value="{{ topic }}">{% endif %}
-  <div class="chips">
-    <a class="chip {{ 'on' if not kind }}" href="{{ url_for('shartnoma.kb_list', mavzu=topic or None, q=q or None) }}">Barcha turlar</a>
-    {% for k, v in kinds.items() %}<a class="chip {{ 'on' if kind == k }}" href="{{ url_for('shartnoma.kb_list', mavzu=topic or None, tur=k, q=q or None) }}">{{ v }}</a>{% endfor %}
-  </div>
-  <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Matn bo'yicha qidirish"></label>
+<form class="kb-search" method="get" role="search">
+  {% for k, v in kb_args(q=None).items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  <label class="kb-search-f">
+    {{ ui.icon('search') }}
+    <input type="search" name="q" value="{{ q }}" placeholder="Masalan: kechikish uchun penya olsa bo'ladimi?" aria-label="Bilimlar bazasidan qidirish" autocomplete="off">
+    {% if q %}<a class="kb-search-x" href="{{ url_for('shartnoma.kb_list', **kb_args(q=None)) }}" aria-label="Qidiruvni tozalash">{{ ui.icon('x', 'sm') }}</a>{% endif %}
+  </label>
+  <button class="btn solid">Qidirish</button>
+  <p class="kb-search-h">{% if idx.ready %}{{ ui.icon('star', 'sm') }} Ma'no bo'yicha qidiradi — so'z aynan bo'lmasa ham topadi, ustozning dars parchalarini ham ko'rsatadi.{% else %}Hozircha matn bo'yicha qidiradi. Ma'no bo'yicha qidiruv uchun OpenAI kaliti kerak.{% endif %}</p>
 </form>
 
-{% if q and (sem_docs or sem_passages or sem_error) %}
-<div class="kb-sem">
-  {% if sem_error %}<div class="oq-note">{{ ui.icon('info', 'sm') }}<span>Ma'no bo'yicha qidiruv ishlamadi: {{ sem_error }}</span></div>{% endif %}
-  {% if sem_docs %}
-  <h3 class="kb-sem-h">Ma'nosi yaqin materiallar</h3>
-  <div class="kb-list">
-    {% for d in sem_docs %}
-    <a class="card kb-item" href="{{ url_for('shartnoma.kb_edit', did=d.id) }}">
-      <div class="kb-top"><span class="pill k-{{ d.kind }}">{{ d.kind_name }}</span><span class="pill">{{ d.topic_name }}</span><small>#{{ d.id }}</small></div>
-      <b>{{ d.title }}</b>
-      {% if d.source %}<span class="kb-src">{{ ui.icon('book', 'sm') }} {{ d.source }}</span>{% endif %}
-      <p>{{ d.body|truncate(220) }}</p>
-    </a>
-    {% endfor %}
-  </div>
-  {% endif %}
-  {% if sem_passages %}
-  <h3 class="kb-sem-h">Darslardan — ustozning so'zi</h3>
-  <div class="kb-list">
-    {% for p in sem_passages %}
-    <a class="card kb-item kb-pas" href="{{ url_for('shartnoma.video_view', tid=p.transcript_id) }}#matn">
-      <span class="kb-src">{{ ui.icon('video', 'sm') }} {{ source_of(p) }}</span>
-      <p>{{ p.text|truncate(320) }}</p>
-    </a>
-    {% endfor %}
-  </div>
-  {% endif %}
-  {% if docs %}<h3 class="kb-sem-h">Matnida «{{ q }}» bor</h3>{% endif %}
-</div>
+{% if pending %}
+<a class="kb-pending" href="{{ url_for('shartnoma.video_list') }}">
+  <span class="kb-pending-n">{{ pending|num }}</span>
+  <span><b>ta kartochka ustoz tasdig'ini kutmoqda</b><small>Darslardan ajratilgan qoidalar va keyslar — tasdiqlangach bazaga qo'shiladi</small></span>
+  {{ ui.icon('right', 'sm') }}
+</a>
 {% endif %}
 
-<div class="kb-list">
-  {% for d in docs %}
-  <a class="card kb-item {{ '' if d.active else 'off' }}" href="{{ url_for('shartnoma.kb_edit', did=d.id) }}">
-    <div class="kb-top"><span class="pill k-{{ d.kind }}">{{ d.kind_name }}</span><span class="pill">{{ d.topic_name }}</span>{% if not d.active %}<span class="pill warn">o'chiq</span>{% endif %}<small>#{{ d.id }}</small></div>
-    <b>{{ d.title }}</b>
-    {% if d.source %}<span class="kb-src">{{ ui.icon('book', 'sm') }} {{ d.source }}</span>{% endif %}
-    <p>{{ d.body|truncate(260) }}</p>
-  </a>
-  {% else %}
-  <div class="card empty" style="grid-column:1/-1">{{ ui.icon('book') }}<b>Material yo'q</b>Ustozning qoidalari, standart bandlari va namunaviy shartnoma bandlarini qo'shing. Word/PDF/TXT fayldan ham yuklasa bo'ladi.</div>
-  {% endfor %}
+<div class="kb-layout">
+  <details class="kb-side" data-kb-side>
+    <summary>{{ ui.icon('sliders', 'sm') }} Filtrlar{% if chips %} <span class="pill brand">{{ chips|length }}</span>{% endif %}<span class="kb-side-c">{{ ui.icon('chev-down', 'sm') }}</span></summary>
+    <div class="kb-side-b">
+      <nav class="kb-facet" aria-label="Mavzu">
+        <h4>Mavzu</h4>
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(mavzu=None)) }}" class="{{ 'on' if not topic }}" {{ 'aria-current=true' if not topic }}>Barcha mavzular <span>{{ total_all|num }}</span></a>
+        {% for k, v in topics.items() %}
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(mavzu=k)) }}" class="{{ 'on' if topic == k }}" {{ 'aria-current=true' if topic == k }}>{{ v }} <span>{{ by_topic.get(k, 0)|num }}</span></a>
+        {% endfor %}
+      </nav>
+      <nav class="kb-facet" aria-label="Turi">
+        <h4>Turi</h4>
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(tur=None)) }}" class="{{ 'on' if not kind }}">Barcha turlar <span>{{ total_all|num }}</span></a>
+        {% for k, v in kinds.items() %}
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(tur=k)) }}" class="{{ 'on' if kind == k }}" title="{{ kind_hints[k] }}"><i class="kb-dot k-{{ k }}"></i>{{ v }} <span>{{ by_kind.get(k, 0)|num }}</span></a>
+        {% endfor %}
+      </nav>
+      <nav class="kb-facet" aria-label="Manba va holat">
+        <h4>Manba</h4>
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(manba=None)) }}" class="{{ 'on' if not origin }}">Hammasi</a>
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(manba='dars')) }}" class="{{ 'on' if origin == 'dars' }}">{{ ui.icon('video', 'sm') }} Darslardan <span>{{ from_lessons|num }}</span></a>
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(manba='qolda')) }}" class="{{ 'on' if origin == 'qolda' }}">{{ ui.icon('pencil', 'sm') }} Qo'lda kiritilgan <span>{{ (total_all - from_lessons)|num }}</span></a>
+        <h4>Holat</h4>
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(holat=None)) }}" class="{{ 'on' if not state }}">Hammasi</a>
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(holat='faol')) }}" class="{{ 'on' if state == 'faol' }}">Faol — tekshiruvda <span>{{ active_n|num }}</span></a>
+        <a href="{{ url_for('shartnoma.kb_list', **kb_args(holat='ochiq')) }}" class="{{ 'on' if state == 'ochiq' }}">O'chirilgan <span>{{ (total_all - active_n)|num }}</span></a>
+      </nav>
+
+      <section class="kb-idx" aria-label="Qidiruv indeksi">
+        <h4>Qidiruv indeksi</h4>
+        {% set pct = (idx.indexed / idx.total * 100)|round|int if idx.total else 0 %}
+        <div class="kb-idx-bar" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"><i style="width:{{ [pct, 100]|min }}%"></i></div>
+        <p>{{ idx.indexed|num }} / {{ idx.total|num }} indekslangan{% if idx.behind %} · <em>{{ idx.behind|num }} kutmoqda</em>{% endif %}<br>
+          {{ idx.docs|num }} material · {{ idx.passages|num }} dars parchasi · {{ '%.1f'|format(size / 1000000) if size >= 1000000 else (size / 1000)|round|int }}{{ ' mln' if size >= 1000000 else ' ming' }} belgi</p>
+        <form method="post" action="{{ url_for('shartnoma.kb_index') }}"><button class="btn tonal sm" {{ 'disabled' if not idx.ready and not idx.behind }}>Indeksni yangilash</button></form>
+        <form method="post" action="{{ url_for('shartnoma.kb_passages_toggle') }}" class="kb-switch">
+          <input type="hidden" name="on" value="{{ '0' if passages_on else '1' }}">
+          <label class="tg-sw"><input type="checkbox" {{ 'checked' if passages_on }} onchange="this.form.submit()" aria-describedby="kb-pas-h"><span></span></label>
+          <div><b>Dars parchalari ham manba</b><small id="kb-pas-h">Ustozning aynan so'zi tekshiruvda ishlatiladi (tasdiqlanmagan avtomatik matn)</small></div>
+        </form>
+      </section>
+    </div>
+  </details>
+
+  <div class="kb-main">
+    <div class="kb-bar">
+      <div class="kb-count" aria-live="polite">
+        {% if found %}<b>{{ found|num }}</b> ta material{% if pages > 1 %} · {{ (page - 1) * per_page + 1 }}–{{ [page * per_page, found]|min }}{% endif %}{% else %}Material topilmadi{% endif %}
+      </div>
+      {% if chips %}
+      <div class="kb-chips">
+        {% for label, args in chips %}<a class="kb-chip" href="{{ url_for('shartnoma.kb_list', **args) }}" aria-label="Filtrni olib tashlash: {{ label }}">{{ label }} {{ ui.icon('x', 'sm') }}</a>{% endfor %}
+        {% if chips|length > 1 %}<a class="kb-chip-clear" href="{{ url_for('shartnoma.kb_list') }}">Hammasini tozalash</a>{% endif %}
+      </div>
+      {% endif %}
+      {% if not q %}
+      <form method="get" class="kb-sort">
+        {% for k, v in kb_args(tartib=None).items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+        <label for="kb-sort">Tartib</label>
+        <select id="kb-sort" name="tartib" onchange="this.form.submit()">{% for k, v in sorts.items() %}<option value="{{ k }}" {{ 'selected' if sort == k }}>{{ v }}</option>{% endfor %}</select>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if sem_error %}<div class="oq-note">{{ ui.icon('info', 'sm') }}<span>Ma'no bo'yicha qidiruv ishlamadi ({{ sem_error }}) — matn bo'yicha natijalar ko'rsatilmoqda.</span></div>{% endif %}
+
+    {% if passages %}
+    <section class="kb-pas" aria-label="Darslardan">
+      <h3>{{ ui.icon('video', 'sm') }} Ustoz darslarida</h3>
+      <div class="kb-pas-list">
+        {% for p in passages %}
+        <a class="kb-pas-i" href="{{ url_for('shartnoma.video_view', tid=p.transcript_id, t=p.start) }}#matn">
+          <span class="kb-pas-src">{{ ui.icon('play', 'sm') }} {{ source_of(p) }}</span>
+          <p>«{{ hl(snippet(p.text, q, 260), q) }}»</p>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if docs %}
+    <div class="kb-rows">
+      {% for d in docs %}
+      {% set o = origin_of.get(d.id) %}
+      <a class="kb-row k-{{ d.kind }} {{ '' if d.active else 'off' }}" href="{{ url_for('shartnoma.kb_edit', did=d.id) }}">
+        <div class="kb-row-m">
+          <span class="pill k-{{ d.kind }}">{{ d.kind_name }}</span>
+          <span class="kb-row-t">{{ d.topic_name }}</span>
+          {% if d.id in sem_ids %}<span class="pill info">ma'nosi yaqin</span>{% endif %}
+          {% if not d.active %}<span class="pill">o'chirilgan</span>{% endif %}
+          <small>#{{ d.id }}</small>
+        </div>
+        <b class="kb-row-h">{{ hl(d.title, q) }}</b>
+        <p class="kb-row-b">{{ hl(snippet(d.body, q), q) }}</p>
+        <div class="kb-row-f">
+          {% if o and o[0] %}<span class="kb-row-o">{{ ui.icon('video', 'sm') }} {{ o[0].lecture.title if o[0].lecture else o[0].title }}{% if o[1] %} · {{ fmt(o[1]) }}{% endif %}</span>
+          {% elif d.source %}<span class="kb-row-o">{{ ui.icon('book', 'sm') }} {{ d.source }}</span>{% endif %}
+          <span class="kb-row-d">{{ d.updated_at|localdt if d.updated_at else '' }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+
+    {% if pages > 1 %}
+    <nav class="kb-pager" aria-label="Sahifalar">
+      {% if page > 1 %}<a href="{{ url_for('shartnoma.kb_list', sahifa=page - 1, **kb_args()) }}" rel="prev">{{ ui.icon('left', 'sm') }} Oldingi</a>{% else %}<span class="dis">{{ ui.icon('left', 'sm') }} Oldingi</span>{% endif %}
+      <span class="kb-pager-n">
+        {% for n in range(1, pages + 1) %}
+          {% if n == 1 or n == pages or (n - page)|abs <= 1 %}
+            {% if n == page %}<b aria-current="page" data-of="{{ pages }}">{{ n }}</b>{% else %}<a href="{{ url_for('shartnoma.kb_list', sahifa=n, **kb_args()) }}">{{ n }}</a>{% endif %}
+          {% elif (n - page)|abs == 2 %}<i>…</i>{% endif %}
+        {% endfor %}
+      </span>
+      {% if page < pages %}<a href="{{ url_for('shartnoma.kb_list', sahifa=page + 1, **kb_args()) }}" rel="next">Keyingi {{ ui.icon('right', 'sm') }}</a>{% else %}<span class="dis">Keyingi {{ ui.icon('right', 'sm') }}</span>{% endif %}
+    </nav>
+    {% endif %}
+
+    {% elif not passages %}
+    <div class="card empty kb-empty">
+      {{ ui.icon('book') }}
+      {% if q or chips %}
+      <b>Hech narsa topilmadi</b>
+      <span>Boshqa so'z bilan qidirib ko'ring yoki filtrlarni olib tashlang.</span>
+      <div class="kb-empty-a"><a class="btn ghost sm" href="{{ url_for('shartnoma.kb_list') }}">Filtrlarni tozalash</a>
+        <a class="btn tonal sm" href="{{ url_for('shartnoma.kb_edit', mavzu=topic or None, tur=kind or None) }}">{{ ui.icon('plus', 'sm') }} Material qo'shish</a></div>
+      {% else %}
+      <b>Bilimlar bazasi bo'sh</b>
+      <span>Ustozning qoidalari, keyslari va namunaviy bandlarini qo'shing — yoki darslarni yuklang, sun'iy intellekt ulardan kartochkalar ajratadi.</span>
+      <div class="kb-empty-a"><a class="btn solid sm" href="{{ url_for('shartnoma.kb_edit') }}">{{ ui.icon('plus', 'sm') }} Material qo'shish</a>
+        <a class="btn ghost sm" href="{{ url_for('shartnoma.video_list') }}">{{ ui.icon('video', 'sm') }} Dars yuklash</a></div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
 </div>
-{% if found > shown %}<p class="kb-more">Yana {{ (found - shown)|num }} ta material — mavzu, tur yoki qidiruv bilan toraytiring.</p>{% endif %}
 {% endblock %}
+{% block scripts %}<script>
+/* Filtrlar paneli: kompyuterda doim ochiq, telefonda yig'iq */
+(function () {
+  var d = document.querySelector('[data-kb-side]');
+  if (!d) return;
+  var mq = window.matchMedia('(min-width: 961px)');
+  function sync() { d.open = mq.matches; }
+  sync();
+  (mq.addEventListener ? mq.addEventListener('change', sync) : mq.addListener(sync));
+})();
+</script>{% endblock %}
