@@ -2108,13 +2108,29 @@ label.check input { width: 18px; height: 18px; accent-color: var(--brand); }
 
 /* ── A'zolar filtri ── */
 .mf { padding: 14px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; }
-.mf-top { display: grid; grid-template-columns: minmax(220px, 1.6fr) repeat(3, minmax(0, 1fr)) auto; gap: 8px; align-items: center; }
+.mf-top { display: grid; grid-template-columns: minmax(0, 1fr) auto 200px auto; gap: 8px; align-items: center; }
+.mf-top .search input { height: 42px; }
+.mf-sort { height: 42px; font-size: 13.5px; }
+.mf-xls { height: 42px; }
 .mf-top .search { max-width: none; min-width: 0; }
 .mf-top select { height: 40px; font-size: 13.5px; }
 .mf-more-btn { height: 40px; }
 .mf-more-btn.on { border-color: var(--brand); color: var(--brand-txt); background: var(--brand-bg); }
 .mf-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--brand); color: #fff; font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; }
-.mf-more { display: flex; flex-wrap: wrap; gap: 14px 28px; padding: 12px 14px; border-radius: 12px; background: var(--surface2); }
+.mf-more { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; padding: 14px; border-radius: 12px; background: var(--surface2); }
+.mf-more[hidden] { display: none; }
+.mf-f { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.mf-f > span, .mf-f > legend { padding: 0; margin-bottom: 6px; font-size: 11.5px; font-weight: 700; color: var(--txt3); text-transform: uppercase; letter-spacing: .4px; }
+.mf-f select { height: 40px; font-size: 13.5px; }
+.mf-tri { display: flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.mf-tri label { flex: 1; position: relative; }
+.mf-tri input { position: absolute; opacity: 0; pointer-events: none; }
+.mf-tri span { display: flex; align-items: center; justify-content: center; height: 32px; padding: 0 8px; border-radius: 7px; font-size: 12.5px; font-weight: 650; color: var(--txt2); cursor: pointer; white-space: nowrap; }
+.mf-tri input:checked + span { background: var(--brand-bg); color: var(--brand-txt); font-weight: 800; }
+.mf-tri input:focus-visible + span { box-shadow: var(--ring); }
+.mf-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.mf-row .mf-seg { flex: 1; min-width: 0; }
+.mf-row .mf-found { flex: none; margin: 0; }
 .mf-grp { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .mf-grp > span { font-size: 11.5px; font-weight: 700; color: var(--txt3); text-transform: uppercase; letter-spacing: .4px; }
 .mf .chip { position: relative; }
@@ -2134,14 +2150,16 @@ label.check input { width: 18px; height: 18px; accent-color: var(--brand); }
 .mf-chip .ic { width: 14px; height: 14px; opacity: .7; flex: none; }
 .mf-chip:hover .ic { opacity: 1; }
 .mf-clear { font-size: 12.5px; margin-left: 4px; }
-.mf-xls { margin-left: auto; }
 .mc-app { color: var(--brand-txt); background: var(--brand-bg); }
-@media (max-width: 1100px) { .mf-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .mf-top .mf-q { grid-column: 1 / -1; } }
+@media (max-width: 1100px) { .mf-more { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 860px) {
   .mf { padding: 12px; }
-  .mf-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .mf-more-btn { justify-content: center; }
-  .mf-xls { margin-left: 0; }
+  .mf-top { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .mf-top .mf-q { grid-column: 1 / -1; }
+  .mf-xls span { display: none; }
+  .mf-xls { width: 42px; padding: 0; justify-content: center; }
+  .mf-sort { width: 100%; }
+  .mf-row .mf-found { display: none; }
 }
 .mcard[hidden] { display: none; }
 
@@ -2583,3 +2601,4 @@ fieldset.kbe-box legend { float: left; width: 100%; margin-bottom: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .oq-card, .oq-lec { transition: none; } }
 .btn[hidden], .icon-btn[hidden] { display: none !important; }
+@media (max-width: 560px) { .mf-more { grid-template-columns: minmax(0, 1fr); } }

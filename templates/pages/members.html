@@ -37,47 +37,49 @@
   {% if f.holat %}<input type="hidden" name="holat" value="{{ f.holat }}">{% endif %}
   <div class="mf-top">
     <label class="search mf-q">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ f.q }}" placeholder="Ism, telefon, biznes, shahar yoki AQ-kod" autocomplete="off" data-mf-q aria-label="Qidirish"></label>
-    <select name="dastur" data-auto aria-label="Dastur">
-      <option value="">Barcha dasturlar</option>
-      {% for k, kname in kinds.items() %}{% set ps = programs|selectattr('kind', 'equalto', k)|list %}{% if ps %}
-      <optgroup label="{{ kname }}">{% for p in ps %}<option value="{{ p.id }}" {{ 'selected' if f.dastur == p.id }}>{{ p.name }}{{ ' (yakunlangan)' if p.status != 'faol' }}</option>{% endfor %}</optgroup>
-      {% endif %}{% endfor %}
-    </select>
-    <select name="shahar" data-auto aria-label="Shahar">
-      <option value="">Barcha shaharlar</option>
-      {% for c in cities %}<option {{ 'selected' if f.shahar == c }}>{{ c }}</option>{% endfor %}
-    </select>
-    <select name="tartib" data-auto aria-label="Saralash">
+    <button type="button" class="btn ghost mf-more-btn {{ 'on' if extra }}" data-mf-more aria-expanded="{{ 'true' if extra else 'false' }}" aria-controls="mf-panel">{{ ui.icon('sliders', 'sm') }} Filtr{% if extra %} <span class="mf-badge">{{ extra }}</span>{% endif %}</button>
+    <select name="tartib" data-auto aria-label="Saralash" class="mf-sort">
       {% for k, v in sorts %}<option value="{{ k }}" {{ 'selected' if f.tartib == k }}>{{ v }}</option>{% endfor %}
     </select>
-    <button type="button" class="btn ghost mf-more-btn {{ 'on' if extra }}" data-mf-more aria-expanded="{{ 'true' if extra else 'false' }}">{{ ui.icon('sliders', 'sm') }} Filtr{% if extra %} <span class="mf-badge">{{ extra }}</span>{% endif %}</button>
+    {% if g.user.role != 'menejer' %}<a class="btn ghost mf-xls" href="{{ url_for('dastur.members_export', **request.args) }}" title="Ko'rsatilganlarni Excel'ga yuklab olish">{{ ui.icon('download', 'sm') }}<span>Excel</span></a>{% endif %}
   </div>
-  <div class="mf-more" data-mf-panel {{ '' if extra else 'hidden' }}>
-    <div class="mf-grp"><span>Dastur turi</span>
-      <div class="chips">
-        <label class="chip"><input type="radio" name="tur" value="" data-auto {{ 'checked' if not f.tur }}><span>Hammasi</span></label>
-        {% for k, v in kinds.items() %}<label class="chip"><input type="radio" name="tur" value="{{ k }}" data-auto {{ 'checked' if f.tur == k }}><span>{{ v }}</span></label>{% endfor %}
-      </div></div>
-    <div class="mf-grp"><span>Telegram</span>
-      <div class="chips">
-        {% for k, v in (('', 'Farqi yo\'q'), ('1', 'Ulangan'), ('0', 'Ulanmagan')) %}<label class="chip"><input type="radio" name="tg" value="{{ k }}" data-auto {{ 'checked' if f.tg == k }}><span>{{ v }}</span></label>{% endfor %}
-      </div></div>
-    <div class="mf-grp"><span>O'quvchi ilovasi</span>
-      <div class="chips">
-        {% for k, v in (('', 'Farqi yo\'q'), ('1', 'Foydalanadi'), ('0', 'Kirmagan')) %}<label class="chip"><input type="radio" name="ilova" value="{{ k }}" data-auto {{ 'checked' if f.ilova == k }}><span>{{ v }}</span></label>{% endfor %}
-      </div></div>
+  <div class="mf-more" id="mf-panel" data-mf-panel {{ '' if extra else 'hidden' }}>
+    <label class="mf-f"><span>Dastur</span>
+      <select name="dastur" data-auto>
+        <option value="">Barcha dasturlar</option>
+        {% for k, kname in kinds.items() %}{% set ps = programs|selectattr('kind', 'equalto', k)|list %}{% if ps %}
+        <optgroup label="{{ kname }}">
+          <option value="tur:{{ k }}" {{ 'selected' if f.tur == k and not f.dastur }}>{{ kind_all.get(k, kname) }}</option>
+          {% for p in ps %}<option value="{{ p.id }}" {{ 'selected' if f.dastur == p.id }}>{{ p.name }}{{ ' (yakunlangan)' if p.status != 'faol' }}</option>{% endfor %}
+        </optgroup>
+        {% endif %}{% endfor %}
+      </select></label>
+    <label class="mf-f"><span>Shahar</span>
+      <select name="shahar" data-auto>
+        <option value="">Barcha shaharlar</option>
+        {% for c in cities %}<option {{ 'selected' if f.shahar == c }}>{{ c }}</option>{% endfor %}
+      </select></label>
+    <fieldset class="mf-f"><legend>Telegram</legend>
+      <div class="mf-tri">{% for k, v in (('', 'Farqi yo\'q'), ('1', 'Ulangan'), ('0', 'Ulanmagan')) %}<label><input type="radio" name="tg" value="{{ k }}" data-auto {{ 'checked' if f.tg == k }}><span>{{ v }}</span></label>{% endfor %}</div>
+    </fieldset>
+    <fieldset class="mf-f"><legend>O'quvchi ilovasi</legend>
+      <div class="mf-tri">{% for k, v in (('', 'Farqi yo\'q'), ('1', 'Kirgan'), ('0', 'Kirmagan')) %}<label><input type="radio" name="ilova" value="{{ k }}" data-auto {{ 'checked' if f.ilova == k }}><span>{{ v }}</span></label>{% endfor %}</div>
+    </fieldset>
   </div>
-  <nav class="mf-seg" aria-label="Holat">
-    {% for k, v in holat %}
-    <a href="{{ url_with(holat=k or None) }}" class="{{ 'on' if f.holat == k }} {{ 'h-' ~ k if k }}">{{ v }} <span class="n">{{ counts[k] }}</span></a>
-    {% endfor %}
-  </nav>
+  <div class="mf-row">
+    <nav class="mf-seg" aria-label="Holat">
+      {% for k, v in holat %}
+      <a href="{{ url_with(holat=k or None) }}" class="{{ 'on' if f.holat == k }} {{ 'h-' ~ k if k }}" {{ 'aria-current=page' if f.holat == k }}>{{ v }} <span class="n">{{ counts[k] }}</span></a>
+      {% endfor %}
+    </nav>
+    <span class="mf-found"><b data-mf-count>{{ rows|length }}</b> ta a'zo</span>
+  </div>
+  {% if chips %}
   <div class="mf-foot">
-    <span class="mf-found"><b data-mf-count>{{ rows|length }}</b> ta a'zo{% if chips %} topildi{% endif %}</span>
     {% for label, key in chips %}<a class="mf-chip" href="{{ url_with(**{key: None}) }}" title="Olib tashlash">{{ label }} {{ ui.icon('x', 'sm') }}</a>{% endfor %}
-    {% if chips %}<a class="link mf-clear" href="{{ url_for('dastur.members', tartib=f.tartib if f.tartib != 'ism' else None) }}">Hammasini tozalash</a>{% endif %}
-    {% if g.user.role != 'menejer' %}<a class="btn ghost sm mf-xls" href="{{ url_for('dastur.members_export', **request.args) }}">{{ ui.icon('download', 'sm') }} Excel</a>{% endif %}
+    <a class="link mf-clear" href="{{ url_for('dastur.members', tartib=f.tartib if f.tartib != 'ism' else None) }}">Hammasini tozalash</a>
   </div>
+  {% endif %}
 </form>
 
 <div class="mcards">

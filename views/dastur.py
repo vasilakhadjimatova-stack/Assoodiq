@@ -335,6 +335,9 @@ HOLAT = (("", "Hammasi"), ("faol", "Faol"), ("qarzdor", "Qarzdorlar"), ("tugayap
          ("tugagan", "Obunasi tugagan"), ("yangi", "Yangi (30 kun)"), ("nofaol", "Nofaol"))
 SORTS = (("ism", "Ism bo'yicha"), ("qarz", "Qarzi ko'p"), ("tolov_yangi", "Oxirgi to'lov — yangi"),
          ("tolov_eski", "Oxirgi to'lov — eski"), ("tolagan", "Ko'p to'lagan"), ("yangi", "Yangi qo'shilgan"))
+HOLAT_TABS = ("", "faol", "qarzdor", "tugayapti", "nofaol")   # qolganlari — statistika kartochkalaridan
+KIND_ALL = {"kurs": "Barcha kurslar", "klub": "Barcha klublar", "tadbir": "Barcha tadbirlar",
+            "konsalting": "Barcha konsalting"}
 HOLAT_TEST = {
     "faol": lambda r: r["active"],
     "qarzdor": lambda r: r["due"] > 0,
@@ -349,6 +352,8 @@ def member_filters(args):
     """URL parametrlari → tozalangan filtrlar."""
     f = {k: (args.get(k) or "").strip() for k in ("q", "holat", "dastur", "tur", "shahar", "tg", "ilova", "tartib")}
     f["holat"] = f["holat"] if f["holat"] in HOLAT_TEST else ""
+    if f["dastur"].startswith("tur:"):          # dastur ro'yxatidagi «Barcha kurslar» kabi band
+        f["tur"], f["dastur"] = f["dastur"][4:], ""
     f["dastur"] = form_int(f["dastur"])
     f["tur"] = f["tur"] if f["tur"] in PROGRAM_KINDS else ""
     f["tg"] = f["tg"] if f["tg"] in ("1", "0") else ""
@@ -446,12 +451,12 @@ def members():
     chips = []  # faol filtrlar: (yozuv, olib tashlash uchun parametr)
     if f["q"]:
         chips.append((f"«{f['q']}»", "q"))
-    if f["holat"]:
+    if f["holat"] and f["holat"] not in HOLAT_TABS:
         chips.append((dict(HOLAT)[f["holat"]], "holat"))
     if f["dastur"]:
         chips.append((pnames.get(f["dastur"], "Dastur"), "dastur"))
     if f["tur"]:
-        chips.append((PROGRAM_KINDS[f["tur"]], "tur"))
+        chips.append((KIND_ALL.get(f["tur"], PROGRAM_KINDS[f["tur"]]), "tur"))
     if f["shahar"]:
         chips.append((f["shahar"], "shahar"))
     if f["tg"]:
@@ -470,9 +475,9 @@ def members():
 
     summary = {"active": sum(1 for r in rows if r["active"]), "paid": sum(r["paid"] for r in rows),
                "debtors": sum(1 for r in rows if r["due"] > 0)}
-    extra = sum(1 for k in ("tur", "tg", "ilova") if f[k])
+    extra = sum(1 for k in ("dastur", "tur", "shahar", "tg", "ilova") if f[k])
     return render_template("pages/members.html", rows=rows, f=f, seg=f["holat"], q=f["q"], counts=counts,
-                           holat=HOLAT, sorts=SORTS, kinds=PROGRAM_KINDS, chips=chips, url_with=url_with,
+                           holat=[h for h in HOLAT if h[0] in HOLAT_TABS], sorts=SORTS, kind_all=KIND_ALL, kinds=PROGRAM_KINDS, chips=chips, url_with=url_with,
                            extra=extra, total_due=sum(r["due"] for r in rows), summary=summary, **opts)
 
 

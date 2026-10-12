@@ -2162,3 +2162,20 @@ def test_oquv_readiness_and_overview(app):
     assert "Video kerak" in page and "Qo&#39;llanma bo&#39;sh" in page or "Qo'llanma bo'sh" in page
     assert "E&#39;tibor kerak" in page or "E'tibor kerak" in page
     assert page.count('data-attn="1"') == 2 and page.count('data-hidden="1"') == 1 and "1/1 tugatdi" in page
+
+
+def test_members_filter_compact(app):
+    """A'zolar filtri: 5 ta holat yorlig'i, dastur turi dastur ro'yxati ichida («Barcha kurslar»), qolgan holatlar chip bo'lib."""
+    client = app.test_client()
+    login(client, "100100")
+    page = client.get("/azolar").get_data(as_text=True)
+    assert page.count('class="mf-seg"') == 1 and "Obunasi tugagan <span" not in page and "Yangi (30 kun)" not in page
+    assert 'value="tur:kurs"' not in page or "Barcha kurslar" in page
+    p = Program(name="Kurs A", kind="kurs", price=1)
+    db.session.add(p)
+    db.session.commit()
+    page = client.get("/azolar?dastur=tur:kurs").get_data(as_text=True)
+    assert 'value="tur:kurs" selected' in page and "Barcha kurslar" in page and 'mf-badge">1<' in page
+    tug = client.get("/azolar?holat=tugagan").get_data(as_text=True)
+    assert "Obunasi tugagan" in tug and "mf-chip" in tug                       # yorliq yo'q — chip bo'lib ko'rinadi
+    assert "mf-chip" not in client.get("/azolar?holat=qarzdor").get_data(as_text=True)  # yorliq tanlangan — chip takrorlanmaydi
