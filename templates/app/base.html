@@ -16,7 +16,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Amiri:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}?v=2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}?v=3">
+  {% block head %}{% endblock %}
   <script>try { var t = localStorage.getItem('aq-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
   <script src="https://telegram.org/js/telegram-web-app.js" async></script>
 </head>
@@ -34,7 +35,7 @@
   {% endfor %}
 </nav>
 {% endif %}
-<script src="{{ url_for('static', filename='js/student.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/student.js') }}?v=3"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,6 +1,6 @@
 /* Assoodiq ilovasi — service worker: tezkor yuklanish va internet bo'lmaganda sahifa. */
-var CACHE = 'aq-app-v2';
-var SHELL = ['/app/offline', '/static/css/student.css?v=2', '/static/js/student.js?v=2',
+var CACHE = 'aq-app-v3';
+var SHELL = ['/app/offline', '/static/css/student.css?v=3', '/static/js/student.js?v=3',
              '/static/img/app-192.png', '/static/img/pattern.svg', '/static/img/favicon.svg'];
 
 self.addEventListener('install', function (e) {

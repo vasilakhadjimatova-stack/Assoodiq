@@ -12,7 +12,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=33">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=34">
+  {% block head %}{% endblock %}
   <script>
     document.documentElement.classList.add('js');
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; var kv = localStorage.getItem('kview2'); if (kv) document.documentElement.dataset.kview = kv; } catch (e) {}
@@ -36,6 +37,7 @@
       <a href="{{ url_for('dastur.members') }}" class="{{ 'on' if ep in ('dastur.members', 'dastur.member') }}">{{ ui.icon('users') }} A'zolar</a>
       <a href="{{ url_for('kalendar.index') }}" class="{{ 'on' if ep.startswith('kalendar.') }}">{{ ui.icon('calendar') }} Dars jadvali</a>
       <a href="{{ url_for('oquv.index') }}" class="{{ 'on' if ep.startswith('oquv.') }}">{{ ui.icon('play') }} O'quv dasturi</a>
+      <a href="{{ url_for('shartnoma.index') }}" class="{{ 'on' if ep.startswith('shartnoma.') }}">{{ ui.icon('shield') }} Shartnoma tekshiruvi</a>
       {% if can('qarz') %}
       <div class="nav-h">Moliya</div>
       <a href="{{ url_for('qarz.debts') }}" class="{{ 'on' if ep.startswith('qarz.') }}">{{ ui.icon('book') }} Qarz daftari</a>
@@ -98,7 +100,7 @@
   {% for cat, msg in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}" role="{{ 'alert' if cat == 'bad' else 'status' }}">{{ ui.icon('alert' if cat in ('bad', 'warn') else 'check', 'sm') }}<span>{{ msg }}</span></div>{% endfor %}
 </div>
 {% endblock %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=33"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=34"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

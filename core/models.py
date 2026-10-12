@@ -420,6 +420,70 @@ class AiUsage(db.Model):
     ok = db.Column(db.Boolean, default=True)
 
 
+# ── Shartnoma tekshiruvi: bilimlar bazasi va natijalar (core/contract.py) ──────
+
+KNOWLEDGE_KINDS = {"qoida": "Qoida / hukm", "standart": "Standart (AAOIFI va b.)", "ustoz": "Ustoz fikri",
+                   "namuna": "Namuna band", "dars": "Dars materiali"}
+KNOWLEDGE_TOPICS = {"umumiy": "Umumiy", "savdo": "Savdo (bay')", "murobaha": "Murobaha", "ijara": "Ijara",
+                    "mushoraka": "Mushoraka", "mudoraba": "Mudoraba", "salam": "Salam va istisno'",
+                    "qarz": "Qarz, kafolat va garov", "vakolat": "Vakolat (vakola)"}
+
+
+class KnowledgeDoc(db.Model):
+    """Bilimlar bazasidagi bitta material: shartnoma faqat shular asosida tekshiriladi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    kind = db.Column(db.String(12), nullable=False, default="qoida")
+    topic = db.Column(db.String(16), nullable=False, default="umumiy")
+    source = db.Column(db.String(200), default="")      # masalan: «AAOIFI 8-standart, 4/1/3» yoki «Ustoz Abdulloh, 3-dars»
+    body = db.Column(db.Text, default="")
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+    created_at = db.Column(db.DateTime, default=_now)
+    updated_at = db.Column(db.DateTime, default=_now)
+
+    @property
+    def kind_name(self):
+        return KNOWLEDGE_KINDS.get(self.kind, self.kind)
+
+    @property
+    def topic_name(self):
+        return KNOWLEDGE_TOPICS.get(self.topic, self.topic)
+
+
+CONTRACT_VERDICTS = {"mos": "Islom moliyasiga mos", "shartli": "Tuzatish bilan mos",
+                     "mos_emas": "Mos emas", "aniqlanmadi": "Aniqlab bo'lmadi"}
+
+
+class ContractCheck(db.Model):
+    """Shartnoma tekshiruvi: sun'iy intellekt xulosasi va ustozning yakuniy so'zi."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=_now, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))         # xodim yuborgan bo'lsa
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), index=True)  # o'quvchi yuborgan bo'lsa
+    title = db.Column(db.String(200), default="")
+    source_kind = db.Column(db.String(10), default="matn")             # pdf | rasm | docx | matn
+    status = db.Column(db.String(10), nullable=False, default="navbatda")  # navbatda | tayyor | xato
+    error = db.Column(db.String(300), default="")
+    verdict = db.Column(db.String(12), default="")
+    contract_type = db.Column(db.String(80), default="")
+    result = db.Column(db.Text, default="{}")
+    review_verdict = db.Column(db.String(12), default="")
+    review_text = db.Column(db.Text, default="")
+    reviewed_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+    reviewed_at = db.Column(db.DateTime)
+
+    member = db.relationship("Member")
+    user = db.relationship("User", foreign_keys=[user_id])
+    reviewer = db.relationship("User", foreign_keys=[reviewed_by])
+
+    @property
+    def verdict_name(self):
+        return CONTRACT_VERDICTS.get(self.review_verdict or self.verdict, "")
+
+
 class MemberEvent(db.Model):
     """A'zo tarixidagi voqealar (to'lov va yozilish o'z jadvalidan olinadi):
     obuna uzaytirildi, dasturdagi holati o'zgardi, dasturga yozildi."""

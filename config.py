@@ -31,7 +31,7 @@ class Config:
     PERMANENT_SESSION_LIFETIME = 60 * 60 * 24 * 14  # 14 kun
     # Boshqa saytdan POST so'rov yuborib bo'lmasin (CSRF'dan himoya)
     SESSION_COOKIE_SAMESITE = "Lax"
-    MAX_CONTENT_LENGTH = 8 * 1024 * 1024  # import fayli uchun yetarli
+    MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # import fayli va shartnoma (PDF/rasmlar) uchun
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "") == "1"
 

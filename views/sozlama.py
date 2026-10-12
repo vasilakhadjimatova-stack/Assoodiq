@@ -52,7 +52,8 @@ def _ai_context():
     links = {lk.user_id: lk for lk in StaffLink.query.filter_by(active=True).all()}
     return {"env": bool(os.environ.get("ANTHROPIC_API_KEY")), "on": ai.enabled(),
             "mask": (key[:10] + "…" + key[-4:]) if len(key) > 16 else "", "model": ai.MODEL,
-            "opts": {k: F.get_setting(k) for k in ("ai_weekly", "ai_weekly_day", "ai_weekly_hour", "ai_daily_limit")},
+            "opts": {k: F.get_setting(k) for k in ("ai_weekly", "ai_weekly_day", "ai_weekly_hour", "ai_daily_limit",
+                                                    "contract_students", "contract_student_daily")},
             "usage": usage_stats(), "staff": User.query.filter_by(active=True).order_by(User.id).all(),
             "links": links, "recipients": len(R.recipients())}
 

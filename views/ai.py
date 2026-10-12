@@ -43,7 +43,9 @@ def configure():
     elif f.get("ai_key_clear"):
         F.set_setting("ai_key", "")
     F.set_setting("ai_weekly", "1" if f.get("ai_weekly") else "0")
-    for k, lo, hi in (("ai_weekly_day", 0, 6), ("ai_weekly_hour", 0, 23), ("ai_daily_limit", 1, 2000)):
+    F.set_setting("contract_students", "1" if f.get("contract_students") else "0")
+    for k, lo, hi in (("ai_weekly_day", 0, 6), ("ai_weekly_hour", 0, 23), ("ai_daily_limit", 1, 2000),
+                      ("contract_student_daily", 1, 50)):
         try:
             F.set_setting(k, str(min(max(int(float(f.get(k) or 0)), lo), hi)))
         except ValueError:

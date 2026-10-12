@@ -21,6 +21,7 @@ ichiga qurilgan.
 | **Namoz vaqtlari, qibla, zakot** | Ilovada: O'zbekiston shaharlari yoki GPS bo'yicha namoz vaqtlari (keyingi namozgacha teskari sanoq, haftalik jadval), telefon kompasi bilan qibla ko'rsatkichi, shaxsiy zakot kalkulyatori (oltin/kumush nisobi). Hisoblash usuli, asr mazhabi va har namozga daqiqa tuzatish — Sozlamalarda |
 | **Sun'iy intellekt: Telegram yordamchi** | Xodim botga oddiy so'z bilan yozadi («Akmaldan 1.5 mln naqd kurs to'lovi oldim», «kecha ofis ijarasi 4 mln bankdan») yoki chek / nakladnoy / bank skrinshoti rasmini yuboradi — Claude summa, hisob, kategoriya, sana va o'quvchini aniqlaydi, bot qoralamani ko'rsatadi, «✅ Saqlash» bosilgandagina kassaga yoziladi (o'quvchi to'lovi uning qarziga bog'lanadi). Bir xabarda bir nechta yozuv. Menejer faqat kirim yozadi |
 | **Sun'iy intellekt: moliyaviy tahlil** | Har hafta (kun va soat sozlanadi) rahbar va buxgalterga Telegram'da va bosh sahifada tahlil: asosiy raqamlar, yaxshi tomonlar, xavflar (qarzdorlar ismi bilan), «bu hafta 3 ta qadam». Botga savol ham beriladi: «Bu oy nega zarar?». Raqamlar dasturda hisoblanadi, sun'iy intellekt faqat tushuntiradi. Kunlik so'rov limiti va oylik xarajat Sozlamalarda ko'rinadi |
+| **Shartnoma tekshiruvi** | Shartnoma (PDF, Word, sahifa rasmlari yoki matn) **faqat markazning bilimlar bazasi** asosida tekshiriladi: ustoz qoidalari va fikrlari, standartlar (AAOIFI va b.), namunaviy bandlar, dars materiallari. Har bir topilgan masala — shartnomadan iqtibos, izoh, halol muqobil band va bazadagi aniq materialga havola; bazada asosi yo'q gumonlar «ustozga savol» bo'lib qoladi. Ustoz o'z xulosasini yozadi, o'quvchiga Telegram'da boradi. Xodimlar panelida va o'quvchi ilovasida (kunlik limit bilan). Bilimlar bazasi mavzu va turlar bo'yicha yuritiladi, Word/PDF/TXT fayldan to'ldiriladi |
 | **Kurs va klublar** | Har bir potok/klub/tadbir bo'yicha: a'zolar soni, kutilgan va yig'ilgan summa, xarajat, sof foyda, rentabellik, 1 a'zoni jalb qilish narxi |
 | **A'zolar** | O'quvchi va klub a'zolari, kim qancha to'lagan va qancha qarz. Klub obunasini bir tugma bilan uzaytirish, muddati tugayotganlar ro'yxati |
 | **Zakot** | Naqd, undiriladigan haqlar, tovar zaxirasi va qarzlar daftardan avtomatik yig'iladi. Nisob oltin (85 g) yoki kumush (595 g) bo'yicha. Havl sanasi hijriy taqvimda, hisob-kitoblar tarixi saqlanadi |
@@ -112,6 +113,7 @@ core/
   bunny.py          Bunny Stream: video yaratish, TUS yuklash imzosi, himoyalangan ko'rish havolasi
   ai.py             Claude bilan ishlash: so'rov, xarajat hisobi, kunlik limit
   ai_kassa.py       Matn/chek rasmi → tekshirilgan kassa qoralamasi → tasdiqlangach yozuv
+  contract.py       Shartnoma tekshiruvi: bilimlar bazasidan kontekst, tahlil (fon oqimida), natijani tekshirish
   ai_report.py      Moliyaviy raqamlar to'plami, haftalik tahlil va savollarga javob
   staff_bot.py      Telegram botning xodimlar rejimi (ulash, tasdiqlash tugmalari, /balans, /hisobot)
   telegram.py       Telegram bot: yuborish, shablonlar, avtomatik eslatmalar, webhook buyruqlari
@@ -136,6 +138,8 @@ o'zgarmaydi.
 - `X-Frame-Options`, `Referrer-Policy`, moliyaviy sahifalarda `Cache-Control: no-store`
 - O'quvchi ilovasi xodimlar panelidan alohida sessiya bilan ishlaydi; taklif havolasi bazada faqat
   xesh ko'rinishida saqlanadi, «barcha qurilmalardan chiqarish» eski havola va sessiyalarni bekor qiladi
+- Shartnoma fayllari serverda saqlanmaydi (faqat tahlil natijasi); shartnoma matnidagi «ko'rsatmalar»
+  e'tiborsiz qoldiriladi; bazada mavjud bo'lmagan manbaga havola qilgan topilma ko'rsatilmaydi
 - Sun'iy intellekt kassaga o'zi yozmaydi: har bir yozuv xodim tasdiqlagach saqlanadi, maydonlar
   bazaga qarab qayta tekshiriladi; javoblardagi HTML faqat `<b>`/`<i>` bilan cheklanadi
 - Telegram Mini App kirishi `initData` imzosini bot tokeni bilan tekshiradi; kirish kodi 10 daqiqa,

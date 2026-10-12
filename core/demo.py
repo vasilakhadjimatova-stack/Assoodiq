@@ -10,7 +10,7 @@ from core import finance as F
 from core import hijri
 from core.extensions import db
 from core.models import (
-    Account, Attendance, Category, Debt, Enrollment, Lecture, LectureProgress, Lesson, LoginCode, Member, MemberEvent,
+    Account, AiDraft, Attendance, Category, ContractCheck, Debt, KnowledgeDoc, Enrollment, Lecture, LectureProgress, Lesson, LoginCode, Member, MemberEvent,
     Module, Notification, Program, Setting, StudentAccess, TelegramLink, Transaction, User, ZakatSnapshot,
 )
 
@@ -263,6 +263,8 @@ def demo(today=None):
     # ── Dars jadvali (kalendar) ──
     demo_lessons(today, admin, p6=p6, mur=mur, club=club, cons=cons, nxt=nxt)
     demo_curriculum(today, p6=p6, mur=mur)
+    from core import demo_knowledge
+    demo_knowledge.seed(db, KnowledgeDoc, admin.id)
 
     F.set_setting("hawl_start", (today - timedelta(days=290)).isoformat())
     F.set_setting("inventory_value", "14000000")
@@ -411,6 +413,10 @@ def load_demo():
 def clear_data():
     """Barcha moliyaviy yozuvlarni o'chiradi. Xodimlar, hisoblar, kategoriyalar va
     sozlamalar (kurs, nisob narxi) saqlanib qoladi; hisoblar qoldig'i nolga tushadi."""
+    AiDraft.query.delete()
+    ContractCheck.query.delete()
+    from core import demo_knowledge
+    KnowledgeDoc.query.filter_by(source=demo_knowledge.SRC).delete()
     Transaction.query.delete()
     LectureProgress.query.delete()
     Lecture.query.delete()

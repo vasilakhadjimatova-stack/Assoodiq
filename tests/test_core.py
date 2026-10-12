@@ -1259,6 +1259,20 @@ class _FakeClaude:
                           usage=NS(input_tokens=1200, output_tokens=300, cache_read_input_tokens=0,
                                    cache_creation_input_tokens=0))
 
+            def stream(self, **kw):
+                msg = self.create(**kw)
+
+                class _S:
+                    def __enter__(self_inner):
+                        return self_inner
+
+                    def __exit__(self_inner, *a):
+                        return False
+
+                    def get_final_message(self_inner):
+                        return msg
+                return _S()
+
         from types import SimpleNamespace as NS
         self.beta = NS(messages=_Msgs())
 
@@ -1416,3 +1430,143 @@ def test_ai_weekly_report_dashboard_and_settings(app, tg, claude, monkeypatch):
     login(manager, "300300")
     assert manager.post("/ai/hisobot").status_code == 403
     assert manager.get("/ai/telegram").status_code == 200
+
+
+# ── Shartnoma tekshiruvi ──
+
+def _docx(text):
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        paras = "".join(f"<w:p><w:r><w:t>{t}</w:t></w:r></w:p>" for t in text.split("\n"))
+        z.writestr("word/document.xml", f'<w:document xmlns:w="x"><w:body>{paras}</w:body></w:document>')
+    return buf.getvalue()
+
+
+def _kb(title="Kechikish jarimasi joiz emas", topic="umumiy", body="Kreditor foydasiga jarima — ribo."):
+    from core.models import KnowledgeDoc
+    d = KnowledgeDoc(title=title, topic=topic, kind="qoida", body=body, source="Ustoz, 3-dars")
+    db.session.add(d)
+    db.session.commit()
+    return d
+
+
+def test_knowledge_base_crud_and_text_import(app):
+    from io import BytesIO
+    from core import contract as C
+    from core.models import KnowledgeDoc
+    client = app.test_client()
+    login(client, "300300")
+    r = client.post("/shartnoma/bilimlar/saqlash", data={
+        "title": "Murobahada egalik", "kind": "ustoz", "topic": "murobaha", "source": "Ustoz Abdulloh",
+        "body": "Sotuvchi avval egalik qiladi.", "file": (BytesIO(_docx("Birinchi qator\nIkkinchi qator")), "q.docx")},
+        content_type="multipart/form-data")
+    assert r.status_code == 302
+    d = KnowledgeDoc.query.one()
+    assert d.body.startswith("Sotuvchi avval") and "Ikkinchi qator" in d.body and d.topic == "murobaha"
+    page = client.get("/shartnoma/bilimlar?mavzu=murobaha").get_data(as_text=True)
+    assert "Murobahada egalik" in page and "Ustoz Abdulloh" in page
+    assert "Murobahada egalik" not in client.get("/shartnoma/bilimlar?mavzu=ijara").get_data(as_text=True)
+    assert C.text_from_upload("a.txt", "Salom".encode()) == "Salom"
+    # katta baza: shartnoma mavzusi + umumiy materiallar qoladi
+    _kb("Umumiy qoida", "umumiy", "x" * 50)
+    _kb("Ijara qoidasi", "ijara", "y" * 50)
+    import core.contract as CM
+    old = CM.KB_CHAR_BUDGET
+    CM.KB_CHAR_BUDGET = 400
+    try:
+        text, ids, trimmed = C.knowledge(C.detect_topics("Murobaha shartnomasi, ustama 20%"))
+    finally:
+        CM.KB_CHAR_BUDGET = old
+    titles = {db.session.get(KnowledgeDoc, i).title for i in ids}
+    assert trimmed and titles == {"Murobahada egalik", "Umumiy qoida"}
+    client.post(f"/shartnoma/bilimlar/{d.id}/ochirish")
+    assert KnowledgeDoc.query.count() == 2
+
+
+def _result(src_ids):
+    return {"contract_type": "Oldi-sotdi (nasiya)", "summary": "Tovar bo'lib to'lashga sotiladi.",
+            "verdict": "mos", "verdict_reason": "Asosan to'g'ri, bir band tuzatilishi kerak.",
+            "findings": [
+                {"severity": "orta", "category": "jarima", "clause": "kechikkan har kun uchun 0.5% penya",
+                 "issue": "Kechikish jarimasi sotuvchi foydasiga", "explanation": "Bazaga ko'ra ribo.",
+                 "sources": src_ids, "suggestion": "Kechikish uchun summa xayriyaga yo'naltiriladi."},
+                {"severity": "jiddiy", "category": "boshqa", "clause": "", "issue": "Sug'urta sharti",
+                 "explanation": "?", "sources": [9999], "suggestion": ""}],
+            "good_points": ["Narx aniq"], "missing": ["Tovar egaligi o'tish sanasi"], "questions_for_ustoz": []}
+
+
+def test_contract_check_staff_flow_and_review(app, tg, claude):
+    from core.models import ContractCheck, Notification, TelegramLink
+    client = app.test_client()
+    login(client, "100100")
+    # baza bo'sh — tekshiruv xato bilan tugaydi
+    r = client.post("/shartnoma/yangi", data={"title": "Bo'sh", "text": "Shartnoma matni"})
+    c0 = ContractCheck.query.one()
+    assert c0.status == "xato" and "bo'sh" in c0.error
+    kb = _kb()
+    claude.replies.append(_result([kb.id]))
+    r = client.post("/shartnoma/yangi", data={"title": "Yetkazib berish",
+                                              "text": "Xaridor kechikkan har kun uchun 0.5% penya to'laydi."})
+    c = ContractCheck.query.order_by(ContractCheck.id.desc()).first()
+    assert r.headers["Location"].endswith(f"/shartnoma/{c.id}")
+    call = claude.calls[-1]
+    sys_text = call["system"][0]["text"]
+    assert "ONLY against the centre's KNOWLEDGE BASE" in sys_text and f'<item id="{kb.id}"' in sys_text
+    assert call["system"][0]["cache_control"]["ttl"] == "1h" and call["output_config"]["effort"] == "high"
+    assert "0.5% penya" in call["messages"][0]["content"][-1]["text"]
+    assert c.status == "tayyor" and c.verdict == "shartli"  # «mos», lekin tuzatish bor — shartli
+    import json as _j
+    res = _j.loads(c.result)
+    assert len(res["findings"]) == 1 and "bazada asos topilmadi" in res["questions_for_ustoz"][0]
+    page = client.get(f"/shartnoma/{c.id}").get_data(as_text=True)
+    assert "Kechikish jarimasi sotuvchi foydasiga" in page and kb.title in page and "Ustoz xulosasi" in page
+    assert client.get(f"/shartnoma/{c.id}/holat").get_json()["status"] == "tayyor"
+    # o'quvchidan kelgan tekshiruvga ustoz xulosasi — Telegram'ga xabar
+    m = Member(full_name="Ali Valiyev")
+    db.session.add(m)
+    db.session.commit()
+    db.session.add(TelegramLink(member_id=m.id, chat_id="321"))
+    c.member_id = m.id
+    db.session.commit()
+    client.post(f"/shartnoma/{c.id}/xulosa", data={"verdict": "mos_emas", "text": "7-bandni o'zgartiring", "notify": "on"})
+    c = db.session.get(ContractCheck, c.id)
+    assert c.review_verdict == "mos_emas" and c.reviewer.role == "rahbar"
+    assert "Mos emas" in _sent(tg)[-1]["text"] and _sent(tg)[-1]["chat_id"] == "321"
+    assert Notification.query.filter_by(member_id=m.id).count() == 1
+    assert "Hammasi" in client.get("/shartnoma/?holat=kutilmoqda").get_data(as_text=True)
+
+
+def test_contract_check_student_app(app, claude):
+    from io import BytesIO
+    from core import student as S
+    from core.models import ContractCheck
+    kb = _kb()
+    m1, m2 = Member(full_name="Bir"), Member(full_name="Ikki")
+    db.session.add_all([m1, m2])
+    db.session.commit()
+    c1, c2 = app.test_client(), app.test_client()
+    c1.get(f"/app/k/{S.issue_invite(m1)}")
+    c2.get(f"/app/k/{S.issue_invite(m2)}")
+    assert "Tekshirish" in c1.get("/app/shartnoma").get_data(as_text=True)
+    F.set_setting("contract_student_daily", "1")
+    db.session.commit()
+    claude.replies.append(_result([kb.id]))
+    r = c1.post("/app/shartnoma", data={"title": "Ijara", "files": (BytesIO(b"%PDF-1.4 fake"), "ijara.pdf")},
+                content_type="multipart/form-data")
+    check = ContractCheck.query.one()
+    assert check.member_id == m1.id and check.source_kind == "pdf" and check.status == "tayyor"
+    block = claude.calls[-1]["messages"][0]["content"][0]
+    assert block["type"] == "document" and block["source"]["media_type"] == "application/pdf"
+    page = c1.get(f"/app/shartnoma/{check.id}").get_data(as_text=True)
+    assert "Kechikish jarimasi sotuvchi foydasiga" in page and "fatvo emas" in page
+    assert c2.get(f"/app/shartnoma/{check.id}").status_code == 404  # boshqa o'quvchiniki
+    # kunlik limit
+    r = c1.post("/app/shartnoma", data={"text": "matn"}, follow_redirects=True)
+    assert ContractCheck.query.count() == 1
+    # yopiq bo'lsa
+    F.set_setting("contract_students", "0")
+    db.session.commit()
+    assert "hozircha yopiq" in c2.get("/app/shartnoma").get_data(as_text=True)
+    assert c2.post("/app/shartnoma", data={"text": "matn"}).status_code == 302 and ContractCheck.query.count() == 1

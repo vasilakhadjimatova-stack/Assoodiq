@@ -7,6 +7,10 @@
   <div class="hx-sub">{{ courses|length }} ta dastur · {{ courses|sum(attribute='lectures') }} ta dars · {{ courses|sum(attribute='done') }} tasi tugatilgan</div>
 </header>
 <main class="ap-main">
+  <a class="card cont" href="{{ url_for('ilova.contracts') }}">
+    <div class="cont-th" style="--c:#8F6A1E"><span>{{ ui.icon('shield') }}</span></div>
+    <div class="cont-b"><small>Yangi xizmat</small><b>Shartnomangizni tekshiring</b><span class="muted" style="font-size:12.5px;font-weight:600">Ustoz qoidalari asosida — ribo, g'arar va jarimalar</span></div>
+  </a>
   {% if courses %}
   <div class="cl">{% for c in courses %}{{ am.course_card(c) }}{% endfor %}</div>
   {% else %}

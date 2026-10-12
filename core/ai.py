@@ -74,7 +74,8 @@ def _record(feature, user_id, usage=None, ok=True):
     db.session.commit()
 
 
-def ask(system, content, *, feature, user_id=None, schema=None, effort="low", max_tokens=8000):
+def ask(system, content, *, feature, user_id=None, schema=None, effort="low", max_tokens=8000, stream=False,
+        cache_ttl=None):
     """Claude'ga bitta so'rov. schema berilsa — JSON (dict), aks holda matn qaytaradi.
 
     system — o'zgarmas ko'rsatma (keshlanadi); content — foydalanuvchi qismi (matn yoki bloklar ro'yxati).
@@ -87,16 +88,22 @@ def ask(system, content, *, feature, user_id=None, schema=None, effort="low", ma
     output_config = {"effort": effort}
     if schema:
         output_config["format"] = {"type": "json_schema", "schema": schema}
+    cache = {"type": "ephemeral", **({"ttl": cache_ttl} if cache_ttl else {})}
+    kwargs = dict(
+        model=MODEL,
+        max_tokens=max_tokens,
+        system=[{"type": "text", "text": system, "cache_control": cache}],
+        messages=[{"role": "user", "content": content}],
+        output_config=output_config,
+        betas=["server-side-fallback-2026-07-01"],
+        fallbacks="default",
+    )
     try:
-        resp = _client().beta.messages.create(
-            model=MODEL,
-            max_tokens=max_tokens,
-            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": content}],
-            output_config=output_config,
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-        )
+        if stream:  # uzun tahlil — HTTP vaqt chegarasiga tushmaslik uchun oqim bilan
+            with _client().beta.messages.stream(**kwargs) as s:
+                resp = s.get_final_message()
+        else:
+            resp = _client().beta.messages.create(**kwargs)
     except anthropic.AuthenticationError:
         _record(feature, user_id, ok=False)
         raise AiError("Sun'iy intellekt kaliti noto'g'ri — Sozlamalarda tekshiring.")

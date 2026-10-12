@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Shartnoma tekshiruvi{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <div class="head-t">Shartnoma tekshiruvi</div>
+    <div class="head-s">Shartnoma faqat markazning bilimlar bazasi — ustoz qoidalari, standartlar va namunalar asosida tekshiriladi. Yakuniy xulosa ustozniki.</div>
+  </div>
+  <div class="head-a"><a class="btn ghost" href="{{ url_for('shartnoma.kb_list') }}">{{ ui.icon('book', 'sm') }} Bilimlar bazasi <span class="pill">{{ kb_count }}</span></a></div>
+</div>
+
+<div class="grid g-2 sh-grid">
+  <form class="card sh-new" method="post" action="{{ url_for('shartnoma.create') }}" enctype="multipart/form-data">
+    <div class="card-h"><h3>Yangi tekshiruv</h3></div>
+    <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+      {% if not ai_on %}<div class="oq-note">{{ ui.icon('info', 'sm') }}<span>Sun'iy intellekt ulanmagan.{% if can('sozlama') %} <a class="link" href="{{ url_for('sozlama.index', bolim='ai') }}">Sozlamalar → Sun'iy intellekt</a>{% endif %}</span></div>{% endif %}
+      {% if not kb_count %}<div class="oq-note">{{ ui.icon('book', 'sm') }}<span>Bilimlar bazasi bo'sh. Avval <a class="link" href="{{ url_for('shartnoma.kb_edit') }}">ustoz qoidalari va namunalarini qo'shing</a> — tekshiruv faqat ular asosida bo'ladi.</span></div>{% endif %}
+      <div class="field"><label>Nomi</label><input type="text" name="title" placeholder="Masalan: Avto ehtiyot qismlar yetkazib berish shartnomasi" maxlength="200"></div>
+      <label class="sh-drop">
+        <input type="file" name="files" multiple accept=".pdf,.docx,.txt,image/*" data-cr-files="#sh-files">
+        {{ ui.icon('upload') }}
+        <b>Shartnoma faylini tanlang</b>
+        <span>PDF, Word (DOCX), rasm (har sahifa alohida, 10 tagacha) yoki TXT</span>
+        <em id="sh-files"></em>
+      </label>
+      <div class="field"><label>yoki matnini qo'ying</label><textarea name="text" rows="5" placeholder="Shartnoma matni…"></textarea></div>
+      <button class="btn solid" {{ 'disabled' if not ai_on or not kb_count }}>{{ ui.icon('shield', 'sm') }} Tekshirish</button>
+      <span class="hint">Fayl serverda saqlanmaydi — faqat tahlil natijasi saqlanadi.</span>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="card-h"><h3>Tekshiruvlar</h3>
+      <div class="seg" style="margin-left:auto">
+        {% for k, v in (('', 'Hammasi'), ('kutilmoqda', 'Ustoz kutmoqda'), ('oquvchi', "O'quvchilardan")) %}
+        <a href="{{ url_for('shartnoma.index', holat=k or None) }}" class="{{ 'on' if seg == k }}">{{ v }}{% if k == 'kutilmoqda' and waiting %} <span class="n">{{ waiting }}</span>{% endif %}</a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card-b" style="padding-top:4px">
+      {% for c in checks %}
+      {% set v = c.review_verdict or c.verdict %}
+      <a class="sh-row" href="{{ url_for('shartnoma.view', cid=c.id) }}">
+        <span class="sh-ic v-{{ v or c.status }}">{{ ui.icon({'mos': 'check', 'shartli': 'pencil', 'mos_emas': 'x', 'xato': 'alert'}.get(v or c.status, 'file'), 'sm') }}</span>
+        <div class="sh-b">
+          <b>{{ c.title }}</b>
+          <span>{{ c.created_at|localdt }} · {{ c.member.full_name if c.member else (c.user.name if c.user else '') }}{% if c.member %} <em class="pill gold">o'quvchi</em>{% endif %}</span>
+        </div>
+        {% if c.status == 'navbatda' %}<span class="pill info">tahlil qilinmoqda</span>
+        {% elif c.status == 'xato' %}<span class="pill bad">xato</span>
+        {% elif c.review_verdict %}<span class="pill ok">ustoz: {{ verdicts[c.review_verdict] }}</span>
+        {% else %}<span class="pill warn">{{ verdicts.get(c.verdict, '') }} · ustoz kutmoqda</span>{% endif %}
+      </a>
+      {% else %}
+      <div class="empty" style="padding:20px">{{ ui.icon('shield') }}<b>Hali tekshiruv yo'q</b>Chap tomondan shartnoma yuklang.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/contract.js') }}?v=1"></script>{% endblock %}

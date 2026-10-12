@@ -2239,3 +2239,44 @@ label.check input { width: 18px; height: 18px; accent-color: var(--brand); }
 .ai-examples span { color: var(--txt2); line-height: 1.5; }
 .btn.busy { opacity: .7; pointer-events: none; }
 @media (max-width: 860px) { .ai-card { padding: 14px; } .ai-h { flex-wrap: wrap; } .ai-act { margin-left: 52px; } .ai-examples div { grid-template-columns: 1fr; gap: 2px; } }
+
+/* ── Shartnoma tekshiruvi ── */
+.sh-grid { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); align-items: start; }
+.sh-drop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 16px; border-radius: 14px; border: 2px dashed var(--line2); background: var(--surface2); text-align: center; cursor: pointer; transition: border-color .15s; }
+.sh-drop:hover { border-color: var(--brand); }
+.sh-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.sh-drop .ic { width: 26px; height: 26px; color: var(--brand-txt); }
+.sh-drop b { font-size: 14px; }
+.sh-drop span { font-size: 12px; color: var(--txt3); font-weight: 600; }
+.sh-drop em { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--brand-txt); word-break: break-all; }
+.sh-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.sh-row:last-child { border-bottom: 0; }
+.sh-ic { width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center; background: var(--surface2); color: var(--txt2); }
+.sh-ic.v-mos { background: var(--ok-bg); color: var(--ok); } .sh-ic.v-shartli { background: var(--gold-bg); color: var(--gold); }
+.sh-ic.v-mos_emas, .sh-ic.v-xato { background: var(--bad-bg); color: var(--bad); }
+.sh-b { flex: 1; min-width: 0; }
+.sh-b b { display: block; font-size: 14px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-b span { font-size: 12px; color: var(--txt3); font-weight: 600; }
+.sh-b em { font-style: normal; }
+.sh-view { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; max-width: 1240px; }
+.sh-review { position: sticky; top: 80px; }
+.sh-verdicts { display: flex; flex-wrap: wrap; gap: 6px; }
+.sh-verdicts .chip { position: relative; }
+.kb-topics { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-bottom: 12px; padding-bottom: 2px; }
+.kb-topics a { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 17px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-weight: 700; color: var(--txt2); }
+.kb-topics a span { font-size: 11.5px; color: var(--txt3); }
+.kb-topics a.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.kb-topics a.on span { color: rgba(255, 255, 255, .75); }
+.kb-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.kb-item { display: flex; flex-direction: column; gap: 6px; padding: 16px; transition: box-shadow .2s, transform .2s; }
+.kb-item:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+.kb-item.off { opacity: .6; }
+.kb-top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.kb-top small { margin-left: auto; font-size: 11.5px; color: var(--txt3); font-weight: 700; }
+.kb-item b { font-size: 14.5px; font-weight: 800; line-height: 1.35; }
+.kb-src { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--gold); font-weight: 700; }
+.kb-item p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--txt3); white-space: pre-line; }
+.pill.k-ustoz { background: var(--gold-bg); color: var(--gold); } .pill.k-standart { background: var(--info-bg); color: var(--info); }
+.pill.k-namuna { background: var(--ok-bg); color: var(--ok); } .pill.k-qoida { background: var(--brand-bg); color: var(--brand-txt); }
+.kb-form { max-width: 900px; }
+@media (max-width: 1100px) { .sh-grid, .sh-view { grid-template-columns: minmax(0, 1fr); } .sh-review { position: static; } }

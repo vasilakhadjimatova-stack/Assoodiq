@@ -37,6 +37,7 @@ DEFAULT_SETTINGS = {
     "prayer_method": "MWL", "prayer_asr": "hanafi", "prayer_offsets": "0,0,0,0,0,0", "app_city": "Toshkent",
     # Sun'iy intellekt (core/ai.py)
     "ai_key": "", "ai_weekly": "1", "ai_weekly_day": "0", "ai_weekly_hour": "9", "ai_daily_limit": "100",
+    "contract_students": "1", "contract_student_daily": "3",
 }
 
 NISOB_GRAMS = {"oltin": 85, "kumush": 595}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title if doc else 'Yangi material' }}{% endblock %}
+{% block content %}
+<a class="crumb" href="{{ url_for('shartnoma.kb_list', mavzu=doc.topic if doc else None) }}">{{ ui.icon('left', 'sm') }} Bilimlar bazasi</a>
+<div class="head"><div><div class="head-t">{{ 'Materialni tahrirlash' if doc else 'Yangi material' }}</div>
+  <div class="head-s">Bitta material — bitta aniq qoida yoki mavzu bo'lsin: tekshiruvda aynan shu materialga havola qilinadi.</div></div></div>
+<form class="card kb-form" method="post" action="{{ url_for('shartnoma.kb_save') }}" enctype="multipart/form-data">
+  {% if doc %}<input type="hidden" name="id" value="{{ doc.id }}">{% endif %}
+  <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+    <div class="field"><label>Sarlavha</label><input type="text" name="title" required maxlength="200" value="{{ doc.title if doc }}" placeholder="Masalan: Kechikish uchun jarima — ribo hisoblanadi"></div>
+    <div class="form-grid">
+      <div class="field"><label>Turi</label><select name="kind">{% for k, v in kinds.items() %}<option value="{{ k }}" {{ 'selected' if (doc.kind if doc else 'qoida') == k }}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Mavzu</label><select name="topic">{% for k, v in topics.items() %}<option value="{{ k }}" {{ 'selected' if (doc.topic if doc else preset_topic) == k }}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="field full"><label>Manba</label><input type="text" name="source" maxlength="200" value="{{ doc.source if doc }}" placeholder="Masalan: AAOIFI 8-standart, 5/1 · yoki: Ustoz Abdulloh, 4-dars"></div>
+    </div>
+    <div class="field"><label>Matn</label><textarea name="body" rows="14" placeholder="Qoida, dalil, istisnolar va to'g'ri band namunasini yozing…">{{ doc.body if doc }}</textarea>
+      <span class="hint">Aniqroq yozilsa — tekshiruv aniqroq. To'g'ri (halol) band namunasini ham qo'shing: tuzatish takliflari shundan olinadi.</span></div>
+    <div class="field"><label>yoki fayldan qo'shish</label><input type="file" name="file" accept=".docx,.pdf,.txt,.md"><span class="hint">Word, PDF (matnli) yoki TXT — matni yuqoridagiga qo'shiladi</span></div>
+    {% if doc %}<label class="check"><input type="checkbox" name="active" {{ 'checked' if doc.active }}> Faol — tekshiruvda ishlatiladi</label>{% endif %}
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button>
+      <a class="btn ghost" href="{{ url_for('shartnoma.kb_list') }}">Bekor qilish</a>
+    </div>
+  </div>
+</form>
+{% if doc %}
+<form method="post" action="{{ url_for('shartnoma.kb_delete', did=doc.id) }}" onsubmit="return confirm('Material o\'chirilsinmi?')" style="margin-top:12px"><button class="btn ghost sm">{{ ui.icon('trash', 'sm') }} O'chirish</button></form>
+{% endif %}
+{% endblock %}

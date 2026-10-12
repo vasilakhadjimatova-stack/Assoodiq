@@ -1,0 +1,46 @@
+{% extends "app/base.html" %}
+{% block title %}Shartnoma tekshiruvi · {{ org_name }}{% endblock %}
+{% block body %}
+<header class="hx slim">
+  <div class="hx-bar"><a class="hx-back" href="{{ url_for('ilova.home') }}" aria-label="Orqaga">{{ ui.icon('left') }}</a><h1>Shartnoma tekshiruvi</h1></div>
+  <div class="hx-sub">Shartnomangizni yuklang — ustozimizning qoidalari va islom moliyasi bilimlar bazasi asosida tekshiriladi, keyin ustoz tasdiqlaydi.</div>
+</header>
+<main class="ap-main">
+  {% if open %}
+  <form class="card card-p" method="post" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:12px" data-ct-form>
+    <div class="fld"><label>Nomi</label><input name="title" placeholder="Masalan: Yetkazib berish shartnomasi" maxlength="200"></div>
+    <label class="ct-drop">
+      <input type="file" name="files" multiple accept=".pdf,.docx,.txt,image/*" data-cr-files="#ct-files">
+      {{ ui.icon('upload', 'lg') }}
+      <b>Faylni tanlang yoki suratga oling</b>
+      <span>PDF, Word yoki har bir sahifa rasmi (10 tagacha)</span>
+      <em id="ct-files"></em>
+    </label>
+    <button class="btn solid block" {{ 'disabled' if left <= 0 }}>{{ ui.icon('shield', 'sm') }} Tekshirish</button>
+    <p class="muted" style="margin:0;font-size:12px;font-weight:600;line-height:1.5">Bugun yana {{ left if left > 0 else 0 }} ta tekshiruv mumkin ({{ limit }} tadan). Fayl saqlanmaydi — faqat natija saqlanadi. Bu maslahat, fatvo emas.</p>
+  </form>
+  {% else %}
+  <div class="note">{{ ui.icon('lock') }}<span>Shartnoma tekshiruvi hozircha yopiq. Batafsil — administratordan so'rang.</span></div>
+  {% endif %}
+
+  <section>
+    <div class="sec-h"><h2>Mening tekshiruvlarim</h2></div>
+    {% if checks %}
+    <div class="card list">
+      {% for c in checks %}
+      {% set v = c.review_verdict or c.verdict %}
+      <a class="li" href="{{ url_for('ilova.contract', cid=c.id) }}">
+        <span class="li-i ct-v-{{ v or c.status }}">{{ ui.icon({'mos': 'check', 'shartli': 'pencil', 'mos_emas': 'x', 'xato': 'alert'}.get(v or c.status, 'file'), 'sm') }}</span>
+        <div class="li-b"><b>{{ c.title }}</b><small>{{ c.created_at|localdt }} · {% if c.status == 'navbatda' %}tahlil qilinmoqda…{% elif c.status == 'xato' %}xato{% elif c.review_verdict %}ustoz: {{ verdicts[c.review_verdict] }}{% else %}{{ verdicts.get(c.verdict, '') }} · ustoz ko'rmoqda{% endif %}</small></div>
+        {{ ui.icon('right', 'sm') }}
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card empty">{{ ui.icon('file') }}<b>Hali tekshiruv yo'q</b>Birinchi shartnomangizni yuklang.</div>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/contract.js') }}?v=1"></script>
+<script>document.querySelectorAll('[data-ct-form]').forEach(function (f) { f.addEventListener('submit', function () { var b = f.querySelector('button'); b.disabled = true; b.lastChild.textContent = ' Yuklanmoqda…'; }); });</script>{% endblock %}

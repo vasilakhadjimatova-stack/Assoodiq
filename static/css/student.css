@@ -404,3 +404,15 @@ button { font: inherit; color: inherit; }
 .inst i { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: var(--em); color: #fff; flex: none; }
 .inst div { flex: 1; min-width: 0; font-size: 13px; color: var(--txt3); font-weight: 600; }
 .inst div b { display: block; color: var(--txt); font-size: 14.5px; }
+
+/* Shartnoma tekshiruvi */
+.ct-drop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 14px; border-radius: 18px; border: 2px dashed var(--line); background: var(--card2); text-align: center; }
+.ct-drop input { position: absolute; inset: 0; opacity: 0; }
+.ct-drop .ic { color: var(--em-txt); }
+.ct-drop b { font-size: 15px; }
+.ct-drop span { font-size: 12.5px; color: var(--txt3); font-weight: 600; }
+.ct-drop em { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--em-txt); word-break: break-all; }
+.li-i.ct-v-shartli { background: var(--gold-bg); color: var(--gold); }
+.li-i.ct-v-mos_emas, .li-i.ct-v-xato { background: var(--bad-bg); color: var(--bad); }
+.li-i.ct-v-navbatda, .li-i.ct-v-aniqlanmadi { background: var(--card3); color: var(--txt2); }
+.cr .cr-verdict, .cr .cr-sum, .cr .cr-f, .cr .cr-ustoz { border-radius: 20px; }

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Bilimlar bazasi{% endblock %}
+{% block content %}
+<a class="crumb" href="{{ url_for('shartnoma.index') }}">{{ ui.icon('left', 'sm') }} Shartnoma tekshiruvi</a>
+<div class="head">
+  <div>
+    <div class="head-t">Bilimlar bazasi</div>
+    <div class="head-s">Shartnomalar <b>faqat</b> shu materiallar asosida tekshiriladi: ustozning qoidalari va fikrlari, standartlar (masalan AAOIFI), namunaviy bandlar, dars materiallari. {{ total }} ta faol material · {{ '%.0f'|format(size / 1000) }} ming belgi{% if size > budget %} <span class="warn-t">(katta — tekshiruvda shartnoma mavzusiga oid qismi ishlatiladi)</span>{% endif %}</div>
+  </div>
+  <div class="head-a"><a class="btn solid" href="{{ url_for('shartnoma.kb_edit', mavzu=topic or None) }}">{{ ui.icon('plus', 'sm') }} Material qo'shish</a></div>
+</div>
+
+<div class="kb-topics">
+  <a href="{{ url_for('shartnoma.kb_list', tur=kind or None, q=q or None) }}" class="{{ 'on' if not topic }}">Hammasi <span>{{ total }}</span></a>
+  {% for k, v in topics.items() %}<a href="{{ url_for('shartnoma.kb_list', mavzu=k, tur=kind or None, q=q or None) }}" class="{{ 'on' if topic == k }}">{{ v }} <span>{{ by_topic[k] }}</span></a>{% endfor %}
+</div>
+<form class="toolbar" method="get">
+  {% if topic %}<input type="hidden" name="mavzu" value="{{ topic }}">{% endif %}
+  <div class="chips">
+    <a class="chip {{ 'on' if not kind }}" href="{{ url_for('shartnoma.kb_list', mavzu=topic or None, q=q or None) }}">Barcha turlar</a>
+    {% for k, v in kinds.items() %}<a class="chip {{ 'on' if kind == k }}" href="{{ url_for('shartnoma.kb_list', mavzu=topic or None, tur=k, q=q or None) }}">{{ v }}</a>{% endfor %}
+  </div>
+  <label class="search">{{ ui.icon('search', 'sm') }}<input type="search" name="q" value="{{ q }}" placeholder="Matn bo'yicha qidirish"></label>
+</form>
+
+<div class="kb-list">
+  {% for d in docs %}
+  <a class="card kb-item {{ '' if d.active else 'off' }}" href="{{ url_for('shartnoma.kb_edit', did=d.id) }}">
+    <div class="kb-top"><span class="pill k-{{ d.kind }}">{{ d.kind_name }}</span><span class="pill">{{ d.topic_name }}</span>{% if not d.active %}<span class="pill warn">o'chiq</span>{% endif %}<small>#{{ d.id }}</small></div>
+    <b>{{ d.title }}</b>
+    {% if d.source %}<span class="kb-src">{{ ui.icon('book', 'sm') }} {{ d.source }}</span>{% endif %}
+    <p>{{ d.body|truncate(260) }}</p>
+  </a>
+  {% else %}
+  <div class="card empty" style="grid-column:1/-1">{{ ui.icon('book') }}<b>Material yo'q</b>Ustozning qoidalari, standart bandlari va namunaviy shartnoma bandlarini qo'shing. Word/PDF/TXT fayldan ham yuklasa bo'ladi.</div>
+  {% endfor %}
+</div>
+{% endblock %}

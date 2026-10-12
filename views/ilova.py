@@ -2,7 +2,7 @@
 import time
 from datetime import date, datetime, timedelta, timezone
 
-from flask import (Blueprint, current_app, flash, g, jsonify, redirect, render_template, request,
+from flask import (Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request,
                    send_from_directory, session, url_for)
 
 from core import finance as F
@@ -14,6 +14,7 @@ from core.models import Attendance, Lecture, Lesson, Member, Transaction
 
 bp = Blueprint("ilova", __name__, url_prefix="/app")
 
+CONTRACT_SOURCE = {"pdf": "PDF", "rasm": "Rasm", "docx": "Word", "matn": "Matn"}
 PUBLIC = {"ilova.login", "ilova.login_code", "ilova.tg_login", "ilova.invite", "ilova.manifest",
           "ilova.service_worker", "ilova.offline", "ilova.prayer_api"}
 WD = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba", "Yakshanba"]
@@ -308,6 +309,76 @@ def profile():
                            code=member_code(me.id), tg=me.telegram, bot=T.bot_username(),
                            paid=sum(c["paid"] for c in courses),
                            due=sum(c["due"] for c in courses if c["enrollment"].status != "chiqqan"))
+
+
+# ── Shartnoma tekshiruvi ────────────────────────────────────────────────────
+
+def _contracts_open():
+    from core import ai
+    from core.models import KnowledgeDoc
+    return (F.get_setting("contract_students") == "1" and ai.enabled()
+            and KnowledgeDoc.query.filter_by(active=True).count() > 0)
+
+
+def _contract_quota(member):
+    from core.models import ContractCheck
+    try:
+        limit = max(int(float(F.get_setting("contract_student_daily") or 3)), 1)
+    except ValueError:
+        limit = 3
+    since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=24)
+    used = ContractCheck.query.filter(ContractCheck.member_id == member.id, ContractCheck.created_at >= since).count()
+    return limit - used, limit
+
+
+@bp.route("/shartnoma", methods=["GET", "POST"])
+def contracts():
+    from core import contract as C
+    from core.models import ContractCheck
+    me = g.me
+    if request.method == "POST":
+        if not _contracts_open():
+            flash("Shartnoma tekshiruvi hozircha yopiq.", "warn")
+            return redirect(url_for("ilova.contracts"))
+        left, _ = _contract_quota(me)
+        if left <= 0:
+            flash("Bugungi tekshiruvlar soni tugadi. Ertaga qayta urinib ko'ring.", "warn")
+            return redirect(url_for("ilova.contracts"))
+        text, files, kind, err = C.read_upload(request.files.getlist("files"), request.form.get("text", ""))
+        if err:
+            flash(err, "bad")
+            return redirect(url_for("ilova.contracts"))
+        title = (request.form.get("title") or "").strip()[:200] or "Shartnoma"
+        check = ContractCheck(member_id=me.id, title=title, source_kind=kind)
+        db.session.add(check)
+        db.session.commit()
+        C.start(current_app._get_current_object(), check.id, text, files)
+        return redirect(url_for("ilova.contract", cid=check.id))
+    checks = (ContractCheck.query.filter_by(member_id=me.id).order_by(ContractCheck.created_at.desc()).limit(30).all())
+    left, limit = _contract_quota(me)
+    from core.models import CONTRACT_VERDICTS
+    return render_template("app/contracts.html", tab="kurs", checks=checks, open=_contracts_open(), left=left,
+                           limit=limit, verdicts=CONTRACT_VERDICTS, sources=CONTRACT_SOURCE)
+
+
+def _own_check(cid):
+    from core.models import ContractCheck
+    check = db.get_or_404(ContractCheck, cid)
+    if check.member_id != g.me.id:
+        abort(404)
+    return check
+
+
+@bp.route("/shartnoma/<int:cid>")
+def contract(cid):
+    from views.shartnoma import report_context
+    return render_template("app/contract.html", tab="kurs", **report_context(_own_check(cid)))
+
+
+@bp.route("/shartnoma/<int:cid>/holat")
+def contract_status(cid):
+    check = _own_check(cid)
+    return jsonify(status=check.status)
 
 
 # ── PWA ─────────────────────────────────────────────────────────────────────

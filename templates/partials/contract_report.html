@@ -1,0 +1,67 @@
+{# Shartnoma tekshiruvi natijasi — xodim sahifasi va o'quvchi ilovasida umumiy.
+   Kerak: c, res, kb, counts, cats, sev, verdicts, ui; poll_url (navbatda bo'lsa) #}
+{% if c.status == 'navbatda' %}
+<div class="cr-wait" data-cr-poll="{{ poll_url }}">
+  <span class="cr-spin"></span>
+  <div><b>Shartnoma tahlil qilinmoqda…</b><span>Bilimlar bazasi asosida har bir band tekshirilyapti. Odatda 1–3 daqiqa. Sahifani yopsangiz ham tahlil davom etadi.</span></div>
+</div>
+{% elif c.status == 'xato' %}
+<div class="cr-err">{{ ui.icon('alert') }}<div><b>Tahlil bajarilmadi</b><span>{{ c.error }}</span></div></div>
+{% else %}
+{% set v = c.review_verdict or res.verdict %}
+{% if c.review_verdict %}
+<div class="cr-ustoz v-{{ c.review_verdict }}">
+  <div class="cr-ustoz-h">{{ ui.icon('check', 'sm') }} Ustoz xulosasi{% if c.reviewer %} · {{ c.reviewer.name }}{% endif %}{% if c.reviewed_at %} · {{ c.reviewed_at|localdt }}{% endif %}</div>
+  <b>{{ verdicts[c.review_verdict] }}</b>
+  {% if c.review_text %}<p>{{ c.review_text }}</p>{% endif %}
+</div>
+{% endif %}
+<div class="cr-verdict v-{{ res.verdict }}">
+  <div class="cr-v-ic">{{ ui.icon({'mos': 'check', 'shartli': 'pencil', 'mos_emas': 'x'}.get(res.verdict, 'info')) }}</div>
+  <div class="cr-v-b">
+    <small>{{ "Sun'iy intellekt xulosasi" }}{% if not c.review_verdict %} · ustoz tasdiqlashi kutilmoqda{% endif %}</small>
+    <b>{{ verdicts.get(res.verdict, '') }}</b>
+    {% if res.verdict_reason %}<p>{{ res.verdict_reason }}</p>{% endif %}
+  </div>
+</div>
+<div class="cr-sum">
+  {% if res.contract_type %}<span class="cr-type">{{ ui.icon('file', 'sm') }} {{ res.contract_type }}</span>{% endif %}
+  {% if res.summary %}<p>{{ res.summary }}</p>{% endif %}
+  <div class="cr-counts">
+    <span class="s-jiddiy"><b>{{ counts.jiddiy }}</b> jiddiy</span>
+    <span class="s-orta"><b>{{ counts.orta }}</b> tuzatish kerak</span>
+    <span class="s-tavsiya"><b>{{ counts.tavsiya }}</b> tavsiya</span>
+  </div>
+</div>
+
+{% if res.findings %}
+<h3 class="cr-h">Topilgan masalalar</h3>
+<div class="cr-list">
+  {% for f in res.findings %}
+  <article class="cr-f s-{{ f.severity }}">
+    <div class="cr-f-h"><span class="cr-sev">{{ sev[f.severity] }}</span><span class="cr-cat">{{ cats.get(f.category, f.category) }}</span></div>
+    <b class="cr-issue">{{ f.issue }}</b>
+    {% if f.clause %}<blockquote>{{ f.clause }}</blockquote>{% endif %}
+    <p>{{ f.explanation }}</p>
+    {% if f.suggestion %}
+    <div class="cr-sug"><small>{{ ui.icon('pencil', 'sm') }} Taklif etilgan band</small><p data-copy-text>{{ f.suggestion }}</p><button type="button" class="cr-copy" data-cr-copy>{{ ui.icon('copy', 'sm') }} Nusxa</button></div>
+    {% endif %}
+    <div class="cr-src">
+      {% for sid in f.sources %}{% set d = kb.get(sid) %}
+      <details><summary>{{ ui.icon('book', 'sm') }} {{ d.title if d else 'Material #' ~ sid }}{% if d and d.source %} · <span>{{ d.source }}</span>{% endif %}</summary>
+        {% if d %}<div class="cr-src-b"><small>{{ d.kind_name }} · {{ d.topic_name }}</small>{{ d.body|truncate(900) }}</div>{% else %}<div class="cr-src-b">Material bazadan o'chirilgan.</div>{% endif %}
+      </details>
+      {% endfor %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="cr-grid">
+  {% if res.missing %}<section class="cr-box"><h4>{{ ui.icon('alert', 'sm') }} Shartnomada yetishmaydi</h4><ul>{% for m in res.missing %}<li>{{ m }}</li>{% endfor %}</ul></section>{% endif %}
+  {% if res.good_points %}<section class="cr-box ok"><h4>{{ ui.icon('check', 'sm') }} Yaxshi tomonlari</h4><ul>{% for m in res.good_points %}<li>{{ m }}</li>{% endfor %}</ul></section>{% endif %}
+  {% if res.questions_for_ustoz %}<section class="cr-box q"><h4>{{ ui.icon('info', 'sm') }} Ustoz bilan aniqlashtirish</h4><ul>{% for m in res.questions_for_ustoz %}<li>{{ m }}</li>{% endfor %}</ul></section>{% endif %}
+</div>
+<p class="cr-note">Bu tahlil markazning bilimlar bazasi (ustoz qoidalari, standartlar va namunalar) asosida tayyorlangan maslahat, fatvo emas. Yakuniy qaror — ustozniki.{% if res.kb_trimmed %} Baza katta bo'lgani uchun shartnoma mavzusiga oid materiallar ishlatildi.{% endif %}</p>
+{% endif %}

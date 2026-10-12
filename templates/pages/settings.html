@@ -257,7 +257,7 @@
 </div>
 {% elif tab == 'ai' %}
 {% set DAYS = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'] %}
-{% set FEAT = {'kassa': 'Kassaga yozish', 'savol': 'Savollar', 'hisobot': 'Haftalik tahlil'} %}
+{% set FEAT = {'kassa': 'Kassaga yozish', 'savol': 'Savollar', 'hisobot': 'Haftalik tahlil', 'shartnoma': 'Shartnoma tekshiruvi'} %}
 <div class="tg">
   <div class="tg-steps">
     <div class="tg-step {{ 'done' if aic.on }}"><i>1</i><div>
@@ -299,6 +299,10 @@
         <div class="tg-opt">
           <span class="tg-ic">{{ ui.icon('shield', 'sm') }}</span>
           <div><b>Kunlik limit</b><span>sutkada ko'pi bilan <input class="tg-num" name="ai_daily_limit" value="{{ aic.opts.ai_daily_limit }}" inputmode="numeric"> ta so'rov — xarajat nazorati</span></div>
+        </div>
+        <div class="tg-opt">
+          <label class="tg-sw"><input type="checkbox" name="contract_students" {{ 'checked' if aic.opts.contract_students == '1' }}><span></span></label>
+          <div><b>O'quvchilar shartnoma tekshira oladi</b><span>ilovada, kuniga <input class="tg-num" name="contract_student_daily" value="{{ aic.opts.contract_student_daily }}" inputmode="numeric"> tadan</span></div>
         </div>
         <div><button class="btn solid">{{ ui.icon('check', 'sm') }} Saqlash</button></div>
       </div>
